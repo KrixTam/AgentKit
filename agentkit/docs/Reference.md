@@ -386,11 +386,11 @@ from agentkit import LLMRegistry
 
 | 前缀 | 适配器 | 需要的包 |
 |------|--------|---------|
-| `gpt-`、`o1`、`o3` | OpenAIAdapter | `openai` |
+| `gpt-`、`o1`、`o3`、`o4` | OpenAIAdapter | `openai` |
 | `claude-` | AnthropicAdapter | `anthropic` |
 | `gemini-` | GoogleAdapter | `google-genai` |
 | `ollama/` | OllamaAdapter | `aiohttp` |
-| `deepseek/`、`qwen/`、`zhipu/`、`moonshot/` | OpenAICompatibleAdapter | `openai` |
+| `deepseek/`、`qwen/`、`zhipu/`、`moonshot/`、`baichuan/`、`azure/` | OpenAICompatibleAdapter | `openai` |
 
 ---
 

@@ -8,7 +8,7 @@ from __future__ import annotations
 from abc import abstractmethod
 from typing import TYPE_CHECKING, Any, AsyncGenerator, Callable, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from ..runner.events import Event
 
@@ -26,7 +26,7 @@ class BaseAgent(BaseModel):
     before_agent_callback: Optional[Callable] = None
     after_agent_callback: Optional[Callable] = None
 
-    model_config = {"arbitrary_types_allowed": True}
+    model_config = ConfigDict(arbitrary_types_allowed=True)
 
     def model_post_init(self, __context: Any) -> None:
         for sub in self.sub_agents:

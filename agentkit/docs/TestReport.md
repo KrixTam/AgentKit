@@ -3,7 +3,7 @@
 > 测试时间：2026-04-12  
 > 测试环境：macOS (Apple Silicon)  
 > 模型：Ollama `qwen3.5:cloud`  
-> AgentKit 版本：v0.3.0  
+> AgentKit 版本：v0.3.1  
 > Thinking 模式：开启（默认）  
 > LLM 调用模式：非流式（默认）  
 > 缓存：开启（默认）

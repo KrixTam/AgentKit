@@ -9,7 +9,6 @@ agentkit/tools/skill_toolset.py — SkillToolset：Skill → Tool 桥接器
 """
 from __future__ import annotations
 
-import json
 from typing import Any, Optional
 
 from ..llm.types import ToolDefinition

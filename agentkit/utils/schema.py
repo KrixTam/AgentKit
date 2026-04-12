@@ -20,14 +20,6 @@ class FuncSchema:
     takes_context: bool = False  # 第一个参数是否是上下文
 
 
-_TYPE_MAP: dict[type, str] = {
-    str: "string",
-    int: "integer",
-    float: "number",
-    bool: "boolean",
-}
-
-
 def generate_function_schema(
     func: Callable,
     *,

@@ -730,14 +730,12 @@ agent = Agent(model="claude-sonnet-4-20250514", ...)
 # Google Gemini
 agent = Agent(model="gemini-2.5-flash", ...)
 
-# DeepSeek（国内）
+# 通义千问 / 智谱 / 百川 / Azure
 agent = Agent(model="deepseek/deepseek-chat", ...)
-
-# 通义千问
 agent = Agent(model="qwen/qwen-max", ...)
-
-# 智谱 GLM
 agent = Agent(model="zhipu/glm-4", ...)
+agent = Agent(model="baichuan/baichuan2-turbo", ...)
+agent = Agent(model="azure/your-deployment", ...)
 ```
 
 ### 精细配置

@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from typing import Any, AsyncGenerator, Optional
+from typing import Any, AsyncGenerator
 
 from .context import RunContext
 from .events import Event, RunResult

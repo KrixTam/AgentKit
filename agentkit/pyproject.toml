@@ -1,7 +1,10 @@
 [project]
 name = "agentkit"
-version = "0.3.0"
+version = "0.3.1"
 description = "A Python-native Agent framework with first-class Skill support and multi-LLM adapter"
+authors = [
+    { name = "Krix Tam", email = "krix.tam@qq.com" }
+]
 requires-python = ">=3.11"
 license = {text = "MIT"}
 readme = "README.md"
@@ -42,8 +45,8 @@ all = [
 agentkit-docs = "agentkit._cli:show_docs"
 
 [project.urls]
-Documentation = "https://github.com/agentkit/agentkit/tree/main/docs"
-Repository = "https://github.com/agentkit/agentkit"
+Documentation = "https://github.com/KrixTam/AgentKit/tree/main/agentkit/docs"
+Repository = "https://github.com/KrixTam/AgentKit"
 
 # ===== 构建配置 =====
 

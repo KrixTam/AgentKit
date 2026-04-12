@@ -9,4 +9,4 @@ __pycache__
 logs
 data
 .vite
- 
+*.egg-info

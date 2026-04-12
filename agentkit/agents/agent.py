@@ -10,11 +10,10 @@ agentkit/agents/agent.py — 核心 LLM Agent
 from __future__ import annotations
 
 import inspect
-import json
 import logging
 from typing import TYPE_CHECKING, Any, AsyncGenerator, Callable, Optional, Union
 
-from pydantic import Field, PrivateAttr
+from pydantic import ConfigDict, Field, PrivateAttr
 
 from ..llm.base import BaseLLM
 from ..llm.registry import LLMRegistry
@@ -320,7 +319,7 @@ class Agent(BaseAgent):
 
     _cache_instance: Any = PrivateAttr(default=None)
 
-    model_config = {"arbitrary_types_allowed": True}
+    model_config = ConfigDict(arbitrary_types_allowed=True)
 
     def _get_cache(self):
         """获取或创建缓存实例（懒初始化）"""

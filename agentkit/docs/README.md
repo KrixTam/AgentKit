@@ -3,7 +3,7 @@
 > Python 原生的 Agent 开发框架，内置一等公民级别的 Skill 支持和自研多模型适配层。
 
 [![Python](https://img.shields.io/badge/Python-≥3.11-blue.svg)](https://python.org)
-[![Version](https://img.shields.io/badge/Version-0.3.0-green.svg)]()
+[![Version](https://img.shields.io/badge/Version-0.3.1-green.svg)]()
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)]()
 
 ---
@@ -19,7 +19,7 @@
 | **@function_tool** | 一行装饰器把 Python 函数变成 LLM 工具，自动推断 JSON Schema |
 | **安全内置** | Input/Output 双向 Guardrail + 三层权限控制 + 三级沙箱执行 |
 | **记忆系统** | Mem0 集成，跨会话长期记忆 |
-| **6 个回调点** | before/after × agent/model/tool，任何环节可拦截定制 |
+| **7 个回调点** | before/after × agent/model/tool + error，任何环节可拦截定制 |
 
 ---
 
@@ -72,9 +72,9 @@ print(result.final_output)
 
 | 文档 | 说明 |
 |------|------|
-| **[QuickStart.md](docs/QuickStart.md)** | 详细入门教程，包含 6 个从简到繁的完整示例 |
-| **[Architecture.md](docs/Architecture.md)** | 架构设计说明：六层分层、设计原则、核心流程 |
-| **[Reference.md](docs/Reference.md)** | 完整 API 参考手册：所有类、方法、参数说明 |
+| **[QuickStart.md](QuickStart.md)** | 详细入门教程，包含 8 个从简到繁的完整示例 |
+| **[Architecture.md](Architecture.md)** | 架构设计说明：六层分层、设计原则、核心流程 |
+| **[Reference.md](Reference.md)** | 完整 API 参考手册：所有类、方法、参数说明 |
 
 ---
 
@@ -84,13 +84,15 @@ print(result.final_output)
 
 | 模型标识 | 适配器 | 示例 |
 |---------|--------|------|
-| `gpt-4o`、`gpt-4o-mini`、`o1`、`o3` | OpenAIAdapter | `model="gpt-4o"` |
+| `gpt-4o`、`gpt-4o-mini`、`o1`、`o3`、`o4` | OpenAIAdapter | `model="gpt-4o"` |
 | `claude-sonnet-4-20250514`、`claude-opus-4-20250514` | AnthropicAdapter | `model="claude-sonnet-4-20250514"` |
 | `gemini-2.5-pro`、`gemini-2.5-flash` | GoogleAdapter | `model="gemini-2.5-pro"` |
 | `ollama/qwen3.5:cloud`、`ollama/qwen3.5:4b` | OllamaAdapter | `model="ollama/qwen3.5:cloud"` |
 | `deepseek/deepseek-chat` | OpenAICompatibleAdapter | `model="deepseek/deepseek-chat"` |
 | `qwen/qwen-max` | OpenAICompatibleAdapter | `model="qwen/qwen-max"` |
 | `zhipu/glm-4` | OpenAICompatibleAdapter | `model="zhipu/glm-4"` |
+| `baichuan/baichuan2-turbo` | OpenAICompatibleAdapter | `model="baichuan/baichuan2-turbo"` |
+| `azure/your-deployment` | OpenAICompatibleAdapter | `model="azure/your-deployment"` |
 
 ---
 

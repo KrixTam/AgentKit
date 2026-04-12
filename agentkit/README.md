@@ -87,10 +87,10 @@ python -m agentkit.examples.ollama.01_basic_chat
 
 | 模型 | 适配器 | 用法 |
 |------|--------|------|
-| GPT-4o / o1 / o3 | OpenAIAdapter | `model="gpt-4o"` |
+| GPT-4o / o1 / o3 / o4 | OpenAIAdapter | `model="gpt-4o"` |
 | Claude Opus/Sonnet/Haiku | AnthropicAdapter | `model="claude-sonnet-4-20250514"` |
 | Gemini 2.5 / 3 | GoogleAdapter | `model="gemini-2.5-pro"` |
-| 通义千问/智谱/DeepSeek/Moonshot | OpenAICompatibleAdapter | `model="deepseek/deepseek-chat"` |
+| 通义千问/智谱/DeepSeek/Moonshot/百川/Azure | OpenAICompatibleAdapter | `model="deepseek/deepseek-chat"` |
 | Ollama 本地模型 | OllamaAdapter | `model="ollama/qwen3.5:cloud"` |
 
 ## 🔨 构建打包
@@ -106,8 +106,8 @@ python -m agentkit.examples.ollama.01_basic_chat
 
 ```bash
 dist/
-├── agentkit-0.3.0-py3-none-any.whl   # pip install 用这个
-└── agentkit-0.3.0.tar.gz             # 源码分发
+├── agentkit-0.3.1-py3-none-any.whl   # pip install 用这个
+└── agentkit-0.3.1.tar.gz             # 源码分发
 ```
 
 ## 📄 License

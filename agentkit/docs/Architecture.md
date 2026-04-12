@@ -109,44 +109,47 @@ Runner.run()
   │    ├─ ❶ before_agent_callback
   │    │
   │    ├─ Agent._run_impl()（核心循环）
-  │    │    │
-  │    │    ├─ 构建 instructions
-  │    │    │    ├─ 静态字符串 或 动态函数
-  │    │    │    ├─ 注入记忆（Memory 检索）
-  │    │    │    └─ 注入 Skill 列表（L1 信息）
-  │    │    │
-  │    │    ├─ 汇总工具
-  │    │    │    ├─ tools → FunctionTool
-  │    │    │    ├─ skills → SkillToolset（4 个桥接工具）
-  │    │    │    └─ handoffs → transfer_to_xxx
-  │    │    │
-  │    │    ├─ ❷ before_model_callback
-  │    │    ├─ 调用 LLM（通过适配器）
-  │    │    ├─ ❸ after_model_callback
-  │    │    │
-  │    │    ├─ 如果 LLM 要调用工具：
-  │    │    │    ├─ ❹ before_tool_callback
-  │    │    │    ├─ 权限检查（PermissionPolicy）
-  │    │    │    ├─ 执行工具
-  │    │    │    ├─ ❺ after_tool_callback
-  │    │    │    └─ 根据 tool_use_behavior 决定是否再调 LLM
-  │    │    │
-  │    │    ├─ 如果 LLM 要 handoff：
-  │    │    │    └─ 返回 handoff 事件 → Runner 切换 Agent
-  │    │    │
-  │    │    └─ 如果 LLM 给出最终回复：
-  │    │         ├─ 输出最终结果
-  │    │         └─ 存储记忆
-  │    │
-  │    └─ ❻ after_agent_callback
-  │
-  ├─ 检查输出护栏（OutputGuardrail）
-  │    └─ 如果触发 → 返回错误
-  │
-  └─ 返回 RunResult
+    │    │    │
+    │    │    ├─ 构建 instructions
+    │    │    │    ├─ 静态字符串 或 动态函数
+    │    │    │    ├─ 注入记忆（Memory 检索）
+    │    │    │    └─ 注入 Skill 列表（L1 信息）
+    │    │    │
+    │    │    ├─ 汇总工具
+    │    │    │    ├─ tools → FunctionTool
+    │    │    │    ├─ skills → SkillToolset（4 个桥接工具）
+    │    │    │    └─ handoffs → transfer_to_xxx
+    │    │    │
+    │    │    ├─ ❷ before_model_callback
+    │    │    ├─ 调用 LLM（通过适配器）
+    │    │    ├─ ❸ after_model_callback
+    │    │    │
+    │    │    ├─ 如果 LLM 发生错误：
+    │    │    │    └─ ❼ on_error_callback
+    │    │    │
+    │    │    ├─ 如果 LLM 要调用工具：
+    │    │    │    ├─ ❹ before_tool_callback
+    │    │    │    ├─ 权限检查（PermissionPolicy）
+    │    │    │    ├─ 执行工具
+    │    │    │    ├─ ❺ after_tool_callback
+    │    │    │    └─ 根据 tool_use_behavior 决定是否再调 LLM
+    │    │    │
+    │    │    ├─ 如果 LLM 要 handoff：
+    │    │    │    └─ 返回 handoff 事件 → Runner 切换 Agent
+    │    │    │
+    │    │    └─ 如果 LLM 给出最终回复：
+    │    │         ├─ 输出最终结果
+    │    │         └─ 存储记忆
+    │    │
+    │    └─ ❻ after_agent_callback
+    │
+    ├─ 检查输出护栏（OutputGuardrail）
+    │    └─ 如果触发 → 返回错误
+    │
+    └─ 返回 RunResult
 ```
 
-**6 个回调点**标记为 ❶ ~ ❻，覆盖了 Agent、Model、Tool 三个层面的前后拦截。
+**7 个回调点**标记为 ❶ ~ ❼，覆盖了 Agent、Model、Tool 三个层面的前后拦截及错误处理。
 
 ---
 
@@ -228,11 +231,11 @@ Agent / Skill
 
 | 模型标识前缀 | 适配器 |
 |------------|--------|
-| `gpt-`、`o1`、`o3` | OpenAIAdapter |
+| `gpt-`、`o1`、`o3`、`o4` | OpenAIAdapter |
 | `claude-` | AnthropicAdapter |
 | `gemini-` | GoogleAdapter |
 | `ollama/` | OllamaAdapter |
-| `deepseek/`、`qwen/`、`zhipu/`、`moonshot/` | OpenAICompatibleAdapter |
+| `deepseek/`、`qwen/`、`zhipu/`、`moonshot/`、`baichuan/`、`azure/` | OpenAICompatibleAdapter |
 
 ### 各厂商核心差异
 

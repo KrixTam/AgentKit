@@ -7,7 +7,7 @@ agentkit/llm/adapters/ollama_adapter.py — Ollama 本地模型适配器
 3. 直接获取最终 content
 
 默认非流式调用（与 OpenAI/Google ADK 一致），流式由 generate_stream() 提供。
-默认关闭 thinking 模式以提升响应速度。
+默认开启 thinking 模式。
 
 支持模型：所有 Ollama 本地模型（如 qwen3.5:cloud, qwen3.5:4b, llama3, gemma 等）
 """
@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import json
 import logging
-from typing import Any, AsyncGenerator, Optional
+from typing import Any, AsyncGenerator
 
 from ..base import BaseLLM
 from ..types import (

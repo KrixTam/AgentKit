@@ -10,7 +10,6 @@ from typing import Any, AsyncGenerator
 
 from .base import BaseLLM
 from .types import (
-    FinishReason,
     LLMConfig,
     LLMResponse,
     Message,
