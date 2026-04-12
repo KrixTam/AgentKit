@@ -18,7 +18,16 @@
 ## 🚀 安装
 
 ```bash
+# 基础安装
 pip install ni.agentkit
+
+# 如果需要 OpenAI / DeepSeek / 通义千问等
+pip install "ni.agentkit[openai]"
+pip install "ni.agentkit[anthropic]"
+pip install "ni.agentkit[google]"
+pip install "ni.agentkit[memory]"
+pip install "ni.agentkit[docker]"
+pip install "ni.agentkit[all]"
 ```
 
 ## ⚡ 30 秒快速开始
