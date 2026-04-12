@@ -29,7 +29,7 @@ from .skills.registry import SkillRegistry
 from .tools.base_tool import BaseTool, BaseToolset
 from .tools.function_tool import FunctionTool, function_tool
 
-__version__ = "0.3.1"
+__version__ = "0.3.2"
 
 
 def get_docs_dir() -> str:

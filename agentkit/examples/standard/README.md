@@ -3,8 +3,13 @@
 使用 OpenAI GPT-4o 模型的示例。运行前请设置：
 
 ```bash
+# 基础安装
+pip install ni.agentkit
+
+# 如果需要 OpenAI / DeepSeek / 通义千问等
+pip install "ni.agentkit[openai]"
+
 export OPENAI_API_KEY="sk-..."
-pip install openai>=1.0.0
 ```
 
 ## 示例列表

@@ -30,7 +30,11 @@
 ### 1. 安装依赖
 
 ```bash
-pip install pydantic>=2.0 aiohttp>=3.9.0
+# 基础安装
+pip install ni.agentkit
+
+# 如果需要 OpenAI / DeepSeek / 通义千问等
+pip install "ni.agentkit[openai]"
 ```
 
 ### 2. 配置模型

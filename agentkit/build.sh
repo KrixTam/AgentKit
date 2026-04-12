@@ -71,6 +71,10 @@ do_version() {
         fail "版本号格式错误: ${new_ver}（应为 X.Y.Z 格式）"
     fi
 
+    # 动态读取项目名称
+    PROJECT_NAME=$(python3 -c "import re; print(re.search(r'name\s*=\s*\"(.+?)\"', open('pyproject.toml').read()).group(1))")
+    NORMALIZED_NAME=$(echo "$PROJECT_NAME" | sed 's/[-.]/_/g')
+
     info "升级版本号: ${old_ver} → ${new_ver}"
 
     # 1. pyproject.toml
@@ -96,7 +100,8 @@ do_version() {
     fi
 
     # 6. README.md（构建产物文件名）
-    sed -i '' "s/agentkit-${old_ver}/agentkit-${new_ver}/g" README.md
+    # 使用项目名规范化后的名称进行替换
+    sed -i '' "s/${NORMALIZED_NAME}-${old_ver}/${NORMALIZED_NAME}-${new_ver}/g" README.md
     echo "   ✓ README.md"
 
     ok "版本号已更新为 ${new_ver}"
@@ -163,15 +168,20 @@ do_archive() {
 # ============================================================
 
 do_build() {
-    # 重新读取版本（可能已被 do_version 修改）
+    # 动态读取项目名称和版本号
+    PROJECT_NAME=$(python3 -c "import re; print(re.search(r'name\s*=\s*\"(.+?)\"', open('pyproject.toml').read()).group(1))")
     VERSION=$(python3 -c "import re; print(re.search(r'version\s*=\s*\"(.+?)\"', open('pyproject.toml').read()).group(1))")
-    WHEEL="dist/agentkit-${VERSION}-py3-none-any.whl"
-    SDIST="dist/agentkit-${VERSION}.tar.gz"
+
+    # Python 构建工具会将项目名中的连字符 (-) 和点 (.) 规范化为下划线 (_)
+    NORMALIZED_NAME=$(echo "$PROJECT_NAME" | sed 's/[-.]/_/g')
+
+    WHEEL="dist/${NORMALIZED_NAME}-${VERSION}-py3-none-any.whl"
+    SDIST="dist/${NORMALIZED_NAME}-${VERSION}.tar.gz"
 
     info "检查 build 工具..."
     pip install --quiet build 2>/dev/null || pip install build -q
 
-    info "构建 agentkit v${VERSION}..."
+    info "构建 ${PROJECT_NAME} v${VERSION}..."
     python3 -m build --quiet 2>&1 | grep -v "SetuptoolsDeprecationWarning" | grep -v "^!!" | grep -v "^\*\*\*" | grep -v "Please " | grep -v "By 2027" | grep -v "See https" | grep -v "^$" || true
 
     if [[ -f "$WHEEL" && -f "$SDIST" ]]; then
@@ -198,8 +208,12 @@ do_build() {
 # ============================================================
 
 do_test() {
+    # 动态读取项目名称和版本号
+    PROJECT_NAME=$(python3 -c "import re; print(re.search(r'name\s*=\s*\"(.+?)\"', open('pyproject.toml').read()).group(1))")
     VERSION=$(python3 -c "import re; print(re.search(r'version\s*=\s*\"(.+?)\"', open('pyproject.toml').read()).group(1))")
-    WHEEL="dist/agentkit-${VERSION}-py3-none-any.whl"
+    NORMALIZED_NAME=$(echo "$PROJECT_NAME" | sed 's/[-.]/_/g')
+
+    WHEEL="dist/${NORMALIZED_NAME}-${VERSION}-py3-none-any.whl"
 
     if [[ ! -f "$WHEEL" ]]; then
         fail "未找到 $WHEEL，请先运行 ./build.sh 构建"

@@ -3,7 +3,7 @@
 > Python 原生的 Agent 开发框架，内置一等公民级别的 Skill 支持和自研多模型适配层。
 
 [![Python](https://img.shields.io/badge/Python-≥3.11-blue.svg)](https://python.org)
-[![Version](https://img.shields.io/badge/Version-0.3.1-green.svg)]()
+[![Version](https://img.shields.io/badge/Version-0.3.2-green.svg)]()
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)]()
 
 ---
@@ -27,17 +27,15 @@
 
 ```bash
 # 基础安装
-pip install pydantic>=2.0
+pip install ni.agentkit
 
-# 按需安装 LLM 适配器
-pip install openai>=1.0.0          # OpenAI + 国内兼容厂商
-pip install anthropic>=0.30.0      # Anthropic Claude
-pip install google-genai>=1.0.0    # Google Gemini
-pip install aiohttp>=3.9.0         # Ollama 本地模型
-
-# 可选
-pip install mem0ai>=0.1.0          # 记忆系统
-pip install docker>=7.0.0          # Docker 沙箱
+# 按需安装额外依赖
+pip install "ni.agentkit[openai]"    # OpenAI + 国内兼容厂商
+pip install "ni.agentkit[anthropic]" # Anthropic Claude
+pip install "ni.agentkit[google]"    # Google Gemini
+pip install "ni.agentkit[memory]"    # 记忆系统 (mem0)
+pip install "ni.agentkit[docker]"    # Docker 沙箱 (Level 3 Skill)
+pip install "ni.agentkit[all]"       # 安装所有可选依赖
 ```
 
 ---

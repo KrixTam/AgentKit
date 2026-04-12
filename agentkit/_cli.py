@@ -23,7 +23,7 @@ def show_docs():
     examples_dir = _get_examples_dir()
 
     print("=" * 60)
-    print("  AgentKit v0.3.1 — 文档与示例")
+    print("  AgentKit v0.3.2 — 文档与示例")
     print("=" * 60)
     print()
 

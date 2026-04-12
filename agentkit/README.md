@@ -18,14 +18,7 @@
 ## 🚀 安装
 
 ```bash
-# 基础安装（仅核心 + pydantic）
-pip install agentkit
-
-# 按需安装 LLM 适配器
-pip install agentkit[openai]      # OpenAI GPT
-pip install agentkit[anthropic]   # Anthropic Claude
-pip install agentkit[google]      # Google Gemini
-pip install agentkit[all]         # 全部
+pip install ni.agentkit
 ```
 
 ## ⚡ 30 秒快速开始
@@ -106,8 +99,8 @@ python -m agentkit.examples.ollama.01_basic_chat
 
 ```bash
 dist/
-├── agentkit-0.3.1-py3-none-any.whl   # pip install 用这个
-└── agentkit-0.3.1.tar.gz             # 源码分发
+├── ni_agentkit-0.3.2-py3-none-any.whl   # pip install 用这个
+└── ni_agentkit-0.3.2.tar.gz             # 源码分发
 ```
 
 ## 📄 License
