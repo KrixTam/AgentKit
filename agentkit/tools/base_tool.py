@@ -14,6 +14,22 @@ if TYPE_CHECKING:
     from ..runner.context import RunContext
 
 
+class HumanInputRequested(Exception):
+    """工具请求人工输入时抛出的异常"""
+    def __init__(self, prompt: str, **kwargs):
+        self.prompt = prompt
+        self.kwargs = kwargs
+        super().__init__(prompt)
+
+
+def request_human_input(prompt: str, **kwargs: Any) -> Any:
+    """
+    Tool 层标准人工输入请求结果。
+    抛出异常以中断当前执行，Runner 会捕获并挂起任务。
+    """
+    raise HumanInputRequested(prompt, **kwargs)
+
+
 class BaseTool(ABC):
     """工具基类——所有工具的统一接口"""
 

@@ -4,10 +4,13 @@ agentkit/runner/context.py — RunContext（一次运行的完整上下文）
 from __future__ import annotations
 
 import copy
+import json
+import logging
 from dataclasses import dataclass, field
 from typing import Any, Optional
 from uuid import uuid4
 
+logger = logging.getLogger(__name__)
 
 @dataclass
 class RunContext:
@@ -45,3 +48,60 @@ class RunContext:
         branch_ctx = copy.deepcopy(self)
         branch_ctx.branch = branch_name
         return branch_ctx
+
+    def to_dict(self) -> dict[str, Any]:
+        """将 RunContext 序列化为字典，支持 shared_context 自定义协议"""
+        serialized_shared = None
+        if self.shared_context is not None:
+            if hasattr(self.shared_context, "__ak_serialize__"):
+                serialized_shared = self.shared_context.__ak_serialize__()
+            elif hasattr(self.shared_context, "to_dict"):
+                serialized_shared = self.shared_context.to_dict()
+            else:
+                try:
+                    # 尝试基础 JSON 序列化
+                    json.dumps(self.shared_context)
+                    serialized_shared = self.shared_context
+                except (TypeError, ValueError):
+                    logger.warning(f"shared_context of type {type(self.shared_context)} is not serializable. Skipping.")
+                    serialized_shared = None
+
+        return {
+            "input": self.input,
+            "shared_context": serialized_shared,
+            "user_id": self.user_id,
+            "session_id": self.session_id,
+            "messages": copy.deepcopy(self.messages),
+            "state": copy.deepcopy(self.state),
+            "branch": self.branch,
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any], shared_context_cls: Optional[Any] = None) -> "RunContext":
+        """从字典反序列化 RunContext"""
+        shared_context = data.get("shared_context")
+        if shared_context is not None and shared_context_cls is not None:
+            if hasattr(shared_context_cls, "__ak_deserialize__"):
+                shared_context = shared_context_cls.__ak_deserialize__(shared_context)
+            elif hasattr(shared_context_cls, "from_dict"):
+                shared_context = shared_context_cls.from_dict(shared_context)
+
+        return cls(
+            input=data.get("input", ""),
+            shared_context=shared_context,
+            user_id=data.get("user_id"),
+            session_id=data.get("session_id", str(uuid4())),
+            messages=data.get("messages", []),
+            state=data.get("state", {}),
+            branch=data.get("branch"),
+        )
+
+    def to_json(self) -> str:
+        """将 RunContext 序列化为 JSON 字符串"""
+        return json.dumps(self.to_dict(), ensure_ascii=False)
+
+    @classmethod
+    def from_json(cls, json_str: str, shared_context_cls: Optional[Any] = None) -> "RunContext":
+        """从 JSON 字符串反序列化 RunContext"""
+        return cls.from_dict(json.loads(json_str), shared_context_cls)
+

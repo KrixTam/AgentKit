@@ -14,25 +14,28 @@
 
 | # | 示例 | 文件 | 耗时 | 状态 | 说明 |
 |---|------|------|-----:|:----:|------|
-| 1 | 基础对话 | `01_basic_chat.py` | 10.9s | ✅ | 正确回答量子计算定义 |
-| 2 | 工具调用 | `02_tool_calling.py` | 66.7s | ✅ | add=42 / multiply=21 / weather=晴25°C |
-| 3 | Skill 使用 | `03_skill_usage.py` | 25.2s | ✅ | 深圳阵雨→带伞 / 成都阴→厚外套 / 广州晴→防晒 |
-| 4 | 多 Agent 协作 | `04_multi_agent.py` | 74.8s | ✅ | as_tool 委派成功；Handoff 仍偶发返回 None |
-| 5 | 安全护栏 | `05_guardrail.py` | 7.8s | ✅ | 敏感词拦截 ✅ / read_file 放行 ✅ / delete_file 拒绝 ✅ |
-| 6 | 编排 Agent | `06_orchestration.py` | 339.9s | ✅ | 修复 LoopAgent 前向引用错误后通过；Sequential + Parallel + Loop |
-| 7 | 同步/异步/流式 | `07_sync_async_stream.py` | 16.5s | ✅ | run_sync / run / 并发 / 流式四种路径均通过 |
-| 8 | 记忆系统 | `08_memory.py` | 869.8s | ✅ | 流程可跑通；部分轮次输出出现 None（见已知问题） |
-| 9A | 结构化数据（SQL） | `09a_structured_data_sql.py` | 6.2s | ✅ | 修复 StructuredDataTool 工具定义类型后通过，SQLite Mock 查询成功 |
-| 9B | 结构化数据（图） | `09b_structured_data_graph.py` | 8.6s | ✅ | NebulaGraphTool + Mock 连接池 + Mock 数据返回成功 |
-| 10 | Skill 生命周期 | `10_skill_lifecycle.py` | 2.4s | ✅ | on_load / on_unload 路径可执行，示例运行通过 |
-| 11 | 编排增强 | `11_orchestration_enhancement.py` | 31.6s | ✅ | loop_condition 生效；early_exit 触发并取消慢分支 |
-| | **合计** | | **1460.2s** | **12/12** | |
+| 1 | 基础对话 | `01_basic_chat.py` | 37.9s | ✅ | 首次请求出现 cloud 超时，重跑后通过并返回量子计算定义 |
+| 2 | 工具调用 | `02_tool_calling.py` | 8.4s | ✅ | add=42 / multiply=21 / weather=晴25°C |
+| 3 | Skill 使用 | `03_skill_usage.py` | 39.1s | ✅ | 三次查询均正确，Skill 加载与工具调用正常 |
+| 4 | 多 Agent 协作 | `04_multi_agent.py` | 40.3s | ⚠️ | as_tool 委派成功；Handoff 路径仍返回 `None` |
+| 5 | 安全护栏 | `05_guardrail.py` | 7.5s | ✅ | 敏感词拦截 ✅ / read_file 放行 ✅ / delete_file 拒绝 ✅ |
+| 6 | 编排 Agent | `06_orchestration.py` | 169.6s | ✅ | Sequential + Parallel + Loop 三段流程均通过 |
+| 7 | 同步/异步/流式 | `07_sync_async_stream.py` | 12.7s | ✅ | run_sync / run / 并发 / 流式四种路径均通过 |
+| 8 | 记忆系统 | `08_memory.py` | 396.5s | ✅ | 流程完整通过；无记忆阶段回复仍出现 `None`（见已知问题） |
+| 9A | 结构化数据（SQL） | `09a_structured_data_sql.py` | 6.7s | ✅ | 修复本地源码导入路径后通过，SQLite Mock 查询成功 |
+| 9B | 结构化数据（图） | `09b_structured_data_graph.py` | 5.7s | ✅ | 修复本地源码导入路径后通过，Nebula Mock 返回成功 |
+| 10 | Skill 生命周期 | `10_skill_lifecycle.py` | 1.3s | ✅ | on_load / on_unload 路径可执行，示例运行通过 |
+| 11 | 编排增强 | `11_orchestration_enhancement.py` | 34.7s | ✅ | loop_condition 生效；early_exit 触发并取消慢分支 |
+| 12 | RunContext 序列化 | `12_run_context_serialization.py` | 0.2s | ✅ | 修复 `RunContext` 导入路径后通过，序列化/反序列化正常 |
+| 13 | HITL 断点续跑 | `13_human_in_the_loop.py` | 8.0s | ✅ | 修复 `FunctionTool` 导入后通过，挂起/恢复流程完整 |
+| 14 | 事件协议标准化 | `14_event_standardization.py` | 6.2s | ✅ | 修复 `event.type` 兼容处理后通过，事件流输出正常 |
+| | **合计** | | **774.9s** | **13/14** | |
 
 ## 耗时分析
 
 - **单次 LLM 调用**（含 thinking）：约 2-20 秒（受任务复杂度和工具轮次影响）
-- **最快示例**：10 Skill 生命周期（2.4s）——单轮对话、无复杂工具链
-- **最慢示例**：08 记忆系统（869.8s）——多轮记忆检索与写入，且模型响应波动较大
+- **最快示例**：12 RunContext 序列化（0.2s）——纯本地序列化/反序列化，无 LLM 调用
+- **最慢示例**：08 记忆系统（396.5s）——多轮记忆检索与写入，模型推理轮次最多
 - **多轮示例耗时** ≈ LLM 调用次数 × 单次调用耗时
 
 ## 各示例 LLM 调用次数估算
@@ -51,13 +54,16 @@
 | 9B | 结构化数据（图） | ~2 | NebulaGraphTool 调用 + 汇总回复 |
 | 10 | Skill 生命周期 | 1 | 单轮对话，验证生命周期流程 |
 | 11 | 编排增强 | ~4 | Loop + Parallel early_exit 事件路径 |
+| 12 | RunContext 序列化 | 0 | 纯本地上下文序列化与反序列化 |
+| 13 | HITL 断点续跑 | ~3 | 挂起前 1-2 轮 + 恢复后 1 轮 |
+| 14 | 事件协议标准化 | 1 | 单轮响应 + 标准事件输出 |
 
 ## 已知问题
 
 | 问题 | 严重程度 | 说明 |
 |------|:--------:|------|
-| 示例 04 Handoff 偶发返回 None | 低 | cloud 模型对 `transfer_to_xxx` 工具的理解存在偶发波动，非必现 |
-| 示例 08 部分轮次输出为 None | 中 | 本轮实测在第 2/4 轮出现空输出，流程不崩溃但体验受影响，需进一步稳定输出策略 |
+| 示例 04 Handoff 返回 None | 低 | 本轮两次复测均复现，as_tool 正常，Handoff 路径仍受模型决策波动影响 |
+| 示例 08 无记忆阶段输出 None | 中 | A 段两轮对话输出 `None`，B/C 段流程正常，建议后续增加输出兜底策略 |
 
 ## 配置说明
 
@@ -83,7 +89,7 @@ OllamaAdapter 配置：
 # 运行单个示例
 python examples/ollama/01_basic_chat.py
 
-# 运行全部示例（含 09a/09b 与 10/11）
+# 运行全部示例（含 09a/09b 与 10-14）
 for f in examples/ollama/*.py; do
   [[ "$(basename "$f")" == "__init__.py" ]] && continue
   python "$f"

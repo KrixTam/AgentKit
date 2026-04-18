@@ -23,6 +23,9 @@
 - [示例 9B：图数据库 — 配合 Mock 运行的 NebulaGraphTool](#示例-9b图数据库--配合-mock-运行的-nebulagraphtool)
 - [示例 10：Skill 生命周期 — 管理外部资源连接池](#示例-10skill-生命周期--管理外部资源连接池)
 - [示例 11：编排增强 — 循环退出条件与并行提前终止](#示例-11编排增强--循环退出条件与并行提前终止)
+- [示例 12：RunContext 序列化与共享状态](#示例-12runcontext-序列化与共享状态)
+- [示例 13：Human-in-the-loop 与断点续跑](#示例-13human-in-the-loop-与断点续跑)
+- [示例 14：事件协议标准化与强类型校验](#示例-14事件协议标准化与强类型校验)
 - [性能提示](#性能提示)
 - [使用不同的 LLM](#使用不同的-llm)
 - [下一步](#下一步)
@@ -921,6 +924,117 @@ if __name__ == "__main__":
 
 ---
 
+## 示例 12：RunContext 序列化与共享状态
+
+`RunContext` 记录了单次对话的完整上下文。通过内置的序列化协议，你可以将其轻松保存与恢复，甚至支持自定义 `shared_context` 的序列化。
+
+```python
+import asyncio
+from agentkit import RunContext
+
+class MySharedState:
+    def __init__(self, user_role: str):
+        self.user_role = user_role
+
+    def __ak_serialize__(self) -> dict:
+        return {"user_role": self.user_role}
+
+    @classmethod
+    def __ak_deserialize__(cls, data: dict) -> "MySharedState":
+        return cls(user_role=data.get("user_role", "guest"))
+
+# 1. 序列化
+ctx = RunContext(
+    input="你好",
+    shared_context=MySharedState(user_role="admin")
+)
+json_data = ctx.to_json()
+print("序列化结果:", json_data)
+
+# 2. 反序列化
+restored_ctx = RunContext.from_json(json_data, shared_context_cls=MySharedState)
+print("恢复的角色:", restored_ctx.shared_context.user_role)
+```
+
+---
+
+## 示例 13：Human-in-the-loop 与断点续跑
+
+AgentKit 原生支持 Human-in-the-loop (HITL) 机制，允许任务在需要人工介入时挂起（Suspend），并保存当前执行快照（Checkpoint），后续再恢复（Resume）执行。
+
+```python
+import asyncio
+from agentkit import Agent, Runner
+from agentkit.tools.base_tool import request_human_input
+from agentkit.tools.function_tool import FunctionTool
+from agentkit.runner.context_store import InMemoryContextStore
+from agentkit.runner.events import EventType
+
+def confirm_action(action: str) -> str:
+    """在执行敏感操作前请求人工确认"""
+    # 抛出异常中断执行，Runner 将其转为挂起事件
+    request_human_input(f"即将执行: {action}，请确认(yes/no)")
+
+confirm_tool = FunctionTool.from_function(confirm_action)
+agent = Agent(name="ops", instructions="...", tools=[confirm_tool])
+store = InMemoryContextStore()
+session_id = "session_001"
+
+async def main():
+    # 第 1 阶段：启动并挂起
+    async for event in Runner.run_with_checkpoint(
+        agent, input="重启数据库", session_id=session_id, context_store=store
+    ):
+        if event.type == EventType.SUSPEND_REQUESTED:
+            print("🚨 任务已挂起，等待人工输入...")
+    
+    # 此时进程可完全退出，状态已持久化
+    
+    # 第 2 阶段：恢复执行
+    async for event in Runner.resume(
+        agent, session_id=session_id, user_input="yes", context_store=store
+    ):
+        if event.type == EventType.FINAL_OUTPUT:
+            print("最终结果:", event.data)
+
+if __name__ == "__main__":
+    asyncio.run(main())
+```
+
+---
+
+## 示例 14：事件协议标准化与强类型校验
+
+AgentKit 提供了标准化的 `EventType` 枚举以及强类型的 `validate_data` 校验方法，保证你在处理复杂事件流时安全可靠。
+
+```python
+import asyncio
+from agentkit import Agent, Runner
+from agentkit.runner.events import EventType
+from pydantic import BaseModel
+
+class ToolResultSchema(BaseModel):
+    tool: str
+    result: str
+
+agent = Agent(name="math", instructions="计算 10+20")
+
+async def main():
+    async for event in Runner.run_streamed(agent, input="开始"):
+        if event.type == EventType.TOOL_RESULT:
+            try:
+                # 将弱类型的字典强转为 Pydantic 模型
+                data = event.validate_data(ToolResultSchema)
+                print(f"✅ 工具 {data.tool} 执行成功，结果: {data.result}")
+            except ValueError as e:
+                print(f"❌ 数据格式校验失败: {e}")
+
+if __name__ == "__main__":
+    asyncio.run(main())
+```
+
+---
+
 ## 性能提示
 
 当你感觉 Agent 响应较慢时，可以尝试以下优化：
@@ -1046,6 +1160,9 @@ agent = Agent(name="assistant", instructions="...")
 | [`09b_structured_data_graph.py`](../examples/standard/09b_structured_data_graph.py) | 示例 9B：图数据库 |
 | [`10_skill_lifecycle.py`](../examples/standard/10_skill_lifecycle.py) | 示例 10：Skill 生命周期 |
 | [`11_orchestration_enhancement.py`](../examples/standard/11_orchestration_enhancement.py) | 示例 11：编排增强 |
+| [`12_run_context_serialization.py`](../examples/standard/12_run_context_serialization.py) | 示例 12：RunContext 序列化与共享状态 |
+| [`13_human_in_the_loop.py`](../examples/standard/13_human_in_the_loop.py) | 示例 13：Human-in-the-loop 与断点续跑 |
+| [`14_event_standardization.py`](../examples/standard/14_event_standardization.py) | 示例 14：事件协议标准化与强类型校验 |
 
 ### 📁 `examples/ollama/` — Ollama 本地版（无需 API Key，完全本地运行）
 
@@ -1063,6 +1180,9 @@ agent = Agent(name="assistant", instructions="...")
 | [`09b_structured_data_graph.py`](../examples/ollama/09b_structured_data_graph.py) | 示例 9B：图数据库 |
 | [`10_skill_lifecycle.py`](../examples/ollama/10_skill_lifecycle.py) | 示例 10：Skill 生命周期 |
 | [`11_orchestration_enhancement.py`](../examples/ollama/11_orchestration_enhancement.py) | 示例 11：编排增强 |
+| [`12_run_context_serialization.py`](../examples/ollama/12_run_context_serialization.py) | 示例 12：RunContext 序列化与共享状态 |
+| [`13_human_in_the_loop.py`](../examples/ollama/13_human_in_the_loop.py) | 示例 13：Human-in-the-loop 与断点续跑 |
+| [`14_event_standardization.py`](../examples/ollama/14_event_standardization.py) | 示例 14：事件协议标准化与强类型校验 |
 
 ---
 

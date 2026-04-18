@@ -1,3 +1,6 @@
+import sys, os
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", ".."))
+
 import asyncio
 import sqlite3
 from pydantic import BaseModel, Field

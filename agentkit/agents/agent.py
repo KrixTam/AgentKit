@@ -18,9 +18,9 @@ from pydantic import ConfigDict, Field, PrivateAttr
 from ..llm.base import BaseLLM
 from ..llm.registry import LLMRegistry
 from ..llm.types import LLMConfig, LLMResponse, Message, MessageRole, ToolCall as LLMToolCall
-from ..runner.events import Event
+from ..runner.events import Event, EventType
 from ..skills.models import Skill
-from ..tools.base_tool import BaseTool, BaseToolset, ToolUnion
+from ..tools.base_tool import BaseTool, BaseToolset, ToolUnion, HumanInputRequested
 from ..tools.function_tool import FunctionTool
 from ..tools.skill_toolset import SkillToolset
 from .base_agent import BaseAgent
@@ -265,6 +265,16 @@ class Agent(BaseAgent):
                         # 执行工具
                         try:
                             result = await tool.execute(ctx, tool_call.arguments)
+                        except HumanInputRequested as e:
+                            # 触发挂起事件，并记录挂起的工具信息
+                            ctx.state["__suspended_tool_call_id__"] = tool_call.id
+                            ctx.state["__suspended_tool_name__"] = tool_call.name
+                            yield Event(
+                                agent=self.name, 
+                                type=EventType.SUSPEND_REQUESTED, 
+                                data={"prompt": e.prompt, "tool": tool_call.name, "tool_call_id": tool_call.id, **e.kwargs}
+                            )
+                            return
                         except Exception as e:
                             result = f"工具执行错误: {e}"
 

@@ -12,8 +12,10 @@
   - [SequentialAgent / ParallelAgent / LoopAgent](#编排-agent)
 - [Runner 类](#runner-类)
   - [Runner](#runner)
+  - [RunContext](#runcontext)
+  - [ContextStore](#contextstore)
   - [RunResult](#runresult)
-  - [Event](#event)
+  - [Event 与 EventType](#event-与-eventtype)
 - [Tool 类](#tool-类)
   - [function_tool 装饰器](#function_tool-装饰器)
   - [FunctionTool](#functiontool)
@@ -170,7 +172,9 @@ from agentkit import Runner
 |------|------|------|
 | `run` | `async (agent, *, input, context=None, user_id=None, max_turns=10) -> RunResult` | 异步运行 |
 | `run_sync` | `(agent, **kwargs) -> RunResult` | 同步运行（内部调用 asyncio.run） |
-| `run_streamed` | `async (agent, *, input, **kwargs) -> AsyncGenerator[Event]` | 流式运行，实时产出 Event |
+| `run_streamed` | `async (agent, *, input, **kwargs) -> AsyncGenerator[Event, None]` | 流式运行，实时产出 Event |
+| `run_with_checkpoint` | `async (agent, *, input, session_id, context_store, ...) -> AsyncGenerator[Event, None]` | 流式运行（支持挂起），遇到 HumanInputRequested 会自动保存上下文并退出 |
+| `resume` | `async (agent, *, session_id, user_input, context_store, ...) -> AsyncGenerator[Event, None]` | 恢复被挂起的 Agent 会话，将 user_input 作为挂起工具的返回值继续流转 |
 
 **参数**：
 
@@ -181,6 +185,55 @@ from agentkit import Runner
 | `context` | `Any` | `None` | 共享上下文（传给 RunContext.shared_context） |
 | `user_id` | `str \| None` | `None` | 用户 ID（用于记忆隔离） |
 | `max_turns` | `int` | `10` | 最大轮次（每个 turn 包含一次 LLM 调用） |
+
+---
+
+### RunContext
+
+一次运行的完整上下文，承载了状态流转与持久化的核心职责。
+
+```python
+from agentkit import RunContext
+```
+
+| 属性 | 类型 | 说明 |
+|------|------|------|
+| `input` | `str` | 初始用户输入 |
+| `shared_context` | `Any` | 自定义共享对象，支持 `__ak_serialize__` 魔法方法 |
+| `user_id` | `str \| None` | 用户 ID |
+| `session_id` | `str` | 会话 ID，默认随机生成 |
+| `messages` | `list[dict]` | 当前完整的对话消息链 |
+| `state` | `dict` | 运行期间的内部状态，挂起工具等信息暂存于此 |
+
+**方法**：
+
+| 方法 | 签名 | 说明 |
+|------|------|------|
+| `to_dict` | `() -> dict` | 序列化上下文状态（可调用 `shared_context.__ak_serialize__`） |
+| `from_dict` | `(data: dict, shared_context_cls) -> RunContext` | 从字典反序列化 |
+| `to_json` / `from_json` | 同上 | 将上下文与 JSON 字符串转换 |
+
+---
+
+### ContextStore
+
+上下文存储协议，为 Runner 提供断点续跑支持。
+
+```python
+from agentkit.runner.context_store import ContextStore, InMemoryContextStore, FileContextStore
+```
+
+**方法**：
+
+| 方法 | 签名 | 说明 |
+|------|------|------|
+| `save` | `(session_id: str, context: RunContext) -> None` | 存储挂起的 RunContext 快照 |
+| `load` | `(session_id: str, shared_context_cls=None) -> RunContext` | 加载恢复 RunContext |
+| `delete` | `(session_id: str) -> None` | 清理会话状态 |
+
+**内置实现**：
+- `InMemoryContextStore`：将上下文存储在内存字典中。
+- `FileContextStore(directory=".agentkit_checkpoints")`：以 JSON 文件落盘。
 
 ---
 
@@ -200,31 +253,49 @@ from agentkit import RunResult
 
 ---
 
-### Event
+### Event 与 EventType
 
 ```python
-from agentkit import Event
+from agentkit import Event, EventType
 ```
 
 | 属性 | 类型 | 说明 |
 |------|------|------|
 | `agent` | `str` | 产生事件的 Agent 名称 |
-| `type` | `str` | 事件类型 |
+| `type` | `str` | 事件类型（推荐使用 `EventType` 枚举） |
 | `data` | `Any` | 事件数据 |
 | `timestamp` | `float` | 时间戳 |
+| `trace_path` | `str \| None` | 事件产生时的调用链路路径 |
+| `parent_agent` | `str \| None` | 产生事件的父 Agent |
 
-**事件类型**：
+**标准事件类型 (EventType)**：
 
-| type | 含义 |
-|------|------|
-| `llm_response` | LLM 返回了响应 |
-| `tool_result` | 工具执行完成，data 包含 `{tool, result}` |
-| `final_output` | 最终输出 |
-| `handoff` | Agent 交接，data 包含 `{target}` |
-| `escalate` | 上报/退出信号（LoopAgent 用） |
-| `error` | 错误 |
-| `callback` | 回调产生的事件 |
-| `permission_denied` | 权限拒绝 |
+| 枚举常量 | 字符串值 | 含义 |
+|------|------|------|
+| `EventType.LLM_RESPONSE` | `llm_response` | LLM 返回了响应 |
+| `EventType.TOOL_CALL` | `tool_call` | 准备调用工具 |
+| `EventType.TOOL_RESULT` | `tool_result` | 工具执行完成，data 包含 `{tool, result}` |
+| `EventType.FINAL_OUTPUT` | `final_output` | 最终输出 |
+| `EventType.HANDOFF` | `handoff` | Agent 交接，data 包含 `{target}` |
+| `EventType.ESCALATE` | `escalate` | 上报/退出信号（LoopAgent 或 early_exit 用） |
+| `EventType.ERROR` | `error` | 错误 |
+| `EventType.CALLBACK` | `callback` | 回调产生的事件 |
+| `EventType.PERMISSION_DENIED` | `permission_denied` | 权限拒绝 |
+| `EventType.ON_LOAD` | `on_load` | 资源加载事件 |
+| `EventType.ON_UNLOAD` | `on_unload` | 资源释放事件 |
+| `EventType.LOOP_ITERATION` | `loop_iteration` | 循环单次迭代事件 |
+| `EventType.LOOP_EXHAUSTED` | `loop_exhausted` | 循环耗尽事件 |
+| `EventType.THOUGHT` | `thought` | Agent 内心思考 |
+| `EventType.SUSPEND_REQUESTED` | `suspend_requested` | 任务挂起请求（HITL 核心事件） |
+| `EventType.HUMAN_INPUT_RECEIVED` | `human_input_received` | 收到人工恢复输入 |
+
+**方法**：
+
+| 方法 | 签名 | 说明 |
+|------|------|------|
+| `validate_data` | `(schema: Type[T]) -> T` | 强类型校验 `data` 是否符合传入的 Pydantic 或 dataclass schema，失败抛出 ValueError |
+| `to_dict` | `() -> dict` | 事件序列化 |
+| `from_dict` | `(data: dict) -> Event` | 事件反序列化 |
 
 ---
 
@@ -292,6 +363,21 @@ tool = FunctionTool(
 | 方法 | 说明 |
 |------|------|
 | `FunctionTool.from_function(func)` | 从普通 Python 函数自动创建 |
+
+---
+
+### request_human_input
+
+在工具层触发中断，请求外部人工介入（HITL）的辅助函数。
+
+```python
+from agentkit.tools.base_tool import request_human_input
+
+def my_sensitive_action():
+    request_human_input("请确认是否执行此操作 (yes/no)")
+```
+
+该函数会抛出 `HumanInputRequested` 异常，被 Runner 捕获后转为 `EventType.SUSPEND_REQUESTED` 挂起任务。
 
 ---
 
