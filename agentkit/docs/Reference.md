@@ -193,7 +193,7 @@ from agentkit import Runner
 一次运行的完整上下文，承载了状态流转与持久化的核心职责。
 
 ```python
-from agentkit import RunContext
+from agentkit.runner.context import RunContext
 ```
 
 | 属性 | 类型 | 说明 |
@@ -228,7 +228,7 @@ from agentkit.runner.context_store import ContextStore, InMemoryContextStore, Fi
 | 方法 | 签名 | 说明 |
 |------|------|------|
 | `save` | `(session_id: str, context: RunContext) -> None` | 存储挂起的 RunContext 快照 |
-| `load` | `(session_id: str, shared_context_cls=None) -> RunContext` | 加载恢复 RunContext |
+| `load` | `(session_id: str, shared_context_cls=None) -> RunContext \| None` | 加载恢复 RunContext；不存在时返回 `None` |
 | `delete` | `(session_id: str) -> None` | 清理会话状态 |
 
 **内置实现**：
@@ -256,7 +256,8 @@ from agentkit import RunResult
 ### Event 与 EventType
 
 ```python
-from agentkit import Event, EventType
+from agentkit import Event
+from agentkit.runner.events import EventType
 ```
 
 | 属性 | 类型 | 说明 |

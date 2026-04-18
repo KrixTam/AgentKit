@@ -16,11 +16,6 @@ class ToolResultSchema(BaseModel):
     tool: str
     result: str
 
-class FinalOutputSchema(BaseModel):
-    # 对于 Final Output，底层直接传入字符串，为了演示这里使用 Pydantic 包装
-    # 但实际的 FINAL_OUTPUT event.data 是字符串
-    pass
-
 async def main():
     print("=== 事件协议标准化与强类型校验示例 ===")
     

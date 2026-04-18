@@ -245,6 +245,9 @@ class Agent(BaseAgent):
 
                         # 检查是否是 handoff
                         if tool_call.name.startswith("transfer_to_"):
+                            # 保持 tool-call 消息链完整，避免后续 Agent 看到未闭合的 tool_call
+                            # 导致模型输出空内容 (content=None)。
+                            ctx.add_tool_result(tool_call.id, f"Handoff to {tool_call.name.replace('transfer_to_', '')}")
                             yield Event(agent=self.name, type="handoff", data={"target": tool_call.name.replace("transfer_to_", "")})
                             return
 

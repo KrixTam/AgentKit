@@ -1,6 +1,6 @@
 # AgentKit 快速入门教程
 
-> 本教程将带你从零开始，通过 8 个由简到繁的示例，掌握 AgentKit 的核心用法。
+> 本教程将带你从零开始，通过 14 个由简到繁的示例，掌握 AgentKit 的核心用法。
 
 ---
 
@@ -930,7 +930,7 @@ if __name__ == "__main__":
 
 ```python
 import asyncio
-from agentkit import RunContext
+from agentkit.runner.context import RunContext
 
 class MySharedState:
     def __init__(self, user_role: str):

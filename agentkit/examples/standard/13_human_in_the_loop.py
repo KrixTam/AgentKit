@@ -6,7 +6,8 @@
 """
 import asyncio
 from agentkit import Agent, Runner
-from agentkit.tools.base_tool import FunctionTool, request_human_input
+from agentkit.tools.function_tool import FunctionTool
+from agentkit.tools.base_tool import request_human_input
 from agentkit.runner.context_store import InMemoryContextStore
 from agentkit.runner.events import EventType
 

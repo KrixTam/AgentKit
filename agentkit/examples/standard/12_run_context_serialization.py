@@ -4,8 +4,7 @@
 演示如何序列化和反序列化 RunContext，以及如何处理自定义的 shared_context。
 """
 import asyncio
-from agentkit import Agent, Runner, RunContext
-from agentkit.llm.registry import LLMRegistry
+from agentkit.runner.context import RunContext
 
 # 自定义共享状态，实现序列化协议
 class MySharedState:

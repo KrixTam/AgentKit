@@ -16,7 +16,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspa
 from agentkit.agents.agent import Agent
 from agentkit.runner.runner import Runner
 from agentkit.tools.function_tool import function_tool
-from agentkit.skills.models import Skill, SkillFrontmatter, SkillResources
+from agentkit.skills.models import Skill, SkillFrontmatter
 from agentkit.safety.guardrails import input_guardrail, GuardrailResult
 from agentkit.llm.registry import LLMRegistry
 
