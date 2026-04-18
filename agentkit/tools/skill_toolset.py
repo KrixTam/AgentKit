@@ -9,9 +9,7 @@ agentkit/tools/skill_toolset.py — SkillToolset：Skill → Tool 桥接器
 """
 from __future__ import annotations
 
-from typing import Any, Optional
-
-from ..llm.types import ToolDefinition
+from typing import Any
 from ..skills.models import Skill
 from .base_tool import BaseTool, BaseToolset
 from .function_tool import FunctionTool
@@ -41,10 +39,14 @@ class SkillToolset(BaseToolset):
 
     def get_system_prompt_injection(self) -> str:
         """生成注入到 LLM 系统提示词中的 Skill 列表"""
-        skills_xml = "<available_skills>\n"
+        lines = ["<available_skills>"]
         for skill in self._skills.values():
-            skills_xml += f"<skill>\n  <name>{skill.name}</name>\n  <description>{skill.description}</description>\n</skill>\n"
-        skills_xml += "</available_skills>\n"
+            lines.append("<skill>")
+            lines.append(f"  <name>{skill.name}</name>")
+            lines.append(f"  <description>{skill.description}</description>")
+            lines.append("</skill>")
+        lines.append("</available_skills>")
+        skills_xml = "\n".join(lines)
 
         return (
             "你可以使用专业技能（Skill）来完成复杂任务。\n\n"
@@ -64,7 +66,7 @@ class SkillToolset(BaseToolset):
     def _make_list_skills_tool(self) -> FunctionTool:
         skills_ref = self._skills
 
-        async def handler(**kwargs: Any) -> str:
+        async def handler(**_kwargs: Any) -> str:
             lines = ["<available_skills>"]
             for skill in skills_ref.values():
                 lines.append(f"  <skill>")
@@ -85,7 +87,7 @@ class SkillToolset(BaseToolset):
         skills_ref = self._skills
         activated = self._activated_skills
 
-        async def handler(skill_name: str = "", **kwargs: Any) -> dict | str:
+        async def handler(skill_name: str = "", **_kwargs: Any) -> dict | str:
             skill = skills_ref.get(skill_name)
             if not skill:
                 return f"Error: Skill '{skill_name}' not found"
@@ -118,7 +120,7 @@ class SkillToolset(BaseToolset):
     def _make_load_resource_tool(self) -> FunctionTool:
         skills_ref = self._skills
 
-        async def handler(skill_name: str = "", path: str = "", **kwargs: Any) -> dict | str:
+        async def handler(skill_name: str = "", path: str = "", **_kwargs: Any) -> dict | str:
             skill = skills_ref.get(skill_name)
             if not skill:
                 return f"Error: Skill '{skill_name}' not found"
@@ -159,7 +161,7 @@ class SkillToolset(BaseToolset):
     def _make_run_script_tool(self) -> FunctionTool:
         skills_ref = self._skills
 
-        async def handler(skill_name: str = "", script_name: str = "", arguments: dict | None = None, **kwargs: Any) -> str:
+        async def handler(skill_name: str = "", script_name: str = "", arguments: dict | None = None, **_kwargs: Any) -> str:
             skill = skills_ref.get(skill_name)
             if not skill:
                 return f"Error: Skill '{skill_name}' not found"
@@ -190,10 +192,12 @@ class SkillToolset(BaseToolset):
 
     def _get_additional_tools_for_activated_skills(self) -> list[BaseTool]:
         tools: list[BaseTool] = []
+        seen_tools: set[str] = set()
         for skill_name in self._activated_skills:
             skill = self._skills.get(skill_name)
             if skill:
                 for tool_name in skill.additional_tools:
-                    if tool_name in self._additional_tools:
+                    if tool_name in self._additional_tools and tool_name not in seen_tools:
                         tools.append(self._additional_tools[tool_name])
+                        seen_tools.add(tool_name)
         return tools

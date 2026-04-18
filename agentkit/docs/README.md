@@ -17,7 +17,7 @@
 | **双协作模式** | Handoff（控制权转移）+ as_tool（Agent 当工具调用），灵活覆盖所有协作场景 |
 | **编排 Agent** | SequentialAgent / ParallelAgent / LoopAgent，组合出任意复杂的工作流。支持 Loop 动态退出条件与 Parallel 提前取消增强 |
 | **@function_tool** | 一行装饰器把 Python 函数变成 LLM 工具，自动推断 JSON Schema。内建 `StructuredDataTool` 防止数据库注入 |
-| **安全内置** | Input/Output 双向 Guardrail + 三层权限控制 + 三级沙箱执行 |
+| **安全内置** | Input/Output 双向 Guardrail + 三层权限控制；`run_skill_script` 当前为占位执行（SandboxExecutor 预留扩展） |
 | **记忆系统** | Mem0 集成，跨会话长期记忆 |
 | **9 个回调点** | before/after × agent/model/tool/handoff + error，任何环节可拦截定制 |
 
@@ -34,7 +34,7 @@ pip install "ni.agentkit[openai]"    # OpenAI + 国内兼容厂商
 pip install "ni.agentkit[anthropic]" # Anthropic Claude
 pip install "ni.agentkit[google]"    # Google Gemini
 pip install "ni.agentkit[memory]"    # 记忆系统 (mem0)
-pip install "ni.agentkit[docker]"    # Docker 沙箱 (Level 3 Skill)
+pip install "ni.agentkit[docker]"    # 预留：SandboxExecutor Docker 扩展依赖
 pip install "ni.agentkit[all]"       # 安装所有可选依赖
 ```
 

@@ -505,10 +505,9 @@ agent = Agent(memory=my_memory, memory_async_write=False, ...)
 ├─────────────────────────────────┤
 │ 第 2 层：PermissionPolicy       │  → 控制哪些工具可被调用
 ├─────────────────────────────────┤
-│ 第 3 层：SandboxExecutor        │  → Skill 脚本在沙箱中执行
-│   Level 1: 临时目录隔离          │
-│   Level 2: 子进程隔离（默认）    │
-│   Level 3: Docker 容器隔离       │
+│ 第 3 层：脚本执行扩展层           │  → run_skill_script 预留 SandboxExecutor
+│   当前：占位执行（不实际运行脚本）│
+│   规划：Level 1/2/3 沙箱隔离      │
 └─────────────────────────────────┘
 ```
 
@@ -516,15 +515,15 @@ agent = Agent(memory=my_memory, memory_async_write=False, ...)
 
 > ⚠️ **运行 Agent 不需要 Docker。** AgentKit 是纯 Python 框架，直接在本地 Python 环境即可运行。
 
-Docker 仅用于 Skill 脚本沙箱执行的最高安全级别（Level 3）。以下是各场景的依赖说明：
+当前版本 `run_skill_script` 为占位执行（不会实际执行脚本）。Docker 依赖用于后续 SandboxExecutor 落地时的 Level 3 扩展。以下是当前各场景的依赖说明：
 
 | 场景 | 是否需要 Docker |
 |------|:--------------:|
 | 运行 Agent（纯对话） | ❌ |
 | 运行带工具的 Agent（Function Calling） | ❌ |
 | 运行带 Skill 的 Agent（仅指令，无脚本） | ❌ |
-| Skill 脚本执行（Level 1 / Level 2） | ❌ |
-| Skill 脚本执行（Level 3 最高安全） | ✅ |
+| Skill 脚本执行（当前占位实现） | ❌ |
+| Skill 脚本执行（未来 Level 3 扩展） | 可选（届时 ✅） |
 
 大部分 Skill 只使用「指令 + 工具」组合，完全不涉及脚本执行，因此不需要任何沙箱。
 

@@ -82,7 +82,7 @@ print("✅ AgentKit 安装成功")
 
 > 💡 **AgentKit 是纯 Python 框架，不需要 Docker。** 直接在本地 Python 环境运行即可。
 >
-> Docker 仅在 Skill 脚本沙箱执行的最高安全级别（Level 3）时才需要，大部分场景完全用不到。详见 [Architecture.md](Architecture.md) 中的安全机制说明。
+> 当前版本中 `run_skill_script` 仍是占位执行（返回占位结果，不实际运行脚本），因此日常使用通常不需要 Docker。详见 [Architecture.md](Architecture.md) 中的安全机制说明。
 
 ### 5. 同步与异步
 
@@ -1214,7 +1214,7 @@ await Runner.run(agent, input="记住我是 Alice", user_id="user_A_123")
 result = await Runner.run(agent, input="我叫什么？", user_id="user_B_456")
 print(result.final_output)  # User B 不会知道 Alice 的名字
 
-# 通过监控 events 可以看到资源被自动释放
+# 通过日志可以看到资源被自动释放与耗时
 ```
 
 ### 16. 生命周期 Hooks 与 Callbacks

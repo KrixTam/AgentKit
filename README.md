@@ -68,7 +68,7 @@ print(agentkit.get_examples_dir()) # 示例目录路径
 | 文档 | 说明 |
 |------|------|
 | [README](docs/README.md) | 项目概述与特性 |
-| [QuickStart](docs/QuickStart.md) | 8 个渐进式入门示例 |
+| [QuickStart](docs/QuickStart.md) | 16 个渐进式入门示例 |
 | [Architecture](docs/Architecture.md) | 六层架构设计说明 |
 | [Reference](docs/Reference.md) | 完整 API 参考手册 |
 

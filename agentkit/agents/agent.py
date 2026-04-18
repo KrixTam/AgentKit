@@ -71,6 +71,8 @@ class Agent(BaseAgent):
     after_handoff_callback: Optional[Callable] = None
     on_error_callback: Optional[Callable] = None
     fail_fast_on_hook_error: bool = False
+    _callable_tool_cache: dict[int, FunctionTool] = PrivateAttr(default_factory=dict)
+    _handoff_tool_cache: dict[int, FunctionTool] = PrivateAttr(default_factory=dict)
 
     # ------------------------------------------------------------------
     # 核心方法
@@ -96,18 +98,28 @@ class Agent(BaseAgent):
             elif isinstance(tool_union, BaseToolset):
                 all_tools.extend(await tool_union.get_tools(ctx))
             elif callable(tool_union):
-                all_tools.append(FunctionTool.from_function(tool_union))
+                fn_key = id(tool_union)
+                cached_tool = self._callable_tool_cache.get(fn_key)
+                if cached_tool is None:
+                    cached_tool = FunctionTool.from_function(tool_union)
+                    self._callable_tool_cache[fn_key] = cached_tool
+                all_tools.append(cached_tool)
 
         # 2. 处理 skills → SkillToolset
         if self.skills:
-            additional = [t for t in all_tools]  # 让 Skill 能看到已注册的工具
+            additional = all_tools.copy()  # 让 Skill 能看到已注册的工具
             skill_toolset = SkillToolset(skills=self.skills, additional_tools=additional)
             all_tools.extend(await skill_toolset.get_tools(ctx))
 
         # 3. 处理 handoffs → transfer_to_xxx 工具
         for target in self.handoffs:
             if isinstance(target, BaseAgent):
-                all_tools.append(self._create_handoff_tool(target))
+                target_key = id(target)
+                cached_handoff_tool = self._handoff_tool_cache.get(target_key)
+                if cached_handoff_tool is None:
+                    cached_handoff_tool = self._create_handoff_tool(target)
+                    self._handoff_tool_cache[target_key] = cached_handoff_tool
+                all_tools.append(cached_handoff_tool)
 
         return all_tools
 
@@ -150,30 +162,36 @@ class Agent(BaseAgent):
                     data={"context": "skill_on_load", "skill": skill.name, "error": str(e)}
                 )
 
+        # 这些数据在单次 run 内稳定，提前计算可减少重复开销
+        llm = self._resolve_model()
+        memory_injection = ""
+        skill_prompt_injection = ""
+
+        if self.memory:
+            try:
+                relevant = await self.memory.search(ctx.input, user_id=ctx.user_id, agent_id=self.name, limit=5)
+                if relevant:
+                    mem_text = "\n".join([f"- {m.content}" for m in relevant])
+                    memory_injection = f"\n\n## 相关记忆\n{mem_text}"
+            except Exception as e:
+                logger.warning("检索记忆失败: %s", e)
+
+        if self.skills:
+            skill_toolset = SkillToolset(skills=self.skills)
+            skill_prompt_injection = "\n\n" + skill_toolset.get_system_prompt_injection()
+
         try:
             while round_count < self.max_tool_rounds:
                 round_count += 1
 
                 # 1. 构建指令
                 instructions = await self.get_instructions(ctx)
-
-                # 注入记忆
-                if self.memory:
-                    try:
-                        relevant = await self.memory.search(ctx.input, user_id=ctx.user_id, agent_id=self.name, limit=5)
-                        if relevant:
-                            mem_text = "\n".join([f"- {m.content}" for m in relevant])
-                            instructions += f"\n\n## 相关记忆\n{mem_text}"
-                    except Exception as e:
-                        logger.warning("检索记忆失败: %s", e)
-
-                # 注入 Skill 列表
-                if self.skills:
-                    skill_toolset = SkillToolset(skills=self.skills)
-                    instructions += "\n\n" + skill_toolset.get_system_prompt_injection()
+                instructions += memory_injection
+                instructions += skill_prompt_injection
 
                 # 2. 获取工具
                 tools = await self.get_all_tools(ctx)
+                tool_map = {tool.name: tool for tool in tools}
                 tool_defs = [t.to_tool_definition() for t in tools]
 
                 # 3. 构建消息
@@ -181,7 +199,7 @@ class Agent(BaseAgent):
                 messages.append(Message.user(ctx.input))
 
                 # 追加历史消息
-                for msg_dict in ctx.get_messages():
+                for msg_dict in ctx.messages:
                     role = MessageRole(msg_dict.get("role", "user"))
                     tool_calls_raw = msg_dict.get("tool_calls", [])
                     tool_calls_parsed = [
@@ -207,7 +225,6 @@ class Agent(BaseAgent):
                         return
 
                 # 5. 调用 LLM（支持缓存）
-                llm = self._resolve_model()
                 cached = False
 
                 # 检查缓存
@@ -262,7 +279,7 @@ class Agent(BaseAgent):
                     })
 
                     for tool_call in response.tool_calls:
-                        tool = self._find_tool(tools, tool_call.name)
+                        tool = tool_map.get(tool_call.name)
                         if not tool:
                             yield Event(agent=self.name, type="error", data=f"工具 '{tool_call.name}' 未找到")
                             continue

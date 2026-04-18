@@ -10,8 +10,8 @@
 - 🤖 **声明式 Agent** — 零继承配置，支持 Handoff 转介 + as_tool 委派两种协作模式
 - 📚 **一等公民 Skill** — 三级渐进式加载（L1 元数据 → L2 指令 → L3 资源），按需加载省 token
 - 🔧 **灵活工具系统** — `@function_tool` 装饰器自动推断 JSON Schema
-- 🧠 **多 LLM 适配器** — 自研统一适配层，4 个适配器覆盖所有主流 LLM
-- 🛡️ **内置安全** — Guardrail 护栏 + 权限控制 + 三级沙箱
+- 🧠 **多 LLM 适配器** — 自研统一适配层，5 个适配器覆盖主流 LLM（含 OpenAI Compatible）
+- 🛡️ **内置安全** — Guardrail 护栏 + 权限控制；`run_skill_script` 当前为占位执行（SandboxExecutor 预留扩展）
 - 🎭 **编排 Agent** — Sequential / Parallel / Loop 三种模式
 - 💾 **记忆系统** — 可选集成 Mem0，支持自定义记忆提供者
 - ⚡ **全异步设计与 Hooks** — 底层全面采用 `asyncio`，流式响应（Streaming）、事件驱动（Event-Driven）、断点续跑机制（Checkpoint/Resume）。提供细粒度的 生命周期 Hooks，支持改写请求与结果。
@@ -71,21 +71,21 @@ print(agentkit.get_examples_dir()) # 示例目录路径
 | 文档 | 说明 |
 |------|------|
 | [README](docs/README.md) | 项目概述与特性 |
-| [QuickStart](docs/QuickStart.md) | 8 个渐进式入门示例 |
+| [QuickStart](docs/QuickStart.md) | 16 个渐进式入门示例 |
 | [Architecture](docs/Architecture.md) | 六层架构设计说明 |
 | [Reference](docs/Reference.md) | 完整 API 参考手册 |
 
 ## 🧪 示例
 
-安装包内含 16 个可运行示例（标准版 × 8 + Ollama 本地版 × 8）：
+安装包内含 32 个可运行示例（标准版 × 16 + Ollama 本地版 × 16）：
 
 ```bash
 # Ollama 本地版（无需 API Key）
 python -c "import agentkit; print(agentkit.get_examples_dir())"
 # 然后运行对应目录下的示例文件
 
-# 或者直接：
-python -m agentkit.examples.ollama.01_basic_chat
+# 或者直接运行示例文件：
+python "$(python -c "import agentkit, os; print(os.path.join(agentkit.get_examples_dir(), 'ollama', '01_basic_chat.py'))")"
 ```
 
 ## 🔌 支持的 LLM
@@ -111,8 +111,8 @@ python -m agentkit.examples.ollama.01_basic_chat
 
 ```bash
 dist/
-├── ni_agentkit-0.3.2-py3-none-any.whl   # pip install 用这个
-└── ni_agentkit-0.3.2.tar.gz             # 源码分发
+├── ni_agentkit-0.4.0-py3-none-any.whl   # pip install 用这个
+└── ni_agentkit-0.4.0.tar.gz             # 源码分发
 ```
 
 ## 📄 License

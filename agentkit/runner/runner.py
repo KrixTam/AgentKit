@@ -40,6 +40,7 @@ class Runner:
         ctx = RunContext(input=input, shared_context=context, user_id=user_id, session_id=session_id or str(uuid.uuid4()))
         current_agent = agent
         events: list[Event] = []
+        handoff_agent_cache: dict[str, Any | None] = {}
 
         for _ in range(max_turns):
             # 输入护栏
@@ -69,7 +70,11 @@ class Runner:
 
                 if event.type == "handoff":
                     target_name = event.data.get("target", "")
-                    new_agent = cls._find_agent(agent, target_name)
+                    if target_name in handoff_agent_cache:
+                        new_agent = handoff_agent_cache[target_name]
+                    else:
+                        new_agent = cls._find_agent(agent, target_name)
+                        handoff_agent_cache[target_name] = new_agent
                     if new_agent:
                         current_agent = new_agent
                         break
