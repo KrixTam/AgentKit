@@ -12,11 +12,11 @@
 
 | 特性 | 说明 |
 |------|------|
-| **Skill 一等公民** | `skills=[...]` 与 `tools=[...]` 并列，三级渐进式加载（L1/L2/L3）节省 token |
+| **Skill 一等公民** | `skills=[...]` 与 `tools=[...]` 并列，三级渐进式加载（L1/L2/L3）节省 token。支持资源生命周期管理（on_load/on_unload 钩子） |
 | **自研多模型适配** | OpenAI / Anthropic / Google Gemini / Ollama / 国内模型（DeepSeek、通义千问、智谱…），前缀自动路由 |
 | **双协作模式** | Handoff（控制权转移）+ as_tool（Agent 当工具调用），灵活覆盖所有协作场景 |
-| **编排 Agent** | SequentialAgent / ParallelAgent / LoopAgent，组合出任意复杂的工作流 |
-| **@function_tool** | 一行装饰器把 Python 函数变成 LLM 工具，自动推断 JSON Schema |
+| **编排 Agent** | SequentialAgent / ParallelAgent / LoopAgent，组合出任意复杂的工作流。支持 Loop 动态退出条件与 Parallel 提前取消增强 |
+| **@function_tool** | 一行装饰器把 Python 函数变成 LLM 工具，自动推断 JSON Schema。内建 `StructuredDataTool` 防止数据库注入 |
 | **安全内置** | Input/Output 双向 Guardrail + 三层权限控制 + 三级沙箱执行 |
 | **记忆系统** | Mem0 集成，跨会话长期记忆 |
 | **7 个回调点** | before/after × agent/model/tool + error，任何环节可拦截定制 |

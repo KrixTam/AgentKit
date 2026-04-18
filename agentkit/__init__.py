@@ -28,6 +28,8 @@ from .skills.models import Skill, SkillFrontmatter, SkillResources
 from .skills.registry import SkillRegistry
 from .tools.base_tool import BaseTool, BaseToolset
 from .tools.function_tool import FunctionTool, function_tool
+from .tools.structured_data import ResultFormatter, StructuredDataTool
+from .tools.sqlite_tool import SQLiteTool, SQLiteResultFormatter
 
 __version__ = "0.3.2"
 
@@ -48,7 +50,7 @@ __all__ = [
     "Agent", "BaseAgent", "SequentialAgent", "ParallelAgent", "LoopAgent",
     "Runner", "RunResult", "Event",
     "BaseLLM", "LLMConfig", "LLMRegistry", "LLMResponse", "Message", "ToolCall", "ToolDefinition",
-    "BaseTool", "BaseToolset", "FunctionTool", "function_tool",
+    "BaseTool", "BaseToolset", "FunctionTool", "function_tool", "StructuredDataTool", "ResultFormatter", "SQLiteTool",
     "Skill", "SkillFrontmatter", "SkillResources", "SkillRegistry", "load_skill_from_dir",
     "GuardrailResult", "InputGuardrail", "OutputGuardrail", "PermissionPolicy",
     "input_guardrail", "output_guardrail",

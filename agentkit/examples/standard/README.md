@@ -22,8 +22,12 @@ export OPENAI_API_KEY="sk-..."
 | `04_multi_agent.py` | 多 Agent 协作 — Handoff 与 as_tool | QuickStart 示例 4 |
 | `05_guardrail.py` | 安全护栏 — Guardrail 与权限控制 | QuickStart 示例 5 |
 | `06_orchestration.py` | 编排 Agent — 流水线与循环 | QuickStart 示例 6 |
-| `07_sync_async_stream.py` | 三种运行方式 — 同步/异步/流式 | 同步与异步 |
-| `08_memory.py` | 记忆系统 — 跨会话长期记忆 | 记忆系统 |
+| `07_sync_async_stream.py` | 三种运行方式 — 同步/异步/流式 | QuickStart 示例 7 |
+| `08_memory.py` | 记忆系统 — 跨会话长期记忆 | QuickStart 示例 8 |
+| `09a_structured_data_sql.py` | 关系型数据库 — 防止 SQL 注入的参数化 Tool | QuickStart 示例 9A |
+| `09b_structured_data_graph.py` | 图数据库 — 配合 Mock 运行的 NebulaGraphTool | QuickStart 示例 9B |
+| `10_skill_lifecycle.py` | Skill 生命周期 — 管理外部资源连接池 | QuickStart 示例 10 |
+| `11_orchestration_enhancement.py` | 编排增强 — 循环退出条件与并行提前终止 | QuickStart 示例 11 |
 
 ## 运行
 

@@ -18,6 +18,7 @@
   - [function_tool 装饰器](#function_tool-装饰器)
   - [FunctionTool](#functiontool)
   - [BaseTool / BaseToolset](#basetool--basetoolset)
+  - [StructuredDataTool (结构化数据源)](#structureddatatool-结构化数据源)
 - [Skill 类](#skill-类)
   - [Skill](#skill)
   - [SkillFrontmatter](#skillfrontmatter)
@@ -132,19 +133,24 @@ pipeline = SequentialAgent(name="pipeline", sub_agents=[agent_a, agent_b, agent_
 
 ```python
 from agentkit import ParallelAgent
-parallel = ParallelAgent(name="parallel", sub_agents=[agent_a, agent_b])
-```
-
-**LoopAgent** — 循环执行，直到 escalate 或达到上限
-
-```python
-from agentkit import LoopAgent
-loop = LoopAgent(name="loop", max_iterations=5, sub_agents=[coder, reviewer])
+parallel = ParallelAgent(name="parallel", early_exit=True, sub_agents=[agent_a, agent_b])
 ```
 
 | 参数 | 类型 | 说明 |
 |------|------|------|
-| `max_iterations` | `int` | LoopAgent 专属：最大循环次数，默认 10 |
+| `early_exit` | `bool` | ParallelAgent 专属：是否在一个子分支升级（escalate）时立即取消其他分支，默认 False |
+
+**LoopAgent** — 循环执行，直到 escalate 或满足退出条件
+
+```python
+from agentkit import LoopAgent
+loop = LoopAgent(name="loop", max_iterations=5, loop_condition=my_condition, sub_agents=[coder, reviewer])
+```
+
+| 参数 | 类型 | 说明 |
+|------|------|------|
+| `max_iterations` | `int` | LoopAgent 专属：最大循环次数，默认 10。达到上限时会发出 `loop_exhausted` 事件 |
+| `loop_condition` | `Callable \| None` | LoopAgent 专属：每次循环前的判断函数 `(ctx, state) -> bool`，返回 `False` 终止循环 |
 
 ---
 
@@ -311,6 +317,33 @@ class MyToolset(BaseToolset):
 
 ---
 
+### StructuredDataTool (结构化数据源)
+
+参数化数据查询工具基类，通过分离“参数抽取”与“SQL/GQL 组装”，从根本上避免 LLM 生成语句导致的注入攻击风险。
+
+```python
+from agentkit import StructuredDataTool, ResultFormatter
+from agentkit.tools.sqlite_tool import SQLiteTool
+from agentkit.tools.nebula_tool import NebulaGraphTool
+```
+
+**通用参数**：
+
+| 参数 | 类型 | 说明 |
+|------|------|------|
+| `name` | `str` | 工具名称 |
+| `description` | `str` | 工具描述 |
+| `parameters_schema` | `Type[BaseModel]` | Pydantic Schema，约束 LLM 输出的参数格式 |
+| `query_template` | `str` | 底层查询语句模板 |
+| `formatter` | `ResultFormatter \| None` | 结果格式化器，将数据库原生结果标准化 |
+
+**内置实现**：
+
+- **`SQLiteTool`**：关系型数据库工具。使用 `sqlite3` 的命名占位符机制绑定参数。
+- **`NebulaGraphTool`**：图数据库工具。支持 `connection_pool` 生命周期管理，允许注入动态连接池。
+
+---
+
 ## Skill 类
 
 ### Skill
@@ -324,6 +357,9 @@ from agentkit import Skill, SkillFrontmatter, SkillResources
 | `frontmatter` | `SkillFrontmatter` | L1：元数据（name + description） |
 | `instructions` | `str` | L2：SKILL.md 正文指令 |
 | `resources` | `SkillResources` | L3：附加资源 |
+| `context` | `dict` | **运行期**：存放生命周期绑定的外部资源（连接池等） |
+| `on_load_hook` | `Callable \| None` | **生命周期钩子**：在 Agent 执行前加载资源 |
+| `on_unload_hook` | `Callable \| None` | **生命周期钩子**：在 Agent 执行后释放资源 |
 
 **便捷属性**：`skill.name`、`skill.description`、`skill.additional_tools`、`skill.llm_config`
 

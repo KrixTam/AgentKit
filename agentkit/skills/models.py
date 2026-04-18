@@ -88,6 +88,41 @@ class Skill(BaseModel):
     frontmatter: SkillFrontmatter
     instructions: str
     resources: SkillResources = Field(default_factory=SkillResources)
+    
+    # 资源与生命周期
+    context: dict[str, Any] = Field(default_factory=dict, exclude=True)
+    _is_loaded: bool = False
+    
+    # 生命周期钩子
+    on_load_hook: Optional[Any] = Field(default=None, exclude=True)
+    on_unload_hook: Optional[Any] = Field(default=None, exclude=True)
+    
+    model_config = {"arbitrary_types_allowed": True}
+
+    async def on_load(self) -> None:
+        """加载资源"""
+        if self._is_loaded:
+            return
+        if self.on_load_hook:
+            import inspect
+            if inspect.iscoroutinefunction(self.on_load_hook):
+                await self.on_load_hook(self)
+            else:
+                self.on_load_hook(self)
+        self._is_loaded = True
+
+    async def on_unload(self) -> None:
+        """释放资源"""
+        if not self._is_loaded:
+            return
+        if self.on_unload_hook:
+            import inspect
+            if inspect.iscoroutinefunction(self.on_unload_hook):
+                await self.on_unload_hook(self)
+            else:
+                self.on_unload_hook(self)
+        self._is_loaded = False
+        self.context.clear()
 
     @property
     def name(self) -> str:

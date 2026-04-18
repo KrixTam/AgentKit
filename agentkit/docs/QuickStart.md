@@ -19,6 +19,10 @@
 - [示例 6：编排 Agent — 流水线与循环](#示例-6编排-agent--流水线与循环)
 - [示例 7：同步/异步/流式运行](#示例-7同步异步流式运行)
 - [示例 8：记忆系统 — 跨会话长期记忆](#示例-8记忆系统--跨会话长期记忆)
+- [示例 9A：关系型数据库 — 防止 SQL 注入的参数化 Tool](#示例-9a关系型数据库--防止-sql-注入的参数化-tool)
+- [示例 9B：图数据库 — 配合 Mock 运行的 NebulaGraphTool](#示例-9b图数据库--配合-mock-运行的-nebulagraphtool)
+- [示例 10：Skill 生命周期 — 管理外部资源连接池](#示例-10skill-生命周期--管理外部资源连接池)
+- [示例 11：编排增强 — 循环退出条件与并行提前终止](#示例-11编排增强--循环退出条件与并行提前终止)
 - [性能提示](#性能提示)
 - [使用不同的 LLM](#使用不同的-llm)
 - [下一步](#下一步)
@@ -481,15 +485,23 @@ parallel = ParallelAgent(
 ```python
 from agentkit import LoopAgent
 
+# 进阶特性：支持自定义退出条件与事件增强
+def check_status(ctx, state):
+    # state["iteration"] 包含当前轮次
+    return True
+
 review_loop = LoopAgent(
     name="code-review",
     max_iterations=5,
+    loop_condition=check_status, # 可选：每次循环前调用的回调函数
     sub_agents=[
-        Agent(name="coder", instructions="根据反馈编写或修改代码", model="ollama/qwen3.5:cloud"),
-        Agent(name="reviewer", instructions="审查代码。如果通过则发出 escalate 信号，否则给出修改建议", model="ollama/qwen3.5:cloud"),
+        Agent(name="coder", instructions="根据反馈编写代码", model="ollama/qwen3.5:cloud"),
+        Agent(name="reviewer", instructions="审查代码。通过发 escalate", model="ollama/qwen3.5:cloud"),
     ],
 )
 ```
+
+> **增强提示**：当 `ParallelAgent` 设置 `early_exit=True` 时，如果某个子 Agent 触发了 `escalate` 升级事件，它将自动取消其他尚未执行完的分支，并产出 `parallel_early_exit` 事件。当 `LoopAgent` 达到 `max_iterations` 上限时，将产出明确的 `loop_exhausted` 事件。
 
 ---
 
@@ -666,6 +678,249 @@ Mem0 相比 SimpleMemory 的优势：**语义搜索**（理解意思而非关键
 
 ---
 
+## 示例 9A：关系型数据库 — 防止 SQL 注入的参数化 Tool
+
+传统方法让 LLM 直接输出 SQL 存在严重安全隐患（如注入攻击）或语法错误。
+AgentKit 提供了 `StructuredDataTool` 基类，采用**参数化查询模式**。LLM 只需要输出经过 Pydantic 校验的结构化参数，底层的查询语句拼接和执行由代码严格控制。
+
+以下以 SQLite 为例：
+
+```python
+import asyncio
+import sqlite3
+from pydantic import BaseModel, Field
+from agentkit import Agent, Runner
+
+# 导入 SQLite 参数化查询工具
+from agentkit.tools.sqlite_tool import SQLiteTool
+
+# 1. 准备 Mock 数据库
+DB_PATH = "/tmp/agentkit_demo.db"
+conn = sqlite3.connect(DB_PATH)
+conn.execute("CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY, name TEXT, role TEXT, age INTEGER)")
+conn.execute("INSERT INTO users (name, role, age) VALUES ('Alice', 'Admin', 30), ('Bob', 'User', 25)")
+conn.commit()
+
+# 2. 定义严格的参数 Schema，让 LLM 只需要输出参数
+class UserRoleQueryArgs(BaseModel):
+    role: str = Field(..., description="要查询的用户角色名称，例如 'Admin' 或 'User'")
+
+# 3. 实例化参数化工具
+# query_template 决定了底层查询逻辑，LLM 无法篡改它。使用 :role 作为安全占位符
+sqlite_tool = SQLiteTool(
+    name="query_users_by_role",
+    description="根据角色查询用户信息",
+    parameters_schema=UserRoleQueryArgs,
+    query_template="SELECT name, age FROM users WHERE role = :role;",
+    db_path=DB_PATH,
+)
+
+async def main():
+    agent = Agent(
+        name="DBAssistant",
+        instructions="你是一个数据库查询助手，请帮用户查询数据库。如果查询成功，请用中文自然地回复查询结果。",
+        model="ollama/qwen3.5:cloud",
+        tools=[sqlite_tool],
+    )
+    result = await Runner.run(agent, input="请帮我查一下角色为 User 的人有哪些？")
+    print(f"🤖 回复:\n{result.final_output}")
+
+if __name__ == "__main__":
+    asyncio.run(main())
+```
+
+**要点**：
+- `StructuredDataTool` 自动将数据库原生返回标准化为 LLM 可读的 JSON 格式。
+- LLM 只负责抽取参数，彻底杜绝了注入风险。
+
+---
+
+## 示例 9B：图数据库 — 配合 Mock 运行的 NebulaGraphTool
+
+AgentKit 内置了对图数据库（如 Nebula Graph）的结构化支持。如果你尚未安装真实的数据库集群，也可以通过 Mock 来验证逻辑。
+
+```python
+import asyncio
+from typing import Any
+from pydantic import BaseModel, Field
+from agentkit import Agent, Runner
+
+from agentkit.tools.structured_data import ResultFormatter
+from agentkit.tools.nebula_tool import NebulaGraphTool
+
+# 1. 简单的 Mock 客户端与结果格式化器
+class MockSession:
+    def execute(self, query: str):
+        print(f"[Nebula Session] 执行 GQL: {query}")
+        return "mock_result"
+    def release(self): pass
+
+class MockConnectionPool:
+    def get_session(self, user, pwd): return MockSession()
+
+class MockResultFormatter(ResultFormatter):
+    def format(self, raw_result: Any) -> Any:
+        return {"summary": "Query succeeded", "data": [{"friend_name": "Bob"}]}
+
+# 2. 定义参数 Schema 与工具
+class PersonQueryArgs(BaseModel):
+    name: str = Field(..., description="要查找的人的名字", pattern=r"^[A-Za-z0-9_]+$")
+
+nebula_tool = NebulaGraphTool(
+    name="find_person_friends",
+    description="在知识图谱中查找某个人的朋友",
+    parameters_schema=PersonQueryArgs,
+    query_template='MATCH (v:person)-[:friend]->(e:person) WHERE id(v) == "{name}" RETURN e.name AS friend_name;',
+    space_name="social_graph",
+    connection_pool=MockConnectionPool(), # 注入 Mock 连接池
+    formatter=MockResultFormatter(),      # 注入 Mock 格式化器
+)
+
+async def main():
+    agent = Agent(
+        name="GraphAssistant",
+        instructions="你是一个图数据库查询助手，请帮我查询并总结结果。",
+        model="ollama/qwen3.5:cloud",
+        tools=[nebula_tool],
+    )
+    result = await Runner.run(agent, input="帮我找一下 Alice 的朋友。")
+    print(f"🤖 回复:\n{result.final_output}")
+
+if __name__ == "__main__":
+    asyncio.run(main())
+```
+
+**要点**：
+- 无论是关系型还是图数据库，都可以通过统一的 `StructuredDataTool` 架构进行管理。
+- 可以灵活注入外部 `connection_pool` 与 `formatter`。
+
+---
+
+## 示例 10：Skill 生命周期 — 管理外部资源连接池
+
+当 Skill 依赖外部资源（如数据库连接池、长期会话句柄）时，你需要确保在使用前正确初始化，并在结束时安全释放。
+AgentKit 为 Skill 提供了 `on_load_hook` 和 `on_unload_hook` 生命周期钩子。
+
+```python
+import asyncio
+import logging
+from agentkit import Agent, Runner, Skill, SkillFrontmatter
+
+logging.basicConfig(level=logging.INFO)
+
+# 1. 定义初始化和释放资源的钩子
+async def init_resource(skill: Skill):
+    logging.info(f"[{skill.name}] on_load_hook: 建立数据库连接池...")
+    # 将资源绑定到 Skill 的专属上下文 context 中
+    skill.context["db_pool"] = "MockConnectionPool(size=10)"
+
+async def close_resource(skill: Skill):
+    logging.info(f"[{skill.name}] on_unload_hook: 释放连接池...")
+    pool = skill.context.get("db_pool")
+    if pool:
+        logging.info(f"[{skill.name}] 已成功关闭连接池: {pool}")
+        skill.context.clear()
+
+# 2. 创建带钩子的 Skill
+db_skill = Skill(
+    frontmatter=SkillFrontmatter(
+        name="database-skill",
+        description="提供数据库查询能力，包含连接池生命周期管理",
+    ),
+    instructions="你可以使用数据库资源进行操作",
+    on_load_hook=init_resource,
+    on_unload_hook=close_resource,
+)
+
+async def main():
+    agent = Agent(
+        name="assistant",
+        instructions="你是一个助手。",
+        model="ollama/qwen3.5:cloud",
+        skills=[db_skill],
+    )
+    
+    print("开始运行 Agent，观察控制台的生命周期日志：\n")
+    # 运行前后会自动触发 on_load 和 on_unload，即使中间发生异常也会安全触发卸载
+    result = await Runner.run(agent, input="你好")
+    print(f"\n输出: {result.final_output}")
+
+if __name__ == "__main__":
+    asyncio.run(main())
+```
+
+**要点**：
+- 生命周期钩子在每次 `Runner.run()` 开始前和结束时自动执行。
+- 利用 `skill.context` 安全存储临时资源，防止资源泄露。
+
+---
+
+## 示例 11：编排增强 — 循环退出条件与并行提前终止
+
+处理复杂任务时，编排器（Orchestrators）提供了更高级的控制流：
+1. **LoopAgent 的动态退出**：通过 `loop_condition` 在每一轮动态判断是否继续。
+2. **ParallelAgent 的提前终止**：通过 `early_exit=True`，当任一分支发现重大问题（`escalate`）时，立即取消其他正在执行的分支。
+
+```python
+import asyncio
+from agentkit import Agent, Runner, LoopAgent, ParallelAgent
+from agentkit.runner.events import Event
+from agentkit.agents.base_agent import BaseAgent
+
+# --- 1. LoopAgent 增强：动态退出条件 ---
+def check_status(ctx, state):
+    iteration = state["iteration"]
+    if iteration >= 2:
+        print(f"[Loop] 自定义条件达成，将在第 {iteration} 轮终止循环。")
+        return False  # 返回 False 终止循环
+    return True
+
+loop_agent = LoopAgent(
+    name="review-loop",
+    max_iterations=5,
+    loop_condition=check_status,
+    sub_agents=[
+        Agent(name="coder", instructions="直接说 '我写好代码了'", model="ollama/qwen3.5:cloud"),
+    ]
+)
+
+# --- 2. ParallelAgent 增强：提前终止 (early_exit) ---
+# 为了演示，我们手写两个底层 Agent：一个耗时慢，一个立刻报错(escalate)
+class SlowAgent(BaseAgent):
+    async def _run_impl(self, ctx):
+        print("[Parallel] 慢任务开始，预计耗时 3 秒...")
+        try:
+            await asyncio.sleep(3)
+            yield Event(agent=self.name, type="final_output", data="慢任务完成")
+        except asyncio.CancelledError:
+            print("[Parallel] 慢任务被提前取消 (Cancelled)！")
+
+class FastEscalateAgent(BaseAgent):
+    async def _run_impl(self, ctx):
+        print("[Parallel] 检查任务发现致命错误，立即 escalate！")
+        yield Event(agent=self.name, type="escalate", data="发现安全漏洞")
+
+parallel_agent = ParallelAgent(
+    name="multi-task",
+    early_exit=True, # 开启此项，任一分支 escalate 都会取消其他分支
+    sub_agents=[SlowAgent(name="slow"), FastEscalateAgent(name="fast")]
+)
+
+async def main():
+    print("=== 演示 LoopAgent (自定义条件) ===")
+    await Runner.run(loop_agent, input="开始工作")
+    
+    print("\n=== 演示 ParallelAgent (提前取消) ===")
+    async for event in Runner.run_streamed(parallel_agent, input="开始并行任务"):
+        if event.type == "parallel_early_exit":
+            print(f"✅ 触发提前终止事件: {event.data['reason']}")
+
+if __name__ == "__main__":
+    asyncio.run(main())
+```
+
+---
+
 ## 性能提示
 
 当你感觉 Agent 响应较慢时，可以尝试以下优化：
@@ -787,6 +1042,10 @@ agent = Agent(name="assistant", instructions="...")
 | [`06_orchestration.py`](../examples/standard/06_orchestration.py) | 示例 6：编排 Agent |
 | [`07_sync_async_stream.py`](../examples/standard/07_sync_async_stream.py) | 示例 7：同步/异步/流式运行 |
 | [`08_memory.py`](../examples/standard/08_memory.py) | 示例 8：记忆系统 |
+| [`09a_structured_data_sql.py`](../examples/standard/09a_structured_data_sql.py) | 示例 9A：关系型数据库 |
+| [`09b_structured_data_graph.py`](../examples/standard/09b_structured_data_graph.py) | 示例 9B：图数据库 |
+| [`10_skill_lifecycle.py`](../examples/standard/10_skill_lifecycle.py) | 示例 10：Skill 生命周期 |
+| [`11_orchestration_enhancement.py`](../examples/standard/11_orchestration_enhancement.py) | 示例 11：编排增强 |
 
 ### 📁 `examples/ollama/` — Ollama 本地版（无需 API Key，完全本地运行）
 
@@ -800,6 +1059,10 @@ agent = Agent(name="assistant", instructions="...")
 | [`06_orchestration.py`](../examples/ollama/06_orchestration.py) | 示例 6：编排 Agent |
 | [`07_sync_async_stream.py`](../examples/ollama/07_sync_async_stream.py) | 示例 7：同步/异步/流式运行 |
 | [`08_memory.py`](../examples/ollama/08_memory.py) | 示例 8：记忆系统 |
+| [`09a_structured_data_sql.py`](../examples/ollama/09a_structured_data_sql.py) | 示例 9A：关系型数据库 |
+| [`09b_structured_data_graph.py`](../examples/ollama/09b_structured_data_graph.py) | 示例 9B：图数据库 |
+| [`10_skill_lifecycle.py`](../examples/ollama/10_skill_lifecycle.py) | 示例 10：Skill 生命周期 |
+| [`11_orchestration_enhancement.py`](../examples/ollama/11_orchestration_enhancement.py) | 示例 11：编排增强 |
 
 ---
 
