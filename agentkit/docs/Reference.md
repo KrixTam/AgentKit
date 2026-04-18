@@ -72,11 +72,14 @@ from agentkit import Agent
 | `memory_async_write` | `bool` | `True` | 记忆写入模式。`True`=fire-and-forget 异步写入（不阻塞返回）；`False`=同步等待写入完成（多轮串行对话推荐） |
 | `before_agent_callback` | `Callable \| None` | `None` | Agent 运行前回调 |
 | `after_agent_callback` | `Callable \| None` | `None` | Agent 运行后回调 |
-| `before_model_callback` | `Callable \| None` | `None` | LLM 调用前回调 |
-| `after_model_callback` | `Callable \| None` | `None` | LLM 调用后回调 |
-| `before_tool_callback` | `Callable \| None` | `None` | 工具调用前回调 |
-| `after_tool_callback` | `Callable \| None` | `None` | 工具调用后回调 |
+| `before_model_callback` | `Callable \| None` | `None` | LLM 调用前回调（可拦截/改写） |
+| `after_model_callback` | `Callable \| None` | `None` | LLM 调用后回调（可改写响应） |
+| `before_tool_callback` | `Callable \| None` | `None` | 工具调用前回调（可拦截执行） |
+| `after_tool_callback` | `Callable \| None` | `None` | 工具调用后回调（可改写工具结果） |
+| `before_handoff_callback` | `Callable \| None` | `None` | Handoff 前回调（可改写目标 Agent） |
+| `after_handoff_callback` | `Callable \| None` | `None` | Handoff 后回调 |
 | `on_error_callback` | `Callable \| None` | `None` | 错误回调 |
+| `fail_fast_on_hook_error` | `bool` | `False` | Hook 抛错时是否立即中断流程 |
 
 **方法**：
 
@@ -170,9 +173,9 @@ from agentkit import Runner
 
 | 方法 | 签名 | 说明 |
 |------|------|------|
-| `run` | `async (agent, *, input, context=None, user_id=None, max_turns=10) -> RunResult` | 异步运行 |
+| `run` | `async (agent, *, input, context=None, user_id=None, session_id=None, max_turns=10) -> RunResult` | 异步运行 |
 | `run_sync` | `(agent, **kwargs) -> RunResult` | 同步运行（内部调用 asyncio.run） |
-| `run_streamed` | `async (agent, *, input, **kwargs) -> AsyncGenerator[Event, None]` | 流式运行，实时产出 Event |
+| `run_streamed` | `async (agent, *, input, user_id=None, session_id=None, **kwargs) -> AsyncGenerator[Event, None]` | 流式运行，实时产出 Event |
 | `run_with_checkpoint` | `async (agent, *, input, session_id, context_store, ...) -> AsyncGenerator[Event, None]` | 流式运行（支持挂起），遇到 HumanInputRequested 会自动保存上下文并退出 |
 | `resume` | `async (agent, *, session_id, user_input, context_store, ...) -> AsyncGenerator[Event, None]` | 恢复被挂起的 Agent 会话，将 user_input 作为挂起工具的返回值继续流转 |
 
@@ -184,6 +187,7 @@ from agentkit import Runner
 | `input` | `str` | **必填** | 用户输入 |
 | `context` | `Any` | `None` | 共享上下文（传给 RunContext.shared_context） |
 | `user_id` | `str \| None` | `None` | 用户 ID（用于记忆隔离） |
+| `session_id` | `str \| None` | `None` | 会话 ID（不传则自动生成） |
 | `max_turns` | `int` | `10` | 最大轮次（每个 turn 包含一次 LLM 调用） |
 
 ---
@@ -200,8 +204,8 @@ from agentkit.runner.context import RunContext
 |------|------|------|
 | `input` | `str` | 初始用户输入 |
 | `shared_context` | `Any` | 自定义共享对象，支持 `__ak_serialize__` 魔法方法 |
-| `user_id` | `str \| None` | 用户 ID |
-| `session_id` | `str` | 会话 ID，默认随机生成 |
+| `user_id` | `str \| None` | 用户 ID（用于多租户和记忆隔离） |
+| `session_id` | `str` | 会话 ID，默认随机生成（用于断点续跑和上下文隔离） |
 | `messages` | `list[dict]` | 当前完整的对话消息链 |
 | `state` | `dict` | 运行期间的内部状态，挂起工具等信息暂存于此 |
 

@@ -25,10 +25,29 @@ class BaseAgent(BaseModel):
     sub_agents: list["BaseAgent"] = Field(default_factory=list)
     before_agent_callback: Optional[Callable] = None
     after_agent_callback: Optional[Callable] = None
+    fail_fast_on_hook_error: bool = False
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
-    def model_post_init(self, __context: Any) -> None:
+    async def _run_hook(self, hook: Optional[Callable], _hook_name: str, *args, **kwargs) -> tuple[Any, float, Optional[Exception]]:
+        """执行回调钩子并返回 (结果, 耗时(秒), 异常)"""
+        if not hook:
+            return None, 0.0, None
+        
+        import time
+        import inspect
+        start_time = time.time()
+        try:
+            result = hook(*args, **kwargs)
+            if inspect.isawaitable(result):
+                result = await result
+            duration = time.time() - start_time
+            return result, duration, None
+        except Exception as e:
+            duration = time.time() - start_time
+            return None, duration, e
+
+    def model_post_init(self, _context: Any) -> None:
         for sub in self.sub_agents:
             if sub.parent_agent is not None:
                 raise ValueError(f"Agent '{sub.name}' 已有父 Agent")
@@ -38,9 +57,13 @@ class BaseAgent(BaseModel):
         """运行入口 — 子类不可覆盖"""
         # 1. before callback
         if self.before_agent_callback:
-            result = await self.before_agent_callback(ctx)
-            if result is not None:
-                yield Event(agent=self.name, type="callback", data=result)
+            result, duration, err = await self._run_hook(self.before_agent_callback, "before_agent_callback", ctx)
+            if err:
+                yield Event(agent=self.name, type="error", data={"hook": "before_agent", "error": str(err), "duration": duration})
+                if self.fail_fast_on_hook_error:
+                    return
+            elif result is not None:
+                yield Event(agent=self.name, type="callback", data={"result": result, "duration": duration})
                 return
 
         # 2. 核心逻辑（子类实现）
@@ -49,9 +72,13 @@ class BaseAgent(BaseModel):
 
         # 3. after callback
         if self.after_agent_callback:
-            result = await self.after_agent_callback(ctx)
-            if result is not None:
-                yield Event(agent=self.name, type="callback", data=result)
+            result, duration, err = await self._run_hook(self.after_agent_callback, "after_agent_callback", ctx)
+            if err:
+                yield Event(agent=self.name, type="error", data={"hook": "after_agent", "error": str(err), "duration": duration})
+                if self.fail_fast_on_hook_error:
+                    return
+            elif result is not None:
+                yield Event(agent=self.name, type="callback", data={"result": result, "duration": duration})
 
     @abstractmethod
     async def _run_impl(self, ctx: "RunContext") -> AsyncGenerator[Event, None]:

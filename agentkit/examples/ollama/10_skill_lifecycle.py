@@ -1,5 +1,11 @@
 import asyncio
 import logging
+import sys
+import os
+
+# 确保能导入 agentkit
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../../..")))
+
 from agentkit import Agent, Runner, Skill, SkillFrontmatter
 
 logging.basicConfig(level=logging.INFO)

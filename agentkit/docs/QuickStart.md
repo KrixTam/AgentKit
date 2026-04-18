@@ -1,6 +1,6 @@
 # AgentKit 快速入门教程
 
-> 本教程将带你从零开始，通过 14 个由简到繁的示例，掌握 AgentKit 的核心用法。
+> 本教程将带你从零开始，通过 16 个由简到繁的示例，掌握 AgentKit 的核心用法。
 
 ---
 
@@ -26,6 +26,8 @@
 - [示例 12：RunContext 序列化与共享状态](#示例-12runcontext-序列化与共享状态)
 - [示例 13：Human-in-the-loop 与断点续跑](#示例-13human-in-the-loop-与断点续跑)
 - [示例 14：事件协议标准化与强类型校验](#示例-14事件协议标准化与强类型校验)
+- [示例 15：多租户隔离 (Multi-Tenant Isolation)](#15-多租户隔离-multi-tenant-isolation)
+- [示例 16：生命周期 Hooks 与 Callbacks](#16-生命周期-hooks-与-callbacks)
 - [性能提示](#性能提示)
 - [使用不同的 LLM](#使用不同的-llm)
 - [下一步](#下一步)
@@ -1163,6 +1165,8 @@ agent = Agent(name="assistant", instructions="...")
 | [`12_run_context_serialization.py`](../examples/standard/12_run_context_serialization.py) | 示例 12：RunContext 序列化与共享状态 |
 | [`13_human_in_the_loop.py`](../examples/standard/13_human_in_the_loop.py) | 示例 13：Human-in-the-loop 与断点续跑 |
 | [`14_event_standardization.py`](../examples/standard/14_event_standardization.py) | 示例 14：事件协议标准化与强类型校验 |
+| [`15_multi_tenant_isolation.py`](../examples/standard/15_multi_tenant_isolation.py) | 示例 15：多租户隔离 |
+| [`16_lifecycle_hooks.py`](../examples/standard/16_lifecycle_hooks.py) | 示例 16：生命周期 Hooks 与 Callbacks |
 
 ### 📁 `examples/ollama/` — Ollama 本地版（无需 API Key，完全本地运行）
 
@@ -1183,8 +1187,62 @@ agent = Agent(name="assistant", instructions="...")
 | [`12_run_context_serialization.py`](../examples/ollama/12_run_context_serialization.py) | 示例 12：RunContext 序列化与共享状态 |
 | [`13_human_in_the_loop.py`](../examples/ollama/13_human_in_the_loop.py) | 示例 13：Human-in-the-loop 与断点续跑 |
 | [`14_event_standardization.py`](../examples/ollama/14_event_standardization.py) | 示例 14：事件协议标准化与强类型校验 |
+| [`15_multi_tenant_isolation.py`](../examples/ollama/15_multi_tenant_isolation.py) | 示例 15：多租户隔离 |
+| [`16_lifecycle_hooks.py`](../examples/ollama/16_lifecycle_hooks.py) | 示例 16：生命周期 Hooks 与 Callbacks |
 
 ---
+
+### 15. 多租户隔离 (Multi-Tenant Isolation)
+
+AgentKit 从底层框架级别支持多租户与多会话隔离。通过在 `Runner.run` 中传入 `user_id` 和 `session_id`：
+
+1. **记忆分桶**：Memory 系统（如 Mem0Provider）会自动将 `user_id` 作为分桶键，实现跨用户记忆绝对隔离。
+2. **状态隔离**：Skill 与 Tool 的上下文（Context）通过 `RunContext.state` 按 `session_id` 独立管理。
+3. **资源释放监控**：会话结束后，框架自动调用所有 Skill 的 `on_unload` 清理资源，并输出包含释放耗时的监控日志。
+
+```python
+from agentkit.agents.agent import Agent
+from agentkit.runner.runner import Runner
+
+# 假设已经配置好了 Memory 和相关的 Skill
+agent = Agent(name="TenantAgent", memory=memory_provider)
+
+# User A 的请求
+await Runner.run(agent, input="记住我是 Alice", user_id="user_A_123")
+
+# User B 的请求
+result = await Runner.run(agent, input="我叫什么？", user_id="user_B_456")
+print(result.final_output)  # User B 不会知道 Alice 的名字
+
+# 通过监控 events 可以看到资源被自动释放
+```
+
+### 16. 生命周期 Hooks 与 Callbacks
+
+如果你需要对 Agent 的执行过程进行 APM 监控、数据脱敏、请求改写或审计，可以使用生命周期钩子：
+
+```python
+async def before_model(ctx, instructions, tools):
+    print("准备调用 LLM，可以在这里动态修改 Prompt 或注入额外系统信息")
+    # instructions += "\n[系统提示: 今天是周五]"
+    # 如果返回非 None 值，将直接覆盖 LLM 的调用结果
+
+async def after_model(ctx, response):
+    print("收到 LLM 响应，准备对其进行脱敏或追加内容")
+    if response.content:
+        response.content += "\n[安全审计系统: 本回答由 AI 生成]"
+    return response
+
+agent = Agent(
+    name="HookAgent",
+    instructions="你是一个安全助手",
+    model="gpt-4o-mini",
+    before_model_callback=before_model,
+    after_model_callback=after_model,
+    # 其他钩子: before_agent, after_agent, before_tool, after_tool, before_handoff, after_handoff, on_error
+    fail_fast_on_hook_error=False # 如果 Hook 发生异常，仅记录 Event 而不中断主流程
+)
+```
 
 ## 下一步
 

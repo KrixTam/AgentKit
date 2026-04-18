@@ -19,7 +19,7 @@
 | **@function_tool** | 一行装饰器把 Python 函数变成 LLM 工具，自动推断 JSON Schema。内建 `StructuredDataTool` 防止数据库注入 |
 | **安全内置** | Input/Output 双向 Guardrail + 三层权限控制 + 三级沙箱执行 |
 | **记忆系统** | Mem0 集成，跨会话长期记忆 |
-| **7 个回调点** | before/after × agent/model/tool + error，任何环节可拦截定制 |
+| **9 个回调点** | before/after × agent/model/tool/handoff + error，任何环节可拦截定制 |
 
 ---
 
@@ -70,7 +70,7 @@ print(result.final_output)
 
 | 文档 | 说明 |
 |------|------|
-| **[QuickStart.md](QuickStart.md)** | 详细入门教程，包含 14 个从简到繁的完整示例 |
+| **[QuickStart.md](QuickStart.md)** | 详细入门教程，包含 16 个从简到繁的完整示例 |
 | **[Architecture.md](Architecture.md)** | 架构设计说明：六层分层、设计原则、核心流程 |
 | **[Reference.md](Reference.md)** | 完整 API 参考手册：所有类、方法、参数说明 |
 

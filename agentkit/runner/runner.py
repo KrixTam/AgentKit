@@ -33,13 +33,15 @@ class Runner:
         input: str,
         context: Any = None,
         user_id: str | None = None,
+        session_id: str | None = None,
         max_turns: int = 10,
     ) -> RunResult:
-        ctx = RunContext(input=input, shared_context=context, user_id=user_id)
+        import uuid
+        ctx = RunContext(input=input, shared_context=context, user_id=user_id, session_id=session_id or str(uuid.uuid4()))
         current_agent = agent
         events: list[Event] = []
 
-        for turn in range(max_turns):
+        for _ in range(max_turns):
             # 输入护栏
             if hasattr(current_agent, "input_guardrails"):
                 for guardrail in current_agent.input_guardrails:
@@ -85,9 +87,18 @@ class Runner:
         return asyncio.run(cls.run(agent, **kwargs))
 
     @classmethod
-    async def run_streamed(cls, agent: Any, *, input: str, **kwargs: Any) -> AsyncGenerator[Event, None]:
+    async def run_streamed(
+        cls, 
+        agent: Any, 
+        *, 
+        input: str, 
+        user_id: str | None = None,
+        session_id: str | None = None,
+        **kwargs: Any
+    ) -> AsyncGenerator[Event, None]:
         """流式运行，实时产出 Event"""
-        ctx = RunContext(input=input, **kwargs)
+        import uuid
+        ctx = RunContext(input=input, user_id=user_id, session_id=session_id or str(uuid.uuid4()), **kwargs)
         async for event in agent.run(ctx):
             yield event
 
@@ -101,7 +112,7 @@ class Runner:
         context_store: "ContextStore",
         context: Any = None,
         user_id: str | None = None,
-        **kwargs: Any,
+        **_kwargs: Any,
     ) -> AsyncGenerator[Event, None]:
         """
         流式运行（支持挂起与恢复）。
@@ -144,7 +155,7 @@ class Runner:
         
         # 恢复挂起的工具调用
         tool_call_id = ctx.state.pop("__suspended_tool_call_id__", None)
-        tool_name = ctx.state.pop("__suspended_tool_name__", None)
+        ctx.state.pop("__suspended_tool_name__", None)
         
         if tool_call_id:
             # 将 user_input 作为该挂起工具调用的结果加入上下文

@@ -11,25 +11,21 @@ from __future__ import annotations
 
 import inspect
 import logging
-from typing import TYPE_CHECKING, Any, AsyncGenerator, Callable, Optional, Union
+from typing import Any, AsyncGenerator, Callable, Optional, Union
 
 from pydantic import ConfigDict, Field, PrivateAttr
 
 from ..llm.base import BaseLLM
 from ..llm.registry import LLMRegistry
-from ..llm.types import LLMConfig, LLMResponse, Message, MessageRole, ToolCall as LLMToolCall
+from ..llm.types import LLMConfig, Message, MessageRole, ToolCall as LLMToolCall
 from ..runner.events import Event, EventType
 from ..skills.models import Skill
-from ..tools.base_tool import BaseTool, BaseToolset, ToolUnion, HumanInputRequested
+from ..tools.base_tool import BaseTool, BaseToolset, HumanInputRequested
 from ..tools.function_tool import FunctionTool
 from ..tools.skill_toolset import SkillToolset
 from .base_agent import BaseAgent
 
-if TYPE_CHECKING:
-    from ..memory.base import BaseMemoryProvider
-    from ..runner.context import RunContext
-    from ..safety.guardrails import InputGuardrail, OutputGuardrail
-    from ..safety.permissions import PermissionPolicy
+from ..runner.context import RunContext
 
 logger = logging.getLogger("agentkit.agent")
 
@@ -71,7 +67,10 @@ class Agent(BaseAgent):
     after_model_callback: Optional[Callable] = None
     before_tool_callback: Optional[Callable] = None
     after_tool_callback: Optional[Callable] = None
+    before_handoff_callback: Optional[Callable] = None
+    after_handoff_callback: Optional[Callable] = None
     on_error_callback: Optional[Callable] = None
+    fail_fast_on_hook_error: bool = False
 
     # ------------------------------------------------------------------
     # 核心方法
@@ -140,6 +139,17 @@ class Agent(BaseAgent):
     async def _run_impl(self, ctx: "RunContext") -> AsyncGenerator[Event, None]:
         round_count = 0
 
+        # 在执行前加载所有未加载的 Skill
+        for skill in self.skills:
+            try:
+                await skill.on_load(ctx)
+            except Exception as e:
+                yield Event(
+                    agent=self.name, 
+                    type="error", 
+                    data={"context": "skill_on_load", "skill": skill.name, "error": str(e)}
+                )
+
         try:
             while round_count < self.max_tool_rounds:
                 round_count += 1
@@ -187,9 +197,13 @@ class Agent(BaseAgent):
 
                 # 4. before_model 回调
                 if self.before_model_callback:
-                    override = await self.before_model_callback(ctx, instructions, tools)
-                    if override is not None:
-                        yield Event(agent=self.name, type="model_override", data=override)
+                    override, duration, err = await self._run_hook(self.before_model_callback, "before_model_callback", ctx, instructions, tools)
+                    if err:
+                        yield Event(agent=self.name, type="error", data={"hook": "before_model", "error": str(err), "duration": duration})
+                        if self.fail_fast_on_hook_error:
+                            return
+                    elif override is not None:
+                        yield Event(agent=self.name, type="model_override", data={"override": override, "duration": duration})
                         return
 
                 # 5. 调用 LLM（支持缓存）
@@ -210,7 +224,11 @@ class Agent(BaseAgent):
                     except Exception as e:
                         error_msg = str(e) or f"{type(e).__name__}: LLM 调用失败"
                         if self.on_error_callback:
-                            await self.on_error_callback(ctx, e)
+                            _, duration, err = await self._run_hook(self.on_error_callback, "on_error_callback", ctx, e)
+                            if err:
+                                yield Event(agent=self.name, type="error", data={"hook": "on_error", "error": str(err), "duration": duration})
+                                if self.fail_fast_on_hook_error:
+                                    return
                         yield Event(agent=self.name, type="error", data=error_msg)
                         return
 
@@ -220,7 +238,13 @@ class Agent(BaseAgent):
 
                 # 6. after_model 回调
                 if self.after_model_callback:
-                    response = (await self.after_model_callback(ctx, response)) or response
+                    hook_res, duration, err = await self._run_hook(self.after_model_callback, "after_model_callback", ctx, response)
+                    if err:
+                        yield Event(agent=self.name, type="error", data={"hook": "after_model", "error": str(err), "duration": duration})
+                        if self.fail_fast_on_hook_error:
+                            return
+                    elif hook_res is not None:
+                        response = hook_res
 
                 yield Event(agent=self.name, type="llm_response", data=response)
 
@@ -245,16 +269,41 @@ class Agent(BaseAgent):
 
                         # 检查是否是 handoff
                         if tool_call.name.startswith("transfer_to_"):
+                            target_agent = tool_call.name.replace("transfer_to_", "")
+                            
+                            # before_handoff 回调
+                            if self.before_handoff_callback:
+                                override, duration, err = await self._run_hook(self.before_handoff_callback, "before_handoff_callback", ctx, target_agent, tool_call)
+                                if err:
+                                    yield Event(agent=self.name, type="error", data={"hook": "before_handoff", "error": str(err), "duration": duration})
+                                    if self.fail_fast_on_hook_error:
+                                        return
+                                elif override is not None:
+                                    target_agent = override
+                            
                             # 保持 tool-call 消息链完整，避免后续 Agent 看到未闭合的 tool_call
                             # 导致模型输出空内容 (content=None)。
-                            ctx.add_tool_result(tool_call.id, f"Handoff to {tool_call.name.replace('transfer_to_', '')}")
-                            yield Event(agent=self.name, type="handoff", data={"target": tool_call.name.replace("transfer_to_", "")})
+                            ctx.add_tool_result(tool_call.id, f"Handoff to {target_agent}")
+                            
+                            # after_handoff 回调
+                            if self.after_handoff_callback:
+                                _, duration, err = await self._run_hook(self.after_handoff_callback, "after_handoff_callback", ctx, target_agent)
+                                if err:
+                                    yield Event(agent=self.name, type="error", data={"hook": "after_handoff", "error": str(err), "duration": duration})
+                                    if self.fail_fast_on_hook_error:
+                                        return
+                            
+                            yield Event(agent=self.name, type="handoff", data={"target": target_agent})
                             return
 
                         # before_tool 回调
                         if self.before_tool_callback:
-                            override = await self.before_tool_callback(ctx, tool, tool_call)
-                            if override is not None:
+                            override, duration, err = await self._run_hook(self.before_tool_callback, "before_tool_callback", ctx, tool, tool_call)
+                            if err:
+                                yield Event(agent=self.name, type="error", data={"hook": "before_tool", "error": str(err), "duration": duration})
+                                if self.fail_fast_on_hook_error:
+                                    return
+                            elif override is not None:
                                 continue
 
                         # 权限检查
@@ -283,7 +332,13 @@ class Agent(BaseAgent):
 
                         # after_tool 回调
                         if self.after_tool_callback:
-                            result = (await self.after_tool_callback(ctx, tool, result)) or result
+                            hook_res, duration, err = await self._run_hook(self.after_tool_callback, "after_tool_callback", ctx, tool, result)
+                            if err:
+                                yield Event(agent=self.name, type="error", data={"hook": "after_tool", "error": str(err), "duration": duration})
+                                if self.fail_fast_on_hook_error:
+                                    return
+                            elif hook_res is not None:
+                                result = hook_res
 
                         yield Event(agent=self.name, type="tool_result", data={"tool": tool_call.name, "result": result})
                         ctx.add_tool_result(tool_call.id, result)
@@ -324,13 +379,13 @@ class Agent(BaseAgent):
         finally:
             for skill in self.skills:
                 try:
-                    await skill.on_unload()
+                    import time
+                    start_time = time.time()
+                    await skill.on_unload(ctx)
+                    duration = time.time() - start_time
+                    logger.info(f"[{self.name}] resource_released: skill={skill.name} duration={duration:.4f}s session={ctx.session_id}")
                 except Exception as e:
-                    yield Event(
-                        agent=self.name, 
-                        type="error", 
-                        data={"context": "skill_on_unload", "skill": skill.name, "error": str(e)}
-                    )
+                    logger.error(f"[{self.name}] skill_on_unload error: skill={skill.name} error={e}")
 
     # ------------------------------------------------------------------
     # 辅助方法
@@ -374,7 +429,7 @@ class Agent(BaseAgent):
 
     @staticmethod
     def _create_handoff_tool(target: BaseAgent) -> FunctionTool:
-        async def _handler(**kwargs: Any) -> str:
+        async def _handler(**_kwargs: Any) -> str:
             return f"Handoff to {target.name}"
 
         return FunctionTool(

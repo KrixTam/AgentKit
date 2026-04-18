@@ -99,28 +99,34 @@ class Skill(BaseModel):
     
     model_config = {"arbitrary_types_allowed": True}
 
-    async def on_load(self) -> None:
+    def get_context(self, ctx: Optional[Any] = None) -> dict[str, Any]:
+        """获取 Skill 的上下文。优先从 RunContext 获取会话级上下文，回退到全局上下文"""
+        if ctx is not None and hasattr(ctx, "state"):
+            return ctx.state.setdefault(f"__skill_context_{self.name}__", {})
+        return self.context
+
+    async def on_load(self, ctx: Optional["RunContext"] = None) -> None:
         """加载资源"""
         if self._is_loaded:
             return
         if self.on_load_hook:
             import inspect
             if inspect.iscoroutinefunction(self.on_load_hook):
-                await self.on_load_hook(self)
+                await self.on_load_hook(self, ctx) if 'ctx' in inspect.signature(self.on_load_hook).parameters else await self.on_load_hook(self)
             else:
-                self.on_load_hook(self)
+                self.on_load_hook(self, ctx) if 'ctx' in inspect.signature(self.on_load_hook).parameters else self.on_load_hook(self)
         self._is_loaded = True
 
-    async def on_unload(self) -> None:
+    async def on_unload(self, ctx: Optional["RunContext"] = None) -> None:
         """释放资源"""
         if not self._is_loaded:
             return
         if self.on_unload_hook:
             import inspect
             if inspect.iscoroutinefunction(self.on_unload_hook):
-                await self.on_unload_hook(self)
+                await self.on_unload_hook(self, ctx) if 'ctx' in inspect.signature(self.on_unload_hook).parameters else await self.on_unload_hook(self)
             else:
-                self.on_unload_hook(self)
+                self.on_unload_hook(self, ctx) if 'ctx' in inspect.signature(self.on_unload_hook).parameters else self.on_unload_hook(self)
         self._is_loaded = False
         self.context.clear()
 
