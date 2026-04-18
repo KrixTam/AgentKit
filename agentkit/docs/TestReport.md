@@ -14,30 +14,30 @@
 
 | # | 示例 | 文件 | 耗时 | 状态 | 说明 |
 |---|------|------|-----:|:----:|------|
-| 1 | 基础对话 | `01_basic_chat.py` | 11.47s | ✅ | 正确回答量子计算定义 |
-| 2 | 工具调用 | `02_tool_calling.py` | 82.48s | ✅ | add=42 / multiply=21 / weather=晴25°C |
-| 3 | Skill 使用 | `03_skill_usage.py` | 41.95s | ✅ | 三次查询均正确，Skill 加载与工具调用正常 |
-| 4 | 多 Agent 协作 | `04_multi_agent.py` | 77.83s | ✅ | as_tool 与 Handoff 两条路径均通过 |
-| 5 | 安全护栏 | `05_guardrail.py` | 4.19s | ✅ | 敏感词拦截 ✅ / read_file 放行 ✅ / delete_file 拒绝 ✅ |
-| 6 | 编排 Agent | `06_orchestration.py` | 224.00s | ✅ | Sequential + Parallel + Loop 三段流程均通过 |
-| 7 | 同步/异步/流式 | `07_sync_async_stream.py` | 18.99s | ✅ | run_sync / run / 并发 / 流式四种路径均通过 |
-| 8 | 记忆系统 | `08_memory.py` | 123.91s | ✅ | 流程完整通过，本轮无记忆阶段输出正常 |
-| 9A | 结构化数据（SQL） | `09a_structured_data_sql.py` | 8.06s | ✅ | SQLite Mock 查询成功 |
-| 9B | 结构化数据（图） | `09b_structured_data_graph.py` | 7.10s | ✅ | Nebula Mock 返回成功 |
-| 10 | Skill 生命周期 | `10_skill_lifecycle.py` | 9.05s | ✅ | on_load / on_unload 路径可执行，示例运行通过 |
-| 11 | 编排增强 | `11_orchestration_enhancement.py` | 57.74s | ✅ | loop_condition 生效；early_exit 触发并取消慢分支 |
+| 1 | 基础对话 | `01_basic_chat.py` | 12.44s | ✅ | 正确回答量子计算定义 |
+| 2 | 工具调用 | `02_tool_calling.py` | 6.34s | ✅ | add=42 / multiply=21 / weather=晴25°C |
+| 3 | Skill 使用 | `03_skill_usage.py` | 75.24s | ✅ | 三次查询均正确，Skill 加载与工具调用正常 |
+| 4 | 多 Agent 协作 | `04_multi_agent.py` | 253.00s | ✅ | as_tool 与 Handoff 两条路径均通过 |
+| 5 | 安全护栏 | `05_guardrail.py` | 9.15s | ✅ | 敏感词拦截 ✅ / read_file 放行 ✅ / delete_file 拒绝 ✅ |
+| 6 | 编排 Agent | `06_orchestration.py` | 141.47s | ✅ | Sequential + Parallel + Loop 三段流程均通过 |
+| 7 | 同步/异步/流式 | `07_sync_async_stream.py` | 15.04s | ✅ | run_sync / run / 并发 / 流式四种路径均通过 |
+| 8 | 记忆系统 | `08_memory.py` | 429.90s | ✅ | 流程完整通过，本轮无记忆阶段输出正常 |
+| 9A | 结构化数据（SQL） | `09a_structured_data_sql.py` | 4.60s | ✅ | SQLite Mock 查询成功 |
+| 9B | 结构化数据（图） | `09b_structured_data_graph.py` | 6.13s | ✅ | Nebula Mock 返回成功 |
+| 10 | Skill 生命周期 | `10_skill_lifecycle.py` | 1.53s | ✅ | on_load / on_unload 路径可执行，示例运行通过 |
+| 11 | 编排增强 | `11_orchestration_enhancement.py` | 55.17s | ✅ | loop_condition 生效；early_exit 触发并取消慢分支 |
 | 12 | 序列化协议 | `12_run_context_serialization.py` | 0.29s | ✅ | 自定义对象 `__ak_serialize__` 和状态恢复可正常运行 |
-| 13 | Human in the Loop | `13_human_in_the_loop.py` | 6.21s | ✅ | 工具触发挂起、存储 Checkpoint、人工介入后 `resume` 恢复执行均成功 |
-| 14 | Event 标准化 | `14_event_standardization.py` | 6.27s | ✅ | 所有事件类型严格遵循 `EventType`，强类型校验拦截功能正常 |
-| 15 | 多租户隔离 | `15_multi_tenant_isolation.py` | 0.28s | ✅ | Memory 与 Context 按 user_id 严格隔离，监控事件正常输出 |
-| 16 | 生命周期 Hooks | `16_lifecycle_hooks.py` | 0.26s | ✅ | before/after 各级回调正常执行，改写响应生效，Hook 异常降级不崩溃 |
-| | **合计** | | **680.08s** | **17/17** | |
+| 13 | Human in the Loop | `13_human_in_the_loop.py` | 6.72s | ✅ | 工具触发挂起、存储 Checkpoint、人工介入后 `resume` 恢复执行均成功 |
+| 14 | Event 标准化 | `14_event_standardization.py` | 7.22s | ✅ | 所有事件类型严格遵循 `EventType`，强类型校验拦截功能正常 |
+| 15 | 多租户隔离 | `15_multi_tenant_isolation.py` | 0.30s | ✅ | Memory 与 Context 按 user_id 严格隔离，监控日志正常输出 |
+| 16 | 生命周期 Hooks | `16_lifecycle_hooks.py` | 0.27s | ✅ | before/after 各级回调正常执行，改写响应生效，Hook 异常降级不崩溃 |
+| | **合计** | | **1024.81s** | **17/17** | |
 
 ## 耗时分析
 
 - **单次 LLM 调用**（含 thinking）：约 2-20 秒（受任务复杂度和工具轮次影响）
-- **最快示例**：12 RunContext 序列化（0.3s）——纯本地序列化/反序列化，无 LLM 调用
-- **最慢示例**：11 编排增强（292.4s）——Loop/Parallel 组合路径，轮次较多
+- **最快示例**：16 生命周期 Hooks（0.27s）——本轮模型不可用分支快速返回
+- **最慢示例**：8 记忆系统（429.90s）——多轮记忆读写与推理路径较长
 - **多轮示例耗时** ≈ LLM 调用次数 × 单次调用耗时
 
 ## 各示例 LLM 调用次数估算
@@ -59,6 +59,8 @@
 | 12 | RunContext 序列化 | 0 | 纯本地上下文序列化与反序列化 |
 | 13 | HITL 断点续跑 | ~3 | 挂起前 1-2 轮 + 恢复后 1 轮 |
 | 14 | 事件协议标准化 | 1 | 单轮响应 + 标准事件输出 |
+| 15 | 多租户隔离 | ~3 | 多 Session 验证 user_id 隔离与资源释放日志 |
+| 16 | 生命周期 Hooks | ~2 | Hook 拦截 + 异常降级路径验证 |
 
 ## 已知问题
 

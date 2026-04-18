@@ -4,7 +4,8 @@ import subprocess
 import glob
 import sys
 
-examples_dir = "/Users/krix/Trae/AgentKit/agentkit/examples/ollama"
+project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+examples_dir = os.path.join(project_root, "examples", "ollama")
 scripts = sorted(glob.glob(os.path.join(examples_dir, "*.py")))
 # exclude __init__.py and other non-test scripts
 scripts = [s for s in scripts if os.path.basename(s).startswith(("0", "1"))]
@@ -14,7 +15,7 @@ print(f"Found {len(scripts)} scripts to run.")
 results = []
 
 env = os.environ.copy()
-env["PYTHONPATH"] = "/Users/krix/Trae/AgentKit/agentkit"
+env["PYTHONPATH"] = project_root + os.pathsep + env.get("PYTHONPATH", "")
 
 for script in scripts:
     name = os.path.basename(script)
