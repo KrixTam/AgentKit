@@ -176,8 +176,8 @@ from agentkit import Runner
 | `run` | `async (agent, *, input, context=None, user_id=None, session_id=None, max_turns=10) -> RunResult` | 异步运行 |
 | `run_sync` | `(agent, **kwargs) -> RunResult` | 同步运行（内部调用 asyncio.run） |
 | `run_streamed` | `async (agent, *, input, user_id=None, session_id=None, **kwargs) -> AsyncGenerator[Event, None]` | 流式运行，实时产出 Event |
-| `run_with_checkpoint` | `async (agent, *, input, session_id, context_store, ...) -> AsyncGenerator[Event, None]` | 流式运行（支持挂起），遇到 HumanInputRequested 会自动保存上下文并退出 |
-| `resume` | `async (agent, *, session_id, user_input, context_store, ...) -> AsyncGenerator[Event, None]` | 恢复被挂起的 Agent 会话，将 user_input 作为挂起工具的返回值继续流转 |
+| `run_with_checkpoint` | `async (agent, *, input, session_id, context_store, ..., max_turns=10) -> AsyncGenerator[Event, None]` | 流式运行（支持挂起），遇到 `suspend_requested` 时自动保存上下文与执行指针（turn/current_agent/agent_path），并追加发出 `suspended` 事件 |
+| `resume` | `async (agent, *, session_id, user_input, context_store, ...) -> AsyncGenerator[Event, None]` | 恢复被挂起会话；优先按 checkpoint 的 `agent_path` 定位恢复节点，再将 `user_input` 作为挂起工具结果继续流转 |
 
 **参数**：
 
@@ -293,6 +293,8 @@ from agentkit.runner.events import EventType
 | `EventType.THOUGHT` | `thought` | Agent 内心思考 |
 | `EventType.SUSPEND_REQUESTED` | `suspend_requested` | 任务挂起请求（HITL 核心事件） |
 | `EventType.HUMAN_INPUT_RECEIVED` | `human_input_received` | 收到人工恢复输入 |
+
+补充说明：`suspended` 为 Runner 在 checkpoint 挂起后追加的状态事件（字符串事件类型，非 `EventType` 枚举成员），用于平台侧状态机对齐。
 
 **方法**：
 

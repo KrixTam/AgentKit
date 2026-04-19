@@ -2,8 +2,8 @@
 
 > 测试时间：`2026-04-19`  
 > 测试环境：`macOS (Apple Silicon)`  
-> AgentHub 版本：`v0.1.0`  
-> AgentKit 版本：`v0.4.1`  
+> AgentHub 版本：`v0.2.0`  
+> AgentKit 版本：`v0.5.0`  
 > 存储模式：`memory + sqlite`
 
 ---
@@ -21,7 +21,7 @@
 | 7 | HITL 工作台 | suspended 列表 + form + submit | ✅ | 支持 schema/JSON 回退与幂等防重 |
 | 8 | 存储契约 | InMemory 与 SQLite 行为一致性 | ✅ | `test_stores.py` 对齐验证通过 |
 | 9 | SQLite 持久化 | 重启后 registry/session/checkpoint 恢复 | ✅ | SQLite 重建 App 后注册记录可恢复 |
-| 10 | 鉴权 | API Key 开启/关闭 | ✅ | 未授权返回 401，授权访问正常 |
+| 10 | 鉴权 | Bearer 鉴权（静态 token）开启/关闭 | ✅ | 未授权返回 401，`Authorization: Bearer <token>` 授权访问正常 |
 | 11 | 配额 | 并发上限与频率限制 | ⚠️ | 当前未覆盖超限断言，建议补充专项测试 |
 | 12 | 可观测 | `/healthz` 与 `/metrics` | ✅ | 指标端点返回 Prometheus 文本 |
 | 13 | 审计 | who/when/what/result | ⚠️ | 代码已结构化日志输出，当前未做断言校验 |
@@ -32,7 +32,7 @@
 
 | 场景 | 耗时 | 备注 |
 |---|---:|---|
-| 验收测试集合（8 项） | 0.28s | `python -m pytest ./agenthub/tests -q` |
+| 全量测试套件（13 项） | 0.26s | `python -m pytest ./agenthub/tests -q`（`13 passed`） |
 | 注册 Agent | 已覆盖 | 含 manifest 校验 |
 | 首次 invoke | 已覆盖 | 含 entry 动态加载 |
 | SSE 流式会话 | 已覆盖 | 含事件持久化 |

@@ -24,7 +24,7 @@ def _manifest(name: str, version: str, entry: str) -> dict:
 
 
 def _register(client: TestClient, manifest: dict, aliases: list[str] | None = None) -> None:
-    resp = client.post("/v1/agents/register", json={"manifest": manifest, "aliases": aliases or []})
+    resp = client.post("/api/v1/registry/agents", json={"manifest": manifest, "aliases": aliases or []})
     assert resp.status_code == 200, resp.text
     payload = resp.json()
     assert payload["code"] == 0
@@ -40,28 +40,36 @@ def test_acceptance_memory_rest_sse_and_session_replay():
         aliases=["stable", "latest"],
     )
 
-    resp = client.get("/v1/agents")
+    resp = client.get("/api/v1/registry/agents")
     assert resp.status_code == 200
     assert any(x["name"] == "demo-echo" for x in resp.json()["data"])
 
-    invoke = client.post("/v1/agents/demo-echo/invoke", json={"input": "hello", "user_id": "u1", "session_id": "s-rest-1"})
+    invoke = client.post("/api/v1/agents/demo-echo:latest/invoke", json={"input": "hello", "user_id": "u1", "session_id": "s-rest-1"})
     assert invoke.status_code == 200
     data = invoke.json()["data"]
     assert data["run_result"]["success"] is True
     assert data["run_result"]["final_output"] == "echo:hello"
 
-    replay = client.get("/v1/sessions/s-rest-1/events")
+    replay = client.get("/api/v1/sessions/s-rest-1/events")
     assert replay.status_code == 200
     events = replay.json()["data"]
     assert len(events) >= 2
     assert events[0]["seq"] == 1
     assert events[-1]["type"] == "final_output"
 
-    with client.stream("GET", "/v1/agents/demo-echo/stream?input=streaming&session_id=sse-1&user_id=u1") as stream_resp:
+    with client.stream("POST", "/api/v1/agents/demo-echo:latest/stream", json={"input": "streaming", "session_id": "sse-1", "user_id": "u1"}) as stream_resp:
         assert stream_resp.status_code == 200
         body = "".join([chunk for chunk in stream_resp.iter_text() if chunk])
     assert "data:" in body
     assert "final_output" in body
+
+    # 会话列表与状态过滤
+    listed_all = client.get("/api/v1/sessions")
+    assert listed_all.status_code == 200
+    assert any(x["session_id"] == "s-rest-1" for x in listed_all.json()["data"])
+    listed_completed = client.get("/api/v1/sessions?status=completed")
+    assert listed_completed.status_code == 200
+    assert any(x["session_id"] == "s-rest-1" for x in listed_completed.json()["data"])
 
 
 def test_acceptance_ws_hitl_resume_and_hitl_api():
@@ -74,27 +82,27 @@ def test_acceptance_ws_hitl_resume_and_hitl_api():
         aliases=["stable"],
     )
 
-    with client.websocket_connect("/v1/ws") as ws:
+    with client.websocket_connect("/api/v1/agents/demo-hitl:stable/ws") as ws:
         ws.send_text(
-            '{"action":"run","agent":"demo-hitl","version":"stable","input":"do_approval","session_id":"ws-hitl-1","user_id":"u1"}'
+            '{"action":"run","input":"do_approval","session_id":"ws-hitl-1","user_id":"u1"}'
         )
         first = ws.receive_json()
         assert first["event"]["type"] == "suspend_requested"
 
-    suspended = client.get("/v1/hitl/suspended")
+    suspended = client.get("/api/v1/hitl/suspended")
     assert suspended.status_code == 200
     assert any(x["session_id"] == "ws-hitl-1" for x in suspended.json()["data"])
 
-    form = client.get("/v1/hitl/ws-hitl-1/form")
+    form = client.get("/api/v1/hitl/ws-hitl-1/form")
     assert form.status_code == 200
     assert form.json()["data"]["form_schema"]["type"] == "object"
 
-    submit = client.post("/v1/hitl/ws-hitl-1/submit", json={"user_input": "yes", "idempotency_key": "k1"})
+    submit = client.post("/api/v1/hitl/ws-hitl-1/submit", json={"user_input": "yes", "idempotency_key": "k1"})
     assert submit.status_code == 200
     out_events = submit.json()["data"]["events"]
     assert any(e["type"] == "final_output" for e in out_events)
 
-    dup = client.post("/v1/hitl/ws-hitl-1/submit", json={"user_input": "yes", "idempotency_key": "k1"})
+    dup = client.post("/api/v1/hitl/ws-hitl-1/submit", json={"user_input": "yes", "idempotency_key": "k1"})
     assert dup.status_code == 200
     assert dup.json()["data"]["status"] == "duplicate_ignored"
 
@@ -111,17 +119,27 @@ def test_acceptance_sqlite_persistence():
 
         app2 = create_app(HubConfig(store_type="sqlite", sqlite_path=f.name))
         c2 = TestClient(app2)
-        listed = c2.get("/v1/agents").json()["data"]
+        listed = c2.get("/api/v1/registry/agents").json()["data"]
         assert any(x["name"] == "demo-echo" and x["version"] == "1.0.1" for x in listed)
+
+        alias = c2.post("/api/v1/registry/agents/demo-echo/aliases/stable?version=1.0.1")
+        assert alias.status_code == 200
+        invoke_alias = c2.post("/api/v1/agents/demo-echo:stable/invoke", json={"input": "ok", "session_id": "alias-s1"})
+        assert invoke_alias.status_code == 200
+        assert invoke_alias.json()["data"]["run_result"]["success"] is True
 
 
 def test_acceptance_auth_and_metrics():
     app = create_app(HubConfig(store_type="memory", api_key="secret"))
     client = TestClient(app)
-    no_auth = client.get("/v1/agents")
+    no_auth = client.get("/api/v1/registry/agents")
     assert no_auth.status_code == 401
 
-    ok = client.get("/v1/agents", headers={"x-api-key": "secret"})
+    # 旧头不再支持
+    old_header = client.get("/api/v1/registry/agents", headers={"x-api-key": "secret"})
+    assert old_header.status_code == 401
+
+    ok = client.get("/api/v1/registry/agents", headers={"Authorization": "Bearer secret"})
     assert ok.status_code == 200
 
     metrics = client.get("/metrics")

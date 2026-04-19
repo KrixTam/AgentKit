@@ -26,6 +26,8 @@ def load_entry(entry: str) -> Any:
 def resolve_session_status(event_type: str, current: SessionStatus) -> SessionStatus:
     if event_type == EventType.SUSPEND_REQUESTED:
         return SessionStatus.SUSPENDED
+    if event_type == "suspended":
+        return SessionStatus.SUSPENDED
     if event_type == EventType.FINAL_OUTPUT:
         return SessionStatus.COMPLETED
     if event_type == EventType.ERROR:

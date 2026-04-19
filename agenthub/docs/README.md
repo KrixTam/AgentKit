@@ -21,13 +21,13 @@ pip install ni.agenthub
 
 ---
 
-## 当前实现范围（v0.1.0）
+## 当前实现范围（v0.2.0）
 
 - 注册发现：`agent.yaml` 清单校验、注册、查询、下线、别名（`latest`/`stable`）
 - 统一网关：REST 同步调用、SSE 事件流、WS 双向通道（run/resume）
 - 会话管理：状态机、事件回放、resume、terminate、HITL 待办与表单
 - 持久化后端：`memory` / `sqlite` 二选一（行为一致）
-- 平台治理：API Key（可选开启）、并发与速率配额、结构化审计日志
+- 平台治理：Bearer 鉴权（静态 token 或 OAuth/OIDC introspection，可选开启）、并发与速率配额、结构化审计日志
 - 可观测：`/healthz`、`/metrics`（Prometheus 文本格式）、基础 Playground
 
 ---

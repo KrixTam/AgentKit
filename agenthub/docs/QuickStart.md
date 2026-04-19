@@ -1,6 +1,6 @@
 # AgentHub 快速入门
 
-> 本文档基于当前代码实现（发行包：`ni.agenthub==0.1.0`，运行命令：`agenthub`）。
+> 本文档基于当前代码实现（发行包：`ni.agenthub==0.2.0`，运行命令：`agenthub`）。
 
 ---
 
@@ -44,12 +44,22 @@ cp ./docs/agent.yaml.example ./agent.yaml
 ```yaml
 name: demo-echo
 version: "1.0.0"
+description: "示例 Echo Agent"
 entry: agenthub.demo_agent:create_agent
-schema:
+skills: []
+input_schema:
   type: object
   properties:
     input:
       type: string
+  required:
+    - input
+output_schema:
+  type: object
+  properties:
+    final_output:
+      type: string
+requires_human_input: false
 runner_config:
   max_turns: 10
   default_hub_port: 8008
@@ -85,7 +95,8 @@ agenthub run demo-echo --input "你好"
 REST 对应接口：
 
 ```http
-POST /v1/agents/{name}/invoke?version={version_or_alias}
+POST /api/v1/agents/{name}:{version_or_alias}/invoke
+Authorization: Bearer <token>
 Content-Type: application/json
 {
   "input": "...",
@@ -102,7 +113,11 @@ Content-Type: application/json
 ## 5. 流式调用（SSE）
 
 ```bash
-curl -N "http://127.0.0.1:8008/v1/agents/demo-echo/stream?input=你好&user_id=u1&session_id=s1"
+curl -N \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -X POST "http://127.0.0.1:8008/api/v1/agents/demo-echo:stable/stream" \
+  -d '{"input":"你好","user_id":"u1","session_id":"s1"}'
 ```
 
 SSE 消息体示例：
@@ -123,42 +138,66 @@ SSE 消息体示例：
 
 ## 6. 双向通道（WS）与 HITL
 
-WebSocket 地址：`/v1/ws`
+WebSocket 地址：`/api/v1/agents/{name}:{version}/ws`
 
 - `action=run`：启动可挂起运行（内部走 `Runner.run_with_checkpoint`）
 - `action=resume`：提交人工输入恢复（内部走 `Runner.resume`）
 
 `resume` 支持 `idempotency_key` 防重。
 
+`run` 消息体示例：
+
+```json
+{
+  "action": "run",
+  "authorization": "Bearer <token>",
+  "input": "请审批",
+  "user_id": "u1",
+  "session_id": "s1"
+}
+```
+
 ---
 
 ## 7. 会话与回放
 
 ```bash
+# 列出会话（可选按状态过滤）
+agenthub session list
+agenthub session list --status suspended
+
 # 查询会话
-agenthub session <session_id>
+agenthub session get <session_id>
 
 # 回放事件
 agenthub trace <session_id>
 
 # 恢复会话
-agenthub session <session_id> --resume "yes"
+agenthub session resume <session_id> --input "yes"
 
 # 终止会话
-agenthub session <session_id> --terminate
+agenthub session terminate <session_id>
 ```
 
 REST 对应接口：
 
-- `GET /v1/sessions`
-- `GET /v1/sessions/{session_id}`
-- `GET /v1/sessions/{session_id}/events`
-- `POST /v1/sessions/{session_id}/resume`
-- `POST /v1/sessions/{session_id}/terminate`
+- `GET /api/v1/sessions`
+- `GET /api/v1/sessions/{session_id}`
+- `GET /api/v1/sessions/{session_id}/events`
+- `POST /api/v1/sessions/{session_id}/resume`
+- `DELETE /api/v1/sessions/{session_id}`
+
+## 8. 鉴权说明
+
+当前仅支持 Bearer 头：
+
+```http
+Authorization: Bearer <token>
+```
 
 ---
 
-## 8. 运维与观测
+## 9. 运维与观测
 
 - 健康检查：`GET /healthz`
 - 指标：`GET /metrics`（Prometheus 文本格式）

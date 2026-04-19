@@ -7,12 +7,13 @@ import time
 import uuid
 from typing import Any, AsyncGenerator
 
-from fastapi import FastAPI, Header, HTTPException, Query, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, Header, Query, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse, StreamingResponse
 
 from agentkit.runner.events import Event
 from agentkit.runner.runner import Runner
 
+from .auth import authenticate_request
 from .config import HubConfig
 from .models import ApiResponse, InvokeRequest, RegisterRequest, ResumeRequest, SessionStatus
 from .runtime import (
@@ -39,6 +40,13 @@ def _structured_audit(action: str, **kwargs: Any) -> None:
     logger.info(json.dumps(payload, ensure_ascii=False))
 
 
+def _parse_name_version(name_or_pair: str, version: str | None = None) -> tuple[str, str | None]:
+    if ":" in name_or_pair:
+        name, parsed_version = name_or_pair.rsplit(":", 1)
+        return name, parsed_version
+    return name_or_pair, version
+
+
 def _build_stores(config: HubConfig) -> tuple[RegistryStore, SessionStore]:
     if config.store_type == "memory":
         logger.warning("AgentHub 当前使用内存存储模式，重启后数据将丢失。")
@@ -56,9 +64,8 @@ def create_app(config: HubConfig | None = None) -> FastAPI:
 
     app = FastAPI(title="AgentHub", version="0.1.0")
 
-    def _auth(api_key: str | None) -> None:
-        if cfg.api_key and api_key != cfg.api_key:
-            raise HTTPException(status_code=401, detail="unauthorized")
+    def _auth(authorization: str | None) -> dict[str, Any]:
+        return authenticate_request(cfg, authorization=authorization)
 
     def _quota_key(user_id: str | None, tenant_id: str | None) -> str:
         return f"{tenant_id or 'default'}:{user_id or 'anonymous'}"
@@ -93,9 +100,12 @@ async function run(){
 """
         return HTMLResponse(html)
 
-    @app.post("/v1/agents/register")
-    async def register_agent(req: RegisterRequest, x_api_key: str | None = Header(default=None)):
-        _auth(x_api_key)
+    async def _register_impl(
+        req: RegisterRequest,
+        *,
+        authorization: str | None,
+    ):
+        _auth(authorization)
         try:
             registry_store.register(req.manifest, req.aliases)
             _structured_audit("register_agent", agent=req.manifest.name, version=req.manifest.version)
@@ -103,41 +113,29 @@ async function run(){
         except Exception as e:
             return _json_error(1001, str(e))
 
-    @app.get("/v1/agents")
-    async def list_agents(x_api_key: str | None = Header(default=None)):
-        _auth(x_api_key)
+    async def _list_agents_impl(authorization: str | None):
+        _auth(authorization)
         return ApiResponse(data=[m.model_dump(by_alias=True) for m in registry_store.list_all()])
 
-    @app.get("/v1/agents/{name}")
-    async def list_agent_versions(name: str, x_api_key: str | None = Header(default=None)):
-        _auth(x_api_key)
+    async def _list_agent_versions_impl(name: str, authorization: str | None):
+        _auth(authorization)
         return ApiResponse(data=[m.model_dump(by_alias=True) for m in registry_store.list_versions(name)])
 
-    @app.delete("/v1/agents/{name}/{version}")
-    async def unregister_agent(name: str, version: str, x_api_key: str | None = Header(default=None)):
-        _auth(x_api_key)
+    async def _unregister_impl(name: str, version: str, authorization: str | None):
+        _auth(authorization)
         registry_store.unregister(name, version)
         _structured_audit("unregister_agent", agent=name, version=version)
         return ApiResponse(data={"name": name, "version": version, "status": "offline"})
 
-    @app.post("/v1/agents/{name}/aliases/{alias}")
-    async def set_alias(name: str, alias: str, version: str = Query(...), x_api_key: str | None = Header(default=None)):
-        _auth(x_api_key)
-        try:
-            registry_store.set_alias(name, alias, version)
-            return ApiResponse(data={"name": name, "alias": alias, "version": version})
-        except Exception as e:
-            return _json_error(1002, str(e))
-
-    @app.post("/v1/agents/{name}/invoke")
-    async def invoke_agent(
+    async def _invoke_impl(
+        *,
         name: str,
         req: InvokeRequest,
-        version: str | None = Query(default=None),
-        x_api_key: str | None = Header(default=None),
-        x_tenant_id: str | None = Header(default=None),
+        version: str | None,
+        authorization: str | None,
+        x_tenant_id: str | None,
     ):
-        _auth(x_api_key)
+        _auth(authorization)
         quota_key = _quota_key(req.user_id, x_tenant_id)
         start = time.time()
         session_status_for_metrics = SessionStatus.ERROR
@@ -188,30 +186,32 @@ async function run(){
             quota.release(quota_key)
             metrics.observe((time.time() - start) * 1000.0, session_status_for_metrics)
 
-    @app.get("/v1/agents/{name}/stream")
-    async def invoke_agent_sse(
+    async def _stream_impl(
+        *,
         name: str,
-        input: str = Query(...),
-        user_id: str | None = Query(default=None),
-        session_id: str | None = Query(default=None),
-        trace_id: str | None = Query(default=None),
-        version: str | None = Query(default=None),
-        x_api_key: str | None = Header(default=None),
+        req: InvokeRequest,
+        version: str | None,
+        authorization: str | None,
     ):
-        _auth(x_api_key)
+        _auth(authorization)
         manifest, agent = resolve_agent_from_registry(registry_store, name, version)
         session = ensure_session(
             session_store,
-            session_id=session_id,
+            session_id=req.session_id,
             agent_name=manifest.name,
             agent_version=manifest.version,
-            user_id=user_id,
-            trace_id=trace_id or str(uuid.uuid4()),
+            user_id=req.user_id,
+            trace_id=req.trace_id or str(uuid.uuid4()),
         )
 
         async def gen() -> AsyncGenerator[str, None]:
             try:
-                async for e in Runner.run_streamed(agent, input=input, user_id=user_id, session_id=session.session_id):
+                async for e in Runner.run_streamed(
+                    agent,
+                    input=req.input,
+                    user_id=req.user_id,
+                    session_id=session.session_id,
+                ):
                     append_event_and_update(session_store, session.session_id, e)
                     payload = {"session_id": session.session_id, "trace_id": session.trace_id, "event": e.to_dict()}
                     yield f"data: {json.dumps(payload, ensure_ascii=False)}\n\n"
@@ -226,20 +226,60 @@ async function run(){
 
         return StreamingResponse(gen(), media_type="text/event-stream")
 
-    @app.websocket("/v1/ws")
-    async def ws_gateway(ws: WebSocket):
+    async def _resume_impl(
+        *,
+        session_id: str,
+        req: ResumeRequest,
+        authorization: str | None,
+    ):
+        _auth(authorization)
+        session = session_store.get(session_id)
+        if not session:
+            return _json_error(1004, f"session_not_found:{session_id}", 404)
+        if req.idempotency_key and session.metadata.get("last_resume_key") == req.idempotency_key:
+            return ApiResponse(data={"session_id": session_id, "status": "duplicate_ignored"})
+        if req.idempotency_key:
+            session.metadata["last_resume_key"] = req.idempotency_key
+        _, agent = resolve_agent_from_registry(registry_store, session.agent_name, session.agent_version)
+        events: list[dict[str, Any]] = []
+        async for e in Runner.resume(
+            agent,
+            session_id=session_id,
+            user_input=req.user_input,
+            context_store=context_store,
+        ):
+            append_event_and_update(session_store, session_id, e)
+            events.append(e.to_dict())
+        return ApiResponse(data={"session_id": session_id, "events": events})
+
+    async def _terminate_impl(
+        *,
+        session_id: str,
+        authorization: str | None,
+    ):
+        _auth(authorization)
+        session_store.terminate(session_id)
+        _structured_audit("terminate_session", session_id=session_id)
+        return ApiResponse(data={"session_id": session_id, "status": "terminated"})
+
+    async def _ws_handler(
+        ws: WebSocket,
+        *,
+        fixed_agent_name: str | None = None,
+        fixed_version: str | None = None,
+    ) -> None:
         await ws.accept()
         active_sessions: set[str] = set()
         try:
             while True:
                 text = await ws.receive_text()
                 msg = json.loads(text)
-                action = msg.get("action")
-                api_key = msg.get("api_key")
-                _auth(api_key)
+                action = msg.get("action", "run")
+                authz = msg.get("authorization")
+                _auth(authz)
                 if action == "run":
-                    agent_name = msg["agent"]
-                    version = msg.get("version")
+                    agent_name = fixed_agent_name or msg["agent"]
+                    version = fixed_version if fixed_agent_name else msg.get("version")
                     manifest, agent = resolve_agent_from_registry(registry_store, agent_name, version)
                     session = ensure_session(
                         session_store,
@@ -255,6 +295,7 @@ async function run(){
                         session_id=session.session_id,
                         context_store=context_store,
                         user_id=msg.get("user_id"),
+                        max_turns=msg.get("max_turns", 10),
                     ):
                         append_event_and_update(session_store, session.session_id, e)
                         active_sessions.add(session.session_id)
@@ -290,62 +331,151 @@ async function run(){
                     session_store.update_status(sid, SessionStatus.EXPIRED, "ws_disconnected")
             return
 
-    @app.get("/v1/sessions")
-    async def list_sessions(status: SessionStatus | None = Query(default=None), x_api_key: str | None = Header(default=None)):
-        _auth(x_api_key)
-        return ApiResponse(data=[s.model_dump() for s in session_store.list_sessions(status)])
+    # SRS /api/v1 registry endpoints
+    @app.post("/api/v1/registry/agents")
+    async def api_register_agents(
+        req: RegisterRequest,
+        authorization: str | None = Header(default=None),
+    ):
+        return await _register_impl(req, authorization=authorization)
 
-    @app.get("/v1/sessions/{session_id}")
-    async def get_session(session_id: str, x_api_key: str | None = Header(default=None)):
-        _auth(x_api_key)
+    @app.get("/api/v1/registry/agents")
+    async def api_list_registry_agents(
+        authorization: str | None = Header(default=None),
+    ):
+        return await _list_agents_impl(authorization)
+
+    @app.post("/api/v1/registry/agents/{name}/aliases/{alias}")
+    async def api_set_alias(
+        name: str,
+        alias: str,
+        version: str = Query(...),
+        authorization: str | None = Header(default=None),
+    ):
+        _auth(authorization)
+        try:
+            registry_store.set_alias(name, alias, version)
+            return ApiResponse(data={"name": name, "alias": alias, "version": version})
+        except Exception as e:
+            return _json_error(1002, str(e))
+
+    @app.get("/api/v1/registry/agents/{name}")
+    async def api_get_registry_agent(
+        name: str,
+        authorization: str | None = Header(default=None),
+    ):
+        return await _list_agent_versions_impl(name, authorization)
+
+    @app.delete("/api/v1/registry/agents/{name_version}")
+    async def api_delete_registry_agent(
+        name_version: str,
+        authorization: str | None = Header(default=None),
+    ):
+        name, version = _parse_name_version(name_version)
+        if not version:
+            return _json_error(1006, "invalid_name_version_format: expected name:version", 400)
+        return await _unregister_impl(name, version, authorization)
+
+    # SRS /api/v1 invoke & stream endpoints
+    @app.post("/api/v1/agents/{name_version}/invoke")
+    async def api_invoke_agent(
+        name_version: str,
+        req: InvokeRequest,
+        authorization: str | None = Header(default=None),
+        x_tenant_id: str | None = Header(default=None),
+    ):
+        name, version = _parse_name_version(name_version)
+        return await _invoke_impl(
+            name=name,
+            req=req,
+            version=version,
+            authorization=authorization,
+            x_tenant_id=x_tenant_id,
+        )
+
+    @app.post("/api/v1/agents/{name_version}/stream")
+    async def api_stream_agent(
+        name_version: str,
+        req: InvokeRequest,
+        authorization: str | None = Header(default=None),
+    ):
+        name, version = _parse_name_version(name_version)
+        return await _stream_impl(
+            name=name,
+            req=req,
+            version=version,
+            authorization=authorization,
+        )
+
+    @app.websocket("/api/v1/agents/{name_version}/ws")
+    async def api_ws_agent(name_version: str, ws: WebSocket):
+        name, version = _parse_name_version(name_version)
+        await _ws_handler(ws, fixed_agent_name=name, fixed_version=version)
+
+    # SRS /api/v1 sessions endpoints
+    @app.get("/api/v1/sessions/{session_id}")
+    async def api_get_session(
+        session_id: str,
+        authorization: str | None = Header(default=None),
+    ):
+        _auth(authorization)
         session = session_store.get(session_id)
         if not session:
             return _json_error(1004, f"session_not_found:{session_id}", 404)
         return ApiResponse(data=session.model_dump())
 
-    @app.get("/v1/sessions/{session_id}/events")
-    async def replay_events(session_id: str, x_api_key: str | None = Header(default=None)):
-        _auth(x_api_key)
+    @app.get("/api/v1/sessions")
+    async def api_list_sessions(
+        status: SessionStatus | None = Query(default=None),
+        authorization: str | None = Header(default=None),
+    ):
+        _auth(authorization)
+        return ApiResponse(data=[s.model_dump() for s in session_store.list_sessions(status)])
+
+    @app.post("/api/v1/sessions/{session_id}/resume")
+    async def api_resume_session(
+        session_id: str,
+        req: ResumeRequest,
+        authorization: str | None = Header(default=None),
+    ):
+        return await _resume_impl(
+            session_id=session_id,
+            req=req,
+            authorization=authorization,
+        )
+
+    @app.delete("/api/v1/sessions/{session_id}")
+    async def api_delete_session(
+        session_id: str,
+        authorization: str | None = Header(default=None),
+    ):
+        return await _terminate_impl(
+            session_id=session_id,
+            authorization=authorization,
+        )
+
+    @app.get("/api/v1/sessions/{session_id}/events")
+    async def api_get_session_events(
+        session_id: str,
+        authorization: str | None = Header(default=None),
+    ):
+        _auth(authorization)
         return ApiResponse(data=session_store.list_events(session_id))
 
-    @app.post("/v1/sessions/{session_id}/resume")
-    async def resume_session(session_id: str, req: ResumeRequest, x_api_key: str | None = Header(default=None)):
-        _auth(x_api_key)
-        session = session_store.get(session_id)
-        if not session:
-            return _json_error(1004, f"session_not_found:{session_id}", 404)
-        if req.idempotency_key and session.metadata.get("last_resume_key") == req.idempotency_key:
-            return ApiResponse(data={"session_id": session_id, "status": "duplicate_ignored"})
-        if req.idempotency_key:
-            session.metadata["last_resume_key"] = req.idempotency_key
-        _, agent = resolve_agent_from_registry(registry_store, session.agent_name, session.agent_version)
-        events: list[dict[str, Any]] = []
-        async for e in Runner.resume(
-            agent,
-            session_id=session_id,
-            user_input=req.user_input,
-            context_store=context_store,
-        ):
-            append_event_and_update(session_store, session_id, e)
-            events.append(e.to_dict())
-        return ApiResponse(data={"session_id": session_id, "events": events})
-
-    @app.post("/v1/sessions/{session_id}/terminate")
-    async def terminate_session(session_id: str, x_api_key: str | None = Header(default=None)):
-        _auth(x_api_key)
-        session_store.terminate(session_id)
-        _structured_audit("terminate_session", session_id=session_id)
-        return ApiResponse(data={"session_id": session_id, "status": "terminated"})
-
-    @app.get("/v1/hitl/suspended")
-    async def list_suspended_sessions(x_api_key: str | None = Header(default=None)):
-        _auth(x_api_key)
+    @app.get("/api/v1/hitl/suspended")
+    async def api_list_suspended_sessions(
+        authorization: str | None = Header(default=None),
+    ):
+        _auth(authorization)
         sessions = session_store.list_sessions(SessionStatus.SUSPENDED)
         return ApiResponse(data=[s.model_dump() for s in sessions])
 
-    @app.get("/v1/hitl/{session_id}/form")
-    async def get_hitl_form(session_id: str, x_api_key: str | None = Header(default=None)):
-        _auth(x_api_key)
+    @app.get("/api/v1/hitl/{session_id}/form")
+    async def api_get_hitl_form(
+        session_id: str,
+        authorization: str | None = Header(default=None),
+    ):
+        _auth(authorization)
         events = session_store.list_events(session_id)
         suspend_event = next((e for e in reversed(events) if e.get("type") == "suspend_requested"), None)
         if not suspend_event:
@@ -355,26 +485,16 @@ async function run(){
             return ApiResponse(data={"mode": "json", "form_schema": {"type": "object", "properties": {"user_input": {"type": "string"}}, "required": ["user_input"]}})
         return ApiResponse(data={"mode": "schema", "form_schema": schema})
 
-    @app.post("/v1/hitl/{session_id}/submit")
-    async def submit_hitl_input(session_id: str, req: ResumeRequest, x_api_key: str | None = Header(default=None)):
-        _auth(x_api_key)
-        session = session_store.get(session_id)
-        if not session:
-            return _json_error(1004, f"session_not_found:{session_id}", 404)
-        if req.idempotency_key and session.metadata.get("last_resume_key") == req.idempotency_key:
-            return ApiResponse(data={"session_id": session_id, "status": "duplicate_ignored"})
-        if req.idempotency_key:
-            session.metadata["last_resume_key"] = req.idempotency_key
-        _, agent = resolve_agent_from_registry(registry_store, session.agent_name, session.agent_version)
-        events: list[dict[str, Any]] = []
-        async for e in Runner.resume(
-            agent,
+    @app.post("/api/v1/hitl/{session_id}/submit")
+    async def api_submit_hitl_input(
+        session_id: str,
+        req: ResumeRequest,
+        authorization: str | None = Header(default=None),
+    ):
+        return await _resume_impl(
             session_id=session_id,
-            user_input=req.user_input,
-            context_store=context_store,
-        ):
-            append_event_and_update(session_store, session_id, e)
-            events.append(e.to_dict())
-        return ApiResponse(data={"session_id": session_id, "events": events})
+            req=req,
+            authorization=authorization,
+        )
 
     return app

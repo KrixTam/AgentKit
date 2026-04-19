@@ -111,8 +111,8 @@ python "$(python -c "import agentkit, os; print(os.path.join(agentkit.get_exampl
 
 ```bash
 dist/
-├── ni_agentkit-0.4.1-py3-none-any.whl   # pip install 用这个
-└── ni_agentkit-0.4.1.tar.gz             # 源码分发
+├── ni_agentkit-0.5.0-py3-none-any.whl   # pip install 用这个
+└── ni_agentkit-0.5.0.tar.gz             # 源码分发
 ```
 
 ## 📄 License

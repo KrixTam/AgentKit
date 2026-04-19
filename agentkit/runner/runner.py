@@ -120,24 +120,63 @@ class Runner:
         **_kwargs: Any,
     ) -> AsyncGenerator[Event, None]:
         """
-        流式运行（支持挂起与恢复）。
-        遇到 HumanInputRequested 等挂起信号时，会将状态保存到 context_store。
+        流式运行（支持挂起与恢复），语义对齐 `run` 的 turn-loop。
+        在挂起时保存 RunContext + 执行指针（轮次、当前 agent、agent path）。
         """
-        # 如果 context_store 中已有该 session 的状态，应通过 resume 继续，而非新建 run
         existing_ctx = context_store.load(session_id)
         if existing_ctx:
             raise ValueError(f"Session {session_id} already exists in ContextStore. Use resume() instead.")
 
         ctx = RunContext(input=input, shared_context=context, user_id=user_id, session_id=session_id)
+        current_agent = agent
+        max_turns = int(_kwargs.get("max_turns", 10))
+        turn = 0
 
-        async for event in agent.run(ctx):
-            yield event
-            if event.type == EventType.SUSPEND_REQUESTED:
-                # 遇到挂起请求，保存状态并停止当前执行
-                context_store.save(session_id, ctx)
-                return
-        
-        # 运行结束，可选择清理 Checkpoint
+        while turn < max_turns:
+            ctx.state["__runner_checkpoint__"] = {
+                "turn": turn,
+                "max_turns": max_turns,
+                "current_agent": getattr(current_agent, "name", ""),
+                "agent_path": cls._find_agent_path(agent, current_agent),
+            }
+            handoff_switched = False
+            async for event in current_agent.run(ctx):
+                yield event
+                if event.type == EventType.SUSPEND_REQUESTED:
+                    context_store.save(session_id, ctx)
+                    yield Event(
+                        agent=getattr(current_agent, "name", "runner"),
+                        type="suspended",
+                        data={
+                            "session_id": session_id,
+                            "turn": turn,
+                            "current_agent": getattr(current_agent, "name", ""),
+                            "agent_path": cls._find_agent_path(agent, current_agent),
+                        },
+                    )
+                    return
+                if event.type == EventType.FINAL_OUTPUT:
+                    context_store.delete(session_id)
+                    return
+                if event.type == EventType.ERROR:
+                    context_store.delete(session_id)
+                    return
+                if event.type == EventType.HANDOFF:
+                    target_name = ""
+                    if isinstance(event.data, dict):
+                        target_name = event.data.get("target", "")
+                    new_agent = cls._find_agent(agent, target_name)
+                    if not new_agent:
+                        yield Event(agent=getattr(current_agent, "name", "runner"), type=EventType.ERROR, data=f"Handoff 目标 '{target_name}' 未找到")
+                        context_store.delete(session_id)
+                        return
+                    current_agent = new_agent
+                    handoff_switched = True
+                    break
+            turn += 1
+            if handoff_switched:
+                continue
+        yield Event(agent=getattr(current_agent, "name", "runner"), type=EventType.ERROR, data=f"超过最大轮次 {max_turns}")
         context_store.delete(session_id)
 
     @classmethod
@@ -155,26 +194,70 @@ class Runner:
         if not ctx:
             yield Event(agent=agent.name, type=EventType.ERROR, data=f"找不到会话 {session_id} 的上下文快照")
             return
-            
+
+        checkpoint = ctx.state.get("__runner_checkpoint__", {})
+        max_turns = int(checkpoint.get("max_turns", 10))
+        turn = int(checkpoint.get("turn", 0))
+        path = checkpoint.get("agent_path") or []
+        current_agent = cls._find_agent_by_path(agent, path) if path else None
+        if current_agent is None:
+            current_agent = cls._find_agent(agent, checkpoint.get("current_agent", "")) or agent
+
         yield Event(agent=agent.name, type=EventType.HUMAN_INPUT_RECEIVED, data={"input": user_input})
-        
+
         # 恢复挂起的工具调用
         tool_call_id = ctx.state.pop("__suspended_tool_call_id__", None)
         ctx.state.pop("__suspended_tool_name__", None)
-        
+
         if tool_call_id:
             # 将 user_input 作为该挂起工具调用的结果加入上下文
             ctx.add_tool_result(tool_call_id, str(user_input))
-            
-        # 重新进入 Agent 循环
-        async for event in agent.run(ctx):
-            yield event
-            if event.type == EventType.SUSPEND_REQUESTED:
-                # 再次挂起
-                context_store.save(session_id, ctx)
-                return
-        
-        # 运行结束清理
+
+        while turn < max_turns:
+            ctx.state["__runner_checkpoint__"] = {
+                "turn": turn,
+                "max_turns": max_turns,
+                "current_agent": getattr(current_agent, "name", ""),
+                "agent_path": cls._find_agent_path(agent, current_agent),
+            }
+            handoff_switched = False
+            async for event in current_agent.run(ctx):
+                yield event
+                if event.type == EventType.SUSPEND_REQUESTED:
+                    context_store.save(session_id, ctx)
+                    yield Event(
+                        agent=getattr(current_agent, "name", "runner"),
+                        type="suspended",
+                        data={
+                            "session_id": session_id,
+                            "turn": turn,
+                            "current_agent": getattr(current_agent, "name", ""),
+                            "agent_path": cls._find_agent_path(agent, current_agent),
+                        },
+                    )
+                    return
+                if event.type == EventType.FINAL_OUTPUT:
+                    context_store.delete(session_id)
+                    return
+                if event.type == EventType.ERROR:
+                    context_store.delete(session_id)
+                    return
+                if event.type == EventType.HANDOFF:
+                    target_name = ""
+                    if isinstance(event.data, dict):
+                        target_name = event.data.get("target", "")
+                    new_agent = cls._find_agent(agent, target_name)
+                    if not new_agent:
+                        yield Event(agent=getattr(current_agent, "name", "runner"), type=EventType.ERROR, data=f"Handoff 目标 '{target_name}' 未找到")
+                        context_store.delete(session_id)
+                        return
+                    current_agent = new_agent
+                    handoff_switched = True
+                    break
+            turn += 1
+            if handoff_switched:
+                continue
+        yield Event(agent=getattr(current_agent, "name", "runner"), type=EventType.ERROR, data=f"超过最大轮次 {max_turns}")
         context_store.delete(session_id)
 
     @staticmethod
@@ -192,3 +275,42 @@ class Runner:
                 if hasattr(h, "name") and h.name == name:
                     return h
         return None
+
+    @staticmethod
+    def _find_agent_path(root: Any, target: Any) -> list[str]:
+        if root is target:
+            return [getattr(root, "name", "")]
+        if hasattr(root, "sub_agents"):
+            for sub in root.sub_agents:
+                sub_path = Runner._find_agent_path(sub, target)
+                if sub_path:
+                    return [getattr(root, "name", "")] + sub_path
+        if hasattr(root, "handoffs"):
+            for h in root.handoffs:
+                if h is target:
+                    return [getattr(root, "name", ""), getattr(h, "name", "")]
+        return []
+
+    @staticmethod
+    def _find_agent_by_path(root: Any, path: list[str]) -> Any | None:
+        if not path:
+            return None
+        if getattr(root, "name", None) != path[0]:
+            return None
+        node = root
+        for part in path[1:]:
+            next_node = None
+            if hasattr(node, "sub_agents"):
+                for sub in node.sub_agents:
+                    if getattr(sub, "name", None) == part:
+                        next_node = sub
+                        break
+            if next_node is None and hasattr(node, "handoffs"):
+                for h in node.handoffs:
+                    if getattr(h, "name", None) == part:
+                        next_node = h
+                        break
+            if next_node is None:
+                return None
+            node = next_node
+        return node

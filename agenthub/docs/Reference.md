@@ -9,9 +9,14 @@
 | 字段 | 类型 | 说明 |
 |---|---|---|
 | `name` | `str` | Agent 名称 |
-| `version` | `str` | Agent 版本 |
+| `version` | `str` | Agent 版本（语义化版本 `major.minor.patch`） |
+| `description` | `str` | Agent 描述 |
 | `entry` | `str` | `module:attr` 入口 |
-| `schema` | `dict` | 输入/输出契约描述（Manifest 语义） |
+| `skills` | `list[str]` | 关联的 Skill 标识列表 |
+| `input_schema` | `dict` | 输入契约 |
+| `output_schema` | `dict` | 输出契约 |
+| `requires_human_input` | `bool` | 是否需要人工介入 |
+| `schema` | `dict` | 历史兼容字段；当前实现会与 `input_schema` 双向归一化 |
 | `runner_config` | `dict` | Runner 相关默认参数 |
 | `tags` | `list[str]` | 标签 |
 
@@ -42,31 +47,31 @@
 
 ### 注册与发现
 
-- `POST /v1/agents/register`
-- `GET /v1/agents`
-- `GET /v1/agents/{name}`
-- `DELETE /v1/agents/{name}/{version}`
-- `POST /v1/agents/{name}/aliases/{alias}?version=...`
+- `POST /api/v1/registry/agents`
+- `GET /api/v1/registry/agents`
+- `GET /api/v1/registry/agents/{name}`
+- `DELETE /api/v1/registry/agents/{name}:{version}`
+- `POST /api/v1/registry/agents/{name}/aliases/{alias}?version=...`
 
 ### 调用网关
 
-- `POST /v1/agents/{name}/invoke?version=...`
-- `GET /v1/agents/{name}/stream?...`（SSE）
-- `WS /v1/ws`（`action=run|resume`）
+- `POST /api/v1/agents/{name}:{version}/invoke`
+- `POST /api/v1/agents/{name}:{version}/stream`（SSE）
+- `WS /api/v1/agents/{name}:{version}/ws`（`action=run|resume`）
 
 ### 会话管理
 
-- `GET /v1/sessions?status=...`
-- `GET /v1/sessions/{session_id}`
-- `GET /v1/sessions/{session_id}/events`
-- `POST /v1/sessions/{session_id}/resume`
-- `POST /v1/sessions/{session_id}/terminate`
+- `GET /api/v1/sessions?status=...`
+- `GET /api/v1/sessions/{session_id}`
+- `GET /api/v1/sessions/{session_id}/events`
+- `POST /api/v1/sessions/{session_id}/resume`
+- `DELETE /api/v1/sessions/{session_id}`
 
 ### HITL 工作台
 
-- `GET /v1/hitl/suspended`
-- `GET /v1/hitl/{session_id}/form`
-- `POST /v1/hitl/{session_id}/submit`
+- `GET /api/v1/hitl/suspended`
+- `GET /api/v1/hitl/{session_id}/form`
+- `POST /api/v1/hitl/{session_id}/submit`
 
 ### 运维接口
 
@@ -83,9 +88,7 @@
 ```json
 {
   "action": "run",
-  "api_key": "...",
-  "agent": "demo-agent",
-  "version": "stable",
+  "authorization": "Bearer <token>",
   "input": "你好",
   "user_id": "u1",
   "session_id": "s1",
@@ -98,7 +101,7 @@
 ```json
 {
   "action": "resume",
-  "api_key": "...",
+  "authorization": "Bearer <token>",
   "session_id": "s1",
   "user_input": "yes",
   "idempotency_key": "resume-001"
@@ -121,15 +124,17 @@ pip install ni.agenthub
 |---|---|
 | `serve` | 启动服务 |
 | `register` | 注册 Manifest |
+| `unregister` | 下线指定版本（`name:version`） |
 | `list` | 列出 Agent |
 | `info` | 查看 Agent |
 | `run` | 同步调用 |
 | `trace` | 回放会话事件 |
-| `session` | 查询/恢复/终止会话 |
+| `session` | `list/get/resume/terminate` 会话管理 |
 
 全局参数：
 
 - `--server`：默认 `http://127.0.0.1:8008`
+- `--token`：Bearer token（默认读取 `AGENTHUB_TOKEN`）
 - `--json`：机器可读输出
 
 退出码约定：
@@ -147,7 +152,11 @@ pip install ni.agenthub
 | `AGENTHUB_PORT` | `8008` | 监听端口 |
 | `AGENTHUB_STORE` | `sqlite` | 存储类型：`memory/sqlite` |
 | `AGENTHUB_SQLITE_PATH` | `.agenthub/agenthub.db` | SQLite 路径 |
-| `AGENTHUB_API_KEY` | 空 | API Key（为空则不鉴权） |
+| `AGENTHUB_API_KEY` | 空 | 静态 Bearer token（为空则可关闭鉴权） |
+| `AGENTHUB_OAUTH_INTROSPECTION_URL` | 空 | OAuth2/OIDC Introspection 地址 |
+| `AGENTHUB_OAUTH_CLIENT_ID` | 空 | Introspection Client ID |
+| `AGENTHUB_OAUTH_CLIENT_SECRET` | 空 | Introspection Client Secret |
+| `AGENTHUB_OIDC_ISSUER` | 空 | 可选 issuer 校验 |
 | `AGENTHUB_MAX_CONCURRENCY_PER_USER` | `8` | 单用户并发上限 |
 | `AGENTHUB_RATE_LIMIT_PER_MINUTE` | `120` | 单用户每分钟请求上限 |
 

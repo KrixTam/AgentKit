@@ -1,6 +1,6 @@
 # AgentKit 快速入门教程
 
-> 本教程将带你从零开始，通过 16 个由简到繁的示例，掌握 AgentKit 的核心用法。
+> 本教程将带你从零开始，通过 17 组由简到繁的示例（含 9A/9B），掌握 AgentKit 的核心用法。
 
 ---
 
@@ -28,6 +28,7 @@
 - [示例 14：事件协议标准化与强类型校验](#示例-14事件协议标准化与强类型校验)
 - [示例 15：多租户隔离 (Multi-Tenant Isolation)](#15-多租户隔离-multi-tenant-isolation)
 - [示例 16：生命周期 Hooks 与 Callbacks](#16-生命周期-hooks-与-callbacks)
+- [示例 17：Checkpoint 深度恢复（Handoff 后挂起与原路径恢复）](#17-checkpoint-深度恢复handoff-后挂起与原路径恢复)
 - [性能提示](#性能提示)
 - [使用不同的 LLM](#使用不同的-llm)
 - [下一步](#下一步)
@@ -1167,6 +1168,7 @@ agent = Agent(name="assistant", instructions="...")
 | [`14_event_standardization.py`](../examples/standard/14_event_standardization.py) | 示例 14：事件协议标准化与强类型校验 |
 | [`15_multi_tenant_isolation.py`](../examples/standard/15_multi_tenant_isolation.py) | 示例 15：多租户隔离 |
 | [`16_lifecycle_hooks.py`](../examples/standard/16_lifecycle_hooks.py) | 示例 16：生命周期 Hooks 与 Callbacks |
+| [`17_checkpoint_handoff_resume.py`](../examples/standard/17_checkpoint_handoff_resume.py) | 示例 17：Checkpoint 深度恢复（Handoff + Resume） |
 
 ### 📁 `examples/ollama/` — Ollama 本地版（无需 API Key，完全本地运行）
 
@@ -1189,6 +1191,7 @@ agent = Agent(name="assistant", instructions="...")
 | [`14_event_standardization.py`](../examples/ollama/14_event_standardization.py) | 示例 14：事件协议标准化与强类型校验 |
 | [`15_multi_tenant_isolation.py`](../examples/ollama/15_multi_tenant_isolation.py) | 示例 15：多租户隔离 |
 | [`16_lifecycle_hooks.py`](../examples/ollama/16_lifecycle_hooks.py) | 示例 16：生命周期 Hooks 与 Callbacks |
+| [`17_checkpoint_handoff_resume.py`](../examples/ollama/17_checkpoint_handoff_resume.py) | 示例 17：Checkpoint 深度恢复（Handoff + Resume） |
 
 ---
 
@@ -1243,6 +1246,41 @@ agent = Agent(
     fail_fast_on_hook_error=False # 如果 Hook 发生异常，仅记录 Event 而不中断主流程
 )
 ```
+
+### 17. Checkpoint 深度恢复（Handoff 后挂起与原路径恢复）
+
+`Runner.run_with_checkpoint` 与 `Runner.resume` 现在会在挂起时保存执行指针（轮次、当前 Agent、agent_path），恢复时按路径回到正确的 Agent 节点继续运行，避免复杂编排下回到入口 Agent 重跑。
+
+```python
+from agentkit.runner.context_store import InMemoryContextStore
+from agentkit.runner.runner import Runner
+
+store = InMemoryContextStore()
+session_id = "demo-handoff-checkpoint-001"
+
+# 阶段 1：触发 handoff 后挂起（保存执行指针）
+async for event in Runner.run_with_checkpoint(
+    root_agent,
+    input="请审批部署任务",
+    session_id=session_id,
+    context_store=store,
+    max_turns=5,
+):
+    print(event.type, event.agent, event.data)
+
+# 阶段 2：恢复（按 agent_path 回到挂起点继续）
+async for event in Runner.resume(
+    root_agent,
+    session_id=session_id,
+    user_input="approve",
+    context_store=store,
+):
+    print(event.type, event.agent, event.data)
+```
+
+运行文件：
+- `examples/standard/17_checkpoint_handoff_resume.py`
+- `examples/ollama/17_checkpoint_handoff_resume.py`
 
 ## 下一步
 

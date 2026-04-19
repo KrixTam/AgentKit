@@ -110,7 +110,7 @@ SQLite 关键表：
 
 ## 治理与观测
 
-- 鉴权：API Key（可选）
+- 鉴权：`Authorization: Bearer <token>`（静态 token 或 OAuth/OIDC introspection，可选）
 - 配额：`tenant:user` 维度并发与每分钟速率
 - 审计：结构化日志（JSON）
 - 指标：`requests/errors/suspended/completed/active/latency_p95`
