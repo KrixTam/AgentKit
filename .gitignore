@@ -10,3 +10,6 @@ logs
 data
 .vite
 *.egg-info
+.pytest_cache
+.agenthub
+.benchmarks

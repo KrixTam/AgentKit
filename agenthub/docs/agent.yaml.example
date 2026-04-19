@@ -1,0 +1,14 @@
+name: demo-echo
+version: "1.0.0"
+entry: agenthub.demo_agent:create_agent
+schema:
+  type: object
+  properties:
+    input:
+      type: string
+runner_config:
+  max_turns: 10
+  default_hub_port: 8008
+tags:
+  - demo
+  - stable
