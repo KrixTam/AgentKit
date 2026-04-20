@@ -11,9 +11,10 @@ from __future__ import annotations
 
 import inspect
 import logging
+from pydantic_core import PydanticUndefined
 from typing import Any, AsyncGenerator, Callable, Optional, Union
 
-from pydantic import ConfigDict, Field, PrivateAttr
+from pydantic import ConfigDict, Field, PrivateAttr, model_validator
 
 from ..llm.base import BaseLLM
 from ..llm.registry import LLMRegistry
@@ -73,6 +74,28 @@ class Agent(BaseAgent):
     fail_fast_on_hook_error: bool = False
     _callable_tool_cache: dict[int, FunctionTool] = PrivateAttr(default_factory=dict)
     _handoff_tool_cache: dict[int, FunctionTool] = PrivateAttr(default_factory=dict)
+
+    @model_validator(mode="before")
+    @classmethod
+    def _validate_model_cosplay_policy(cls, data: Any) -> Any:
+        if not isinstance(data, dict):
+            return data
+        if "model" not in data:
+            return data
+        cosplay_enabled = data.get("model_cosplay_enabled")
+        if cosplay_enabled is None:
+            cosplay_enabled = cls.model_fields["model_cosplay_enabled"].default
+        if bool(cosplay_enabled):
+            return data
+
+        preset_model = cls.model_fields["model"].default
+        if preset_model is PydanticUndefined:
+            return data
+        if preset_model in (None, ""):
+            return data
+        if data["model"] == preset_model:
+            return data
+        raise ValueError("ModelCosplay 未开启，实例化时不允许覆盖预设 model")
 
     # ------------------------------------------------------------------
     # 核心方法
@@ -413,9 +436,18 @@ class Agent(BaseAgent):
         if self._cache_instance is not None:
             self._cache_instance.clear()
 
+    def apply_model_cosplay(self, model_override: Any) -> "Agent":
+        if model_override in (None, ""):
+            return self
+        if not self.model_cosplay_enabled:
+            raise ValueError(f"Agent '{self.name}' 未开启 ModelCosplay，禁止覆盖 model")
+        self.model = model_override
+        self.clear_cache()
+        return self
+
     _cache_instance: Any = PrivateAttr(default=None)
 
-    model_config = ConfigDict(arbitrary_types_allowed=True)
+    model_config = ConfigDict(arbitrary_types_allowed=True, protected_namespaces=())
 
     def _get_cache(self):
         """获取或创建缓存实例（懒初始化）"""
@@ -437,6 +469,11 @@ class Agent(BaseAgent):
             ancestor = ancestor.parent_agent
         return LLMRegistry.create_default()
 
+    # ------------------------------------------------------------------
+    # 工具相关
+    # ------------------------------------------------------------------
+    # 查找工具（保留）
+    # ------------------------------------------------------------------
     @staticmethod
     def _find_tool(tools: list[BaseTool], name: str) -> BaseTool | None:
         for tool in tools:

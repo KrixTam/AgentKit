@@ -71,13 +71,13 @@ print(agentkit.get_examples_dir()) # 示例目录路径
 | 文档 | 说明 |
 |------|------|
 | [README](docs/README.md) | 项目概述与特性 |
-| [QuickStart](docs/QuickStart.md) | 16 个渐进式入门示例 |
+| [QuickStart](docs/QuickStart.md) | 18 组渐进式入门示例（含 9A/9B） |
 | [Architecture](docs/Architecture.md) | 六层架构设计说明 |
 | [Reference](docs/Reference.md) | 完整 API 参考手册 |
 
 ## 🧪 示例
 
-安装包内含 32 个可运行示例（标准版 × 16 + Ollama 本地版 × 16）：
+安装包内含 36 个可运行示例（标准版 × 18 + Ollama 本地版 × 18）：
 
 ```bash
 # Ollama 本地版（无需 API Key）
@@ -111,8 +111,8 @@ python "$(python -c "import agentkit, os; print(os.path.join(agentkit.get_exampl
 
 ```bash
 dist/
-├── ni_agentkit-0.5.0-py3-none-any.whl   # pip install 用这个
-└── ni_agentkit-0.5.0.tar.gz             # 源码分发
+├── ni_agentkit-0.6.0-py3-none-any.whl   # pip install 用这个
+└── ni_agentkit-0.6.0.tar.gz             # 源码分发
 ```
 
 ## 📄 License

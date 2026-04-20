@@ -21,7 +21,7 @@ pip install ni.agenthub
 
 ---
 
-## 当前实现范围（v0.2.0）
+## 当前实现范围（v0.3.0）
 
 - 注册发现：`agent.yaml` 清单校验、注册、查询、下线、别名（`latest`/`stable`）
 - 统一网关：REST 同步调用、SSE 事件流、WS 双向通道（run/resume）

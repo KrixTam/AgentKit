@@ -1,6 +1,6 @@
 # AgentHub 快速入门
 
-> 本文档基于当前代码实现（发行包：`ni.agenthub==0.2.0`，运行命令：`agenthub`）。
+> 本文档基于当前代码实现（发行包：`ni.agenthub==0.3.0`，运行命令：`agenthub`）。
 
 ---
 
@@ -90,6 +90,8 @@ agenthub info demo-echo
 
 ```bash
 agenthub run demo-echo --input "你好"
+# 指定 ModelCosplay（仅对开启该能力的 Agent 生效）
+agenthub run demo-echo --input "你好" --model-cosplay "gpt-4o-mini"
 ```
 
 REST 对应接口：
@@ -100,6 +102,7 @@ Authorization: Bearer <token>
 Content-Type: application/json
 {
   "input": "...",
+  "model_cosplay": "gpt-4o-mini",
   "user_id": "u1",
   "session_id": "s1",
   "trace_id": "t1",

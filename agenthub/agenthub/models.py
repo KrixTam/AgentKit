@@ -62,7 +62,10 @@ class RegisterRequest(BaseModel):
 
 
 class InvokeRequest(BaseModel):
+    model_config = ConfigDict(protected_namespaces=())
+
     input: str
+    model_cosplay: str | dict[str, Any] | None = None
     user_id: str | None = None
     session_id: str | None = None
     trace_id: str | None = None

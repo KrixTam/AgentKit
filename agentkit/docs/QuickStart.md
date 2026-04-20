@@ -1,6 +1,6 @@
 # AgentKit 快速入门教程
 
-> 本教程将带你从零开始，通过 17 组由简到繁的示例（含 9A/9B），掌握 AgentKit 的核心用法。
+> 本教程将带你从零开始，通过 18 组由简到繁的示例（含 9A/9B），掌握 AgentKit 的核心用法。
 
 ---
 
@@ -29,6 +29,7 @@
 - [示例 15：多租户隔离 (Multi-Tenant Isolation)](#15-多租户隔离-multi-tenant-isolation)
 - [示例 16：生命周期 Hooks 与 Callbacks](#16-生命周期-hooks-与-callbacks)
 - [示例 17：Checkpoint 深度恢复（Handoff 后挂起与原路径恢复）](#17-checkpoint-深度恢复handoff-后挂起与原路径恢复)
+- [示例 18：ModelCosplay（运行时改写预设模型）](#18-modelcosplay运行时改写预设模型)
 - [性能提示](#性能提示)
 - [使用不同的 LLM](#使用不同的-llm)
 - [下一步](#下一步)
@@ -1169,6 +1170,7 @@ agent = Agent(name="assistant", instructions="...")
 | [`15_multi_tenant_isolation.py`](../examples/standard/15_multi_tenant_isolation.py) | 示例 15：多租户隔离 |
 | [`16_lifecycle_hooks.py`](../examples/standard/16_lifecycle_hooks.py) | 示例 16：生命周期 Hooks 与 Callbacks |
 | [`17_checkpoint_handoff_resume.py`](../examples/standard/17_checkpoint_handoff_resume.py) | 示例 17：Checkpoint 深度恢复（Handoff + Resume） |
+| [`18_model_cosplay.py`](../examples/standard/18_model_cosplay.py) | 示例 18：ModelCosplay（运行时改写预设模型） |
 
 ### 📁 `examples/ollama/` — Ollama 本地版（无需 API Key，完全本地运行）
 
@@ -1192,6 +1194,7 @@ agent = Agent(name="assistant", instructions="...")
 | [`15_multi_tenant_isolation.py`](../examples/ollama/15_multi_tenant_isolation.py) | 示例 15：多租户隔离 |
 | [`16_lifecycle_hooks.py`](../examples/ollama/16_lifecycle_hooks.py) | 示例 16：生命周期 Hooks 与 Callbacks |
 | [`17_checkpoint_handoff_resume.py`](../examples/ollama/17_checkpoint_handoff_resume.py) | 示例 17：Checkpoint 深度恢复（Handoff + Resume） |
+| [`18_model_cosplay.py`](../examples/ollama/18_model_cosplay.py) | 示例 18：ModelCosplay（运行时改写预设模型） |
 
 ---
 
@@ -1281,6 +1284,51 @@ async for event in Runner.resume(
 运行文件：
 - `examples/standard/17_checkpoint_handoff_resume.py`
 - `examples/ollama/17_checkpoint_handoff_resume.py`
+
+### 18. ModelCosplay（运行时改写预设模型）
+
+`ModelCosplay` 是 Agent 的底层能力开关，默认关闭：
+
+1. 关闭时：如果 Agent 已经预设 `model`，实例化时不允许覆盖。
+2. 开启时：允许实例化覆盖预设模型。
+3. 开启时：允许运行时通过 `apply_model_cosplay(...)` 切换模型。
+
+```python
+from typing import AsyncGenerator
+from agentkit import Agent, Runner
+from agentkit.runner.events import Event, EventType
+
+class ModelEchoAgent(Agent):
+    async def _run_impl(self, ctx) -> AsyncGenerator[Event, None]:
+        # 为了演示，不调用真实 LLM，只返回当前 model
+        yield Event(agent=self.name, type=EventType.FINAL_OUTPUT, data=f"active_model={self.model}")
+
+class LockedAgent(ModelEchoAgent):
+    model = "ollama/qwen3.5:cloud"
+    model_cosplay_enabled = False
+
+class CosplayAgent(ModelEchoAgent):
+    model = "ollama/qwen3.5:cloud"
+    model_cosplay_enabled = True
+
+# 1) 默认关闭：覆盖失败
+try:
+    LockedAgent(name="locked", model="ollama/llama3:8b")
+except ValueError as e:
+    print(e)
+
+# 2) 开启后：实例化覆盖成功
+agent = CosplayAgent(name="cosplay", model="ollama/llama3:8b")
+print(Runner.run_sync(agent, input="show").final_output)
+
+# 3) 开启后：运行时覆盖成功
+agent.apply_model_cosplay("ollama/qwen2.5:7b")
+print(Runner.run_sync(agent, input="show").final_output)
+```
+
+运行文件：
+- `examples/standard/18_model_cosplay.py`
+- `examples/ollama/18_model_cosplay.py`
 
 ## 下一步
 

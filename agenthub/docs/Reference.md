@@ -41,6 +41,18 @@
 }
 ```
 
+### InvokeRequest
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `input` | `str` | 用户输入 |
+| `model_cosplay` | `str \| dict \| null` | 运行时模型伪装配置；仅对开启 `ModelCosplay` 的 Agent 生效 |
+| `user_id` | `str \| null` | 用户标识 |
+| `session_id` | `str \| null` | 会话标识 |
+| `trace_id` | `str \| null` | 链路追踪标识 |
+| `context` | `dict \| null` | 可选上下文 |
+| `max_turns` | `int` | 本次调用最大轮次 |
+
 ---
 
 ## HTTP API

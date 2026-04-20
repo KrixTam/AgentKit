@@ -3,7 +3,7 @@
 > Python 原生的 Agent 开发框架，内置一等公民级别的 Skill 支持和自研多模型适配层。
 
 [![Python](https://img.shields.io/badge/Python-≥3.11-blue.svg)](https://python.org)
-[![Version](https://img.shields.io/badge/Version-0.5.0-green.svg)]()
+[![Version](https://img.shields.io/badge/Version-0.6.0-green.svg)]()
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)]()
 
 ---
@@ -70,7 +70,7 @@ print(result.final_output)
 
 | 文档 | 说明 |
 |------|------|
-| **[QuickStart.md](QuickStart.md)** | 详细入门教程，包含 17 组从简到繁的完整示例（含 9A/9B，实际 18 个脚本） |
+| **[QuickStart.md](QuickStart.md)** | 详细入门教程，包含 18 组从简到繁的完整示例（含 9A/9B） |
 | **[Architecture.md](Architecture.md)** | 架构设计说明：六层分层、设计原则、核心流程 |
 | **[Reference.md](Reference.md)** | 完整 API 参考手册：所有类、方法、参数说明 |
 

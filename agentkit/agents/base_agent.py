@@ -26,8 +26,9 @@ class BaseAgent(BaseModel):
     before_agent_callback: Optional[Callable] = None
     after_agent_callback: Optional[Callable] = None
     fail_fast_on_hook_error: bool = False
+    model_cosplay_enabled: bool = False
 
-    model_config = ConfigDict(arbitrary_types_allowed=True)
+    model_config = ConfigDict(arbitrary_types_allowed=True, protected_namespaces=())
 
     async def _run_hook(self, hook: Optional[Callable], _hook_name: str, *args, **kwargs) -> tuple[Any, float, Optional[Exception]]:
         """执行回调钩子并返回 (结果, 耗时(秒), 异常)"""
@@ -52,6 +53,12 @@ class BaseAgent(BaseModel):
             if sub.parent_agent is not None:
                 raise ValueError(f"Agent '{sub.name}' 已有父 Agent")
             sub.parent_agent = self
+
+    def apply_model_cosplay(self, model_override: Any) -> "BaseAgent":
+        """尝试对当前 Agent 应用模型伪装（默认不支持）。"""
+        if model_override in (None, ""):
+            return self
+        raise ValueError(f"Agent '{self.name}' 不支持 ModelCosplay")
 
     async def run(self, ctx: "RunContext") -> AsyncGenerator[Event, None]:
         """运行入口 — 子类不可覆盖"""

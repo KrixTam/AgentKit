@@ -17,6 +17,7 @@ from .auth import authenticate_request
 from .config import HubConfig
 from .models import ApiResponse, InvokeRequest, RegisterRequest, ResumeRequest, SessionStatus
 from .runtime import (
+    apply_model_cosplay,
     HubContextStore,
     Metrics,
     QuotaManager,
@@ -142,6 +143,10 @@ async function run(){
         try:
             quota.acquire(quota_key)
             manifest, agent = resolve_agent_from_registry(registry_store, name, version)
+            try:
+                agent = apply_model_cosplay(agent, req.model_cosplay)
+            except ValueError as e:
+                return _json_error(1007, str(e), status_code=400)
             session = ensure_session(
                 session_store,
                 session_id=req.session_id,
@@ -195,6 +200,10 @@ async function run(){
     ):
         _auth(authorization)
         manifest, agent = resolve_agent_from_registry(registry_store, name, version)
+        try:
+            agent = apply_model_cosplay(agent, req.model_cosplay)
+        except ValueError as e:
+            return _json_error(1007, str(e), status_code=400)
         session = ensure_session(
             session_store,
             session_id=req.session_id,
@@ -281,6 +290,11 @@ async function run(){
                     agent_name = fixed_agent_name or msg["agent"]
                     version = fixed_version if fixed_agent_name else msg.get("version")
                     manifest, agent = resolve_agent_from_registry(registry_store, agent_name, version)
+                    try:
+                        agent = apply_model_cosplay(agent, msg.get("model_cosplay"))
+                    except ValueError as e:
+                        await ws.send_json({"error": str(e)})
+                        continue
                     session = ensure_session(
                         session_store,
                         session_id=msg.get("session_id"),

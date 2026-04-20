@@ -4,6 +4,7 @@ import os
 import sys
 import tempfile
 
+import pytest
 from fastapi.testclient import TestClient
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
@@ -145,3 +146,40 @@ def test_acceptance_auth_and_metrics():
     metrics = client.get("/metrics")
     assert metrics.status_code == 200
     assert "agenthub_requests_total" in metrics.text
+
+
+def test_model_cosplay_policy_and_hub_override():
+    from tests.fixtures.demo_agents import CosplayModelEchoAgent, LockedModelEchoAgent
+
+    with pytest.raises(ValueError):
+        LockedModelEchoAgent(name="locked", model="force-override")
+
+    changed = CosplayModelEchoAgent(name="cosplay", model="runtime-model")
+    assert changed.model == "runtime-model"
+
+    app = create_app(HubConfig(store_type="memory"))
+    client = TestClient(app)
+    _register(
+        client,
+        _manifest("demo-locked-model", "1.0.0", "tests.fixtures.demo_agents:create_locked_model_agent"),
+        aliases=["stable"],
+    )
+    _register(
+        client,
+        _manifest("demo-cosplay-model", "1.0.0", "tests.fixtures.demo_agents:create_cosplay_model_agent"),
+        aliases=["stable"],
+    )
+
+    denied = client.post(
+        "/api/v1/agents/demo-locked-model:stable/invoke",
+        json={"input": "x", "model_cosplay": "forced-model"},
+    )
+    assert denied.status_code == 400
+    assert "未开启 ModelCosplay" in denied.json()["message"]
+
+    ok = client.post(
+        "/api/v1/agents/demo-cosplay-model:stable/invoke",
+        json={"input": "x", "model_cosplay": "forced-model"},
+    )
+    assert ok.status_code == 200
+    assert ok.json()["data"]["run_result"]["final_output"] == "model:forced-model"

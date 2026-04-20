@@ -152,3 +152,12 @@ def resolve_agent_from_registry(registry_store: RegistryStore, name: str, versio
     if not manifest:
         raise ValueError(f"agent_not_found:{name}:{version_or_alias or 'latest'}")
     return manifest, load_entry(manifest.entry)
+
+
+def apply_model_cosplay(agent: Any, model_override: Any):
+    if model_override in (None, ""):
+        return agent
+    applier = getattr(agent, "apply_model_cosplay", None)
+    if not callable(applier):
+        raise ValueError(f"agent_not_support_model_cosplay:{getattr(agent, 'name', 'unknown')}")
+    return applier(model_override)

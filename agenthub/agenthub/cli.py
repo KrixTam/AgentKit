@@ -72,6 +72,7 @@ def main() -> None:
     p_run.add_argument("name")
     p_run.add_argument("--version")
     p_run.add_argument("--input", required=True)
+    p_run.add_argument("--model-cosplay")
     p_run.add_argument("--user-id")
     p_run.add_argument("--session-id")
 
@@ -153,6 +154,7 @@ def main() -> None:
     if args.cmd == "run":
         payload = {
             "input": args.input,
+            "model_cosplay": args.model_cosplay,
             "user_id": args.user_id,
             "session_id": args.session_id,
         }

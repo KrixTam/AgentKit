@@ -28,7 +28,13 @@ export OPENAI_API_KEY="sk-..."
 | `09b_structured_data_graph.py` | 图数据库 — 配合 Mock 运行的 NebulaGraphTool | QuickStart 示例 9B |
 | `10_skill_lifecycle.py` | Skill 生命周期 — 管理外部资源连接池 | QuickStart 示例 10 |
 | `11_orchestration_enhancement.py` | 编排增强 — 循环退出条件与并行提前终止 | QuickStart 示例 11 |
+| `12_run_context_serialization.py` | RunContext 序列化与共享状态 | QuickStart 示例 12 |
+| `13_human_in_the_loop.py` | Human-in-the-loop 与断点续跑 | QuickStart 示例 13 |
+| `14_event_standardization.py` | 事件协议标准化与强类型校验 | QuickStart 示例 14 |
+| `15_multi_tenant_isolation.py` | 多租户隔离（Multi-Tenant Isolation） | QuickStart 示例 15 |
+| `16_lifecycle_hooks.py` | 生命周期 Hooks 与 Callbacks | QuickStart 示例 16 |
 | `17_checkpoint_handoff_resume.py` | Checkpoint 深度恢复 — Handoff 后挂起并原路径恢复 | 增强示例 |
+| `18_model_cosplay.py` | ModelCosplay — 运行时改写预设模型 | QuickStart 示例 18 |
 
 ## 运行
 
