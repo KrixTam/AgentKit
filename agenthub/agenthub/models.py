@@ -30,6 +30,7 @@ class AgentManifest(BaseModel):
     # backward compatibility: historical field `schema`
     manifest_schema: dict[str, Any] = Field(default_factory=dict, alias="schema", serialization_alias="schema")
     runner_config: dict[str, Any] = Field(default_factory=dict)
+    model_cosplay: str | dict[str, Any] | None = None
     tags: list[str] = Field(default_factory=list)
 
     @field_validator("version")

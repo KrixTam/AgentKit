@@ -46,11 +46,12 @@ AgentHub 不替换 AgentKit 运行时主循环，仅以适配方式调用：
 
 1. 网关解析请求与鉴权（可选）。
 2. 通过 Registry 解析 `{name, version|alias}` 到 Manifest。
-3. 解析 `{name, version|alias}` 后命中 Agent 原型缓存（未命中时加载 `entry=module:attr`），并深拷贝得到请求级实例。
-4. 创建/复用会话记录（`session_id`、`trace_id`、`user_id`）。
-5. 调用 `Runner.run(...)` 获取 `RunResult`。
-6. 事件顺序写入 SessionStore（带 `seq`）。
-7. 返回统一响应结构 `ApiResponse`。
+3. 命中 Agent 原型缓存（未命中时加载 `entry=module:attr`），并深拷贝得到请求级实例。
+4. 应用模型改写策略：优先请求参数 `model_cosplay`，否则使用 Manifest 的 `model_cosplay` 默认值（仅对开启能力的 Agent 生效）。
+5. 创建/复用会话记录（`session_id`、`trace_id`、`user_id`）。
+6. 调用 `Runner.run(...)` 获取 `RunResult`。
+7. 事件顺序写入 SessionStore（带 `seq`）。
+8. 返回统一响应结构 `ApiResponse`。
 
 ### 2) SSE 流式调用
 

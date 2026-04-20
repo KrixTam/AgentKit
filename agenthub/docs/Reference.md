@@ -18,6 +18,7 @@
 | `requires_human_input` | `bool` | 是否需要人工介入 |
 | `schema` | `dict` | 历史兼容字段；当前实现会与 `input_schema` 双向归一化 |
 | `runner_config` | `dict` | Runner 相关默认参数 |
+| `model_cosplay` | `str \| dict \| null` | 通过 `agent.yaml` 为该 Agent 配置默认 ModelCosplay；调用请求中的 `model_cosplay` 优先级更高 |
 | `tags` | `list[str]` | 标签 |
 
 ### SessionStatus

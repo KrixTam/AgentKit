@@ -183,3 +183,18 @@ def test_model_cosplay_policy_and_hub_override():
     )
     assert ok.status_code == 200
     assert ok.json()["data"]["run_result"]["final_output"] == "model:forced-model"
+
+
+def test_manifest_model_cosplay_default_applied():
+    app = create_app(HubConfig(store_type="memory"))
+    client = TestClient(app)
+    manifest = _manifest("demo-cosplay-default", "1.0.0", "tests.fixtures.demo_agents:create_cosplay_model_agent")
+    manifest["model_cosplay"] = "manifest-default-model"
+    _register(client, manifest, aliases=["stable"])
+
+    resp = client.post(
+        "/api/v1/agents/demo-cosplay-default:stable/invoke",
+        json={"input": "x"},
+    )
+    assert resp.status_code == 200
+    assert resp.json()["data"]["run_result"]["final_output"] == "model:manifest-default-model"

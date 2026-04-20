@@ -19,6 +19,8 @@ requires_human_input: false
 runner_config:
   max_turns: 10
   default_hub_port: 8008
+# 可选：为已开启 ModelCosplay 能力的 Agent 设置默认模型伪装
+# model_cosplay: "gpt-4o-mini"
 tags:
   - demo
   - stable

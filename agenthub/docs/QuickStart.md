@@ -1,6 +1,6 @@
 # AgentHub 快速入门
 
-> 本文档基于当前代码实现（发行包：`ni.agenthub==0.3.0`，运行命令：`agenthub`）。
+> 本文档基于当前代码实现（发行包：`ni.agenthub==0.3.1`，运行命令：`agenthub`）。
 
 ---
 
@@ -63,10 +63,13 @@ requires_human_input: false
 runner_config:
   max_turns: 10
   default_hub_port: 8008
+# 可选：默认应用到该 Agent 的 ModelCosplay（仅对开启能力的 Agent 生效）
+# model_cosplay: "gpt-4o-mini"
 tags: [demo, stable]
 ```
 
 `entry` 必须是 `module:attr` 格式；若校验失败，服务端会返回字段级错误信息。
+当 `agent.yaml` 配置了 `model_cosplay` 时，Hub 会在实例化该 Agent 后默认应用该配置；如果调用请求中也传入了 `model_cosplay`，则请求参数优先。
 上述示例可直接用（将 `agent.yaml.example` 重命名/复制为 `agent.yaml` 后可注册并调用）。
 
 ---

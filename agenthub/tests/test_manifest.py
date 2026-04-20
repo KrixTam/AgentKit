@@ -48,6 +48,7 @@ def test_manifest_new_fields_and_schema_backward_compat():
         output_schema={"type": "object", "properties": {"final_output": {"type": "string"}}},
         requires_human_input=True,
         runner_config={"max_turns": 8},
+        model_cosplay="gpt-4o-mini",
         tags=["demo"],
     )
     # backward compatibility: schema -> input_schema
@@ -55,3 +56,4 @@ def test_manifest_new_fields_and_schema_backward_compat():
     assert m.manifest_schema.get("type") == "object"
     assert m.requires_human_input is True
     assert m.skills == ["s1", "s2"]
+    assert m.model_cosplay == "gpt-4o-mini"

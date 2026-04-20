@@ -106,6 +106,11 @@ def create_app(config: HubConfig | None = None) -> FastAPI:
         obs["agent_resolve_ms"] += (time.perf_counter() - start) * 1000.0
         return manifest, agent
 
+    def _effective_model_cosplay(manifest: Any, request_model_cosplay: Any) -> Any:
+        if request_model_cosplay not in (None, ""):
+            return request_model_cosplay
+        return getattr(manifest, "model_cosplay", None)
+
     def _append_event_observed(obs: dict[str, float], session_id: str, event: Event) -> None:
         obs["event_write_ms"] += append_event_only(session_store, session_id, event)
         _add_db_ops(obs, 1)
@@ -186,7 +191,7 @@ async function run(){
             quota.acquire(quota_key)
             manifest, agent = _resolve_agent_instance_observed(name, version, obs)
             try:
-                agent = apply_model_cosplay(agent, req.model_cosplay)
+                agent = apply_model_cosplay(agent, _effective_model_cosplay(manifest, req.model_cosplay))
             except ValueError as e:
                 return _json_error(1007, str(e), status_code=400)
             session = ensure_session(
@@ -256,7 +261,7 @@ async function run(){
         obs = _new_obs()
         manifest, agent = _resolve_agent_instance_observed(name, version, obs)
         try:
-            agent = apply_model_cosplay(agent, req.model_cosplay)
+            agent = apply_model_cosplay(agent, _effective_model_cosplay(manifest, req.model_cosplay))
         except ValueError as e:
             return _json_error(1007, str(e), status_code=400)
         session = ensure_session(
@@ -330,7 +335,11 @@ async function run(){
             return ApiResponse(data={"session_id": session_id, "status": "duplicate_ignored"})
         if req.idempotency_key:
             session.metadata["last_resume_key"] = req.idempotency_key
-        _, agent = _resolve_agent_instance_observed(session.agent_name, session.agent_version, obs)
+        manifest, agent = _resolve_agent_instance_observed(session.agent_name, session.agent_version, obs)
+        try:
+            agent = apply_model_cosplay(agent, _effective_model_cosplay(manifest, None))
+        except ValueError as e:
+            return _json_error(1007, str(e), status_code=400)
         events: list[dict[str, Any]] = []
         current_status = session.status
         async for e in Runner.resume(
@@ -390,7 +399,7 @@ async function run(){
                     version = fixed_version if fixed_agent_name else msg.get("version")
                     manifest, agent = _resolve_agent_instance_observed(agent_name, version, obs)
                     try:
-                        agent = apply_model_cosplay(agent, msg.get("model_cosplay"))
+                        agent = apply_model_cosplay(agent, _effective_model_cosplay(manifest, msg.get("model_cosplay")))
                     except ValueError as e:
                         await ws.send_json({"error": str(e)})
                         continue
@@ -439,7 +448,12 @@ async function run(){
                     if not session:
                         await ws.send_json({"error": f"session_not_found:{session_id}"})
                         continue
-                    _, agent = _resolve_agent_instance_observed(session.agent_name, session.agent_version, obs)
+                    manifest, agent = _resolve_agent_instance_observed(session.agent_name, session.agent_version, obs)
+                    try:
+                        agent = apply_model_cosplay(agent, _effective_model_cosplay(manifest, None))
+                    except ValueError as e:
+                        await ws.send_json({"error": str(e)})
+                        continue
                     idempotency_key = msg.get("idempotency_key")
                     if idempotency_key and session.metadata.get("last_resume_key") == idempotency_key:
                         await ws.send_json({"session_id": session_id, "status": "duplicate_ignored"})
