@@ -1,7 +1,7 @@
 # AgentKit 示例测试报告
 
-> 测试时间：2026-04-19  
-> 测试环境：macOS (Apple Silicon)  
+> 测试时间：`2026-04-20`  
+> 测试环境：`macOS (Apple Silicon)`  
 > 模型：Ollama `qwen3.5:cloud`  
 > AgentKit 版本：v0.6.0  
 > Thinking 模式：开启（默认）  
