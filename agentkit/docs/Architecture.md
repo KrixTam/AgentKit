@@ -467,6 +467,7 @@ agent.clear_cache()
 > - 适合 FAQ、重复查询等场景；不适合需要实时信息的场景
 > - 缓存仅在单 Agent 实例内有效，重新创建 Agent 会清空缓存
 > - 默认最大 128 条缓存，LRU 淘汰最久未使用的条目
+> - 缓存实现内置 key 生成统计：`key_gen_calls / key_gen_total_ms / key_gen_last_ms / key_gen_avg_ms`
 
 ### 3. 记忆异步写入
 
@@ -493,6 +494,13 @@ agent = Agent(memory=my_memory, memory_async_write=False, ...)
 | **多轮聊天** | 保持开启 | ❌ 关闭 | 同步 |
 | **FAQ / 客服** | 关闭 | ✅ 开启 | 异步 |
 | **复杂推理任务** | 保持开启 | ❌ 关闭 | 按需 |
+
+### 性能可观测性（新增）
+
+当前实现已内置以下调试级性能观测点，便于后续压测与回归比对：
+
+- `Agent` 每轮日志：`messages_build_ms`、`tool_defs_build_ms`、`cache_key_ms`
+- `LLMCache` 统计字段：`key_gen_calls`、`key_gen_total_ms`、`key_gen_last_ms`、`key_gen_avg_ms`
 
 ---
 
@@ -601,8 +609,8 @@ agentkit/
 │   └── schema.py            #   函数签名 → JSON Schema
 │
 ├── examples/                # 示例
-│   ├── standard/            #   标准版示例（01-17，含 9A/9B）
-│   ├── ollama/              #   Ollama 版示例（01-17，含 9A/9B）
+│   ├── standard/            #   标准版示例（01-18，含 9A/9B）
+│   ├── ollama/              #   Ollama 版示例（01-18，含 9A/9B）
 │   ├── quickstart.py
 │   └── test_ollama.py
 │

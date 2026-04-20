@@ -15,31 +15,31 @@
 
 | # | 示例 | 文件 | 耗时 | 状态 | 说明 |
 |---|------|------|-----:|:----:|------|
-| 1 | 基础对话 | `01_basic_chat.py` | 46.38s | ✅ | 运行通过 |
-| 2 | 工具调用 | `02_tool_calling.py` | 42.38s | ✅ | 运行通过 |
-| 3 | Skill 使用 | `03_skill_usage.py` | 96.55s | ✅ | 运行通过 |
-| 4 | 多 Agent 协作 | `04_multi_agent.py` | 65.81s | ✅ | 运行通过 |
-| 5 | 安全护栏 | `05_guardrail.py` | 5.65s | ✅ | 运行通过 |
-| 6 | 编排 Agent | `06_orchestration.py` | 153.65s | ✅ | 运行通过 |
-| 7 | 同步/异步/流式 | `07_sync_async_stream.py` | 77.23s | ✅ | 运行通过 |
-| 8 | 记忆系统 | `08_memory.py` | 815.46s | ✅ | 运行通过（本轮最慢） |
-| 9A | 结构化数据（SQL） | `09a_structured_data_sql.py` | 6.11s | ✅ | 运行通过 |
-| 9B | 结构化数据（图） | `09b_structured_data_graph.py` | 9.28s | ✅ | 运行通过 |
-| 10 | Skill 生命周期 | `10_skill_lifecycle.py` | 2.63s | ✅ | 运行通过 |
-| 11 | 编排增强 | `11_orchestration_enhancement.py` | 51.81s | ✅ | 运行通过 |
-| 12 | 序列化协议 | `12_run_context_serialization.py` | 0.31s | ✅ | 运行通过 |
-| 13 | Human in the Loop | `13_human_in_the_loop.py` | 8.70s | ✅ | 运行通过 |
-| 14 | Event 标准化 | `14_event_standardization.py` | 7.57s | ✅ | 运行通过 |
-| 15 | 多租户隔离 | `15_multi_tenant_isolation.py` | 0.32s | ✅ | 运行通过 |
-| 16 | 生命周期 Hooks | `16_lifecycle_hooks.py` | 0.28s | ✅ | 运行通过 |
-| 17 | Checkpoint + Handoff + Resume | `17_checkpoint_handoff_resume.py` | 0.18s | ✅ | 运行通过 |
-| 18 | ModelCosplay | `18_model_cosplay.py` | 0.18s | ✅ | 运行通过 |
-| | **合计** | | **1390.48s** | **19/19** | |
+| 1 | 基础对话 | `01_basic_chat.py` | 30.52s | ✅ | 运行通过 |
+| 2 | 工具调用 | `02_tool_calling.py` | 42.10s | ✅ | 运行通过 |
+| 3 | Skill 使用 | `03_skill_usage.py` | 200.30s | ✅ | 运行通过 |
+| 4 | 多 Agent 协作 | `04_multi_agent.py` | 110.67s | ✅ | 运行通过 |
+| 5 | 安全护栏 | `05_guardrail.py` | 7.19s | ✅ | 运行通过 |
+| 6 | 编排 Agent | `06_orchestration.py` | 54.30s | ✅ | 运行通过 |
+| 7 | 同步/异步/流式 | `07_sync_async_stream.py` | 32.54s | ✅ | 运行通过 |
+| 8 | 记忆系统 | `08_memory.py` | 778.88s | ✅ | 运行通过（本轮最慢） |
+| 9A | 结构化数据（SQL） | `09a_structured_data_sql.py` | 148.74s | ✅ | 运行通过 |
+| 9B | 结构化数据（图） | `09b_structured_data_graph.py` | 31.25s | ✅ | 运行通过 |
+| 10 | Skill 生命周期 | `10_skill_lifecycle.py` | 72.92s | ✅ | 运行通过 |
+| 11 | 编排增强 | `11_orchestration_enhancement.py` | 139.09s | ✅ | 运行通过 |
+| 12 | 序列化协议 | `12_run_context_serialization.py` | 0.33s | ✅ | 运行通过 |
+| 13 | Human in the Loop | `13_human_in_the_loop.py` | 9.75s | ✅ | 运行通过 |
+| 14 | Event 标准化 | `14_event_standardization.py` | 11.32s | ✅ | 运行通过 |
+| 15 | 多租户隔离 | `15_multi_tenant_isolation.py` | 0.39s | ✅ | 运行通过 |
+| 16 | 生命周期 Hooks | `16_lifecycle_hooks.py` | 0.29s | ✅ | 运行通过 |
+| 17 | Checkpoint + Handoff + Resume | `17_checkpoint_handoff_resume.py` | 0.30s | ✅ | 运行通过 |
+| 18 | ModelCosplay | `18_model_cosplay.py` | 0.21s | ✅ | 运行通过 |
+| | **合计** | | **1671.09s** | **19/19** | |
 
 ## 耗时分析
 
-- **最快示例**：17 Checkpoint + Handoff + Resume / 18 ModelCosplay（0.18s）
-- **最慢示例**：8 记忆系统（815.46s）
+- **最快示例**：18 ModelCosplay（0.21s）
+- **最慢示例**：8 记忆系统（778.88s）
 - **耗时集中区间**：涉及多轮推理/记忆写入/编排循环的示例耗时显著更高
 
 ## 各示例 LLM 调用次数估算

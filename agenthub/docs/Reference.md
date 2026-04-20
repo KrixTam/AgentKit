@@ -102,6 +102,7 @@
   "action": "run",
   "authorization": "Bearer <token>",
   "input": "你好",
+  "model_cosplay": "gpt-4o-mini",
   "user_id": "u1",
   "session_id": "s1",
   "trace_id": "t1"
@@ -143,6 +144,12 @@ pip install ni.agenthub
 | `trace` | 回放会话事件 |
 | `session` | `list/get/resume/terminate` 会话管理 |
 
+`run` 子命令常用参数：
+
+- `--input`：请求输入（必填）
+- `--model-cosplay`：运行时改写模型（仅对开启 ModelCosplay 的 Agent 生效）
+- `--user-id` / `--session-id`：用户与会话透传
+
 全局参数：
 
 - `--server`：默认 `http://127.0.0.1:8008`
@@ -171,6 +178,13 @@ pip install ni.agenthub
 | `AGENTHUB_OIDC_ISSUER` | 空 | 可选 issuer 校验 |
 | `AGENTHUB_MAX_CONCURRENCY_PER_USER` | `8` | 单用户并发上限 |
 | `AGENTHUB_RATE_LIMIT_PER_MINUTE` | `120` | 单用户每分钟请求上限 |
+
+---
+
+## 可观测与审计字段
+
+- `/metrics` 输出聚合指标：`agenthub_requests_total`、`agenthub_errors_total`、`agenthub_suspended_total`、`agenthub_completed_total`、`agenthub_active_sessions`、`agenthub_latency_p95_ms`
+- 结构化审计日志会追加请求级性能字段：`db_ops`（数据库操作次数）、`event_write_ms`（事件写入耗时）、`agent_resolve_ms`（Agent 解析耗时）
 
 ---
 

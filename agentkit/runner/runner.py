@@ -129,6 +129,8 @@ class Runner:
 
         ctx = RunContext(input=input, shared_context=context, user_id=user_id, session_id=session_id)
         current_agent = agent
+        current_agent_path = cls._find_agent_path(agent, current_agent)
+        handoff_agent_cache: dict[str, Any | None] = {}
         max_turns = int(_kwargs.get("max_turns", 10))
         turn = 0
 
@@ -137,7 +139,7 @@ class Runner:
                 "turn": turn,
                 "max_turns": max_turns,
                 "current_agent": getattr(current_agent, "name", ""),
-                "agent_path": cls._find_agent_path(agent, current_agent),
+                "agent_path": current_agent_path,
             }
             handoff_switched = False
             async for event in current_agent.run(ctx):
@@ -151,7 +153,7 @@ class Runner:
                             "session_id": session_id,
                             "turn": turn,
                             "current_agent": getattr(current_agent, "name", ""),
-                            "agent_path": cls._find_agent_path(agent, current_agent),
+                            "agent_path": current_agent_path,
                         },
                     )
                     return
@@ -165,12 +167,17 @@ class Runner:
                     target_name = ""
                     if isinstance(event.data, dict):
                         target_name = event.data.get("target", "")
-                    new_agent = cls._find_agent(agent, target_name)
+                    if target_name in handoff_agent_cache:
+                        new_agent = handoff_agent_cache[target_name]
+                    else:
+                        new_agent = cls._find_agent(agent, target_name)
+                        handoff_agent_cache[target_name] = new_agent
                     if not new_agent:
                         yield Event(agent=getattr(current_agent, "name", "runner"), type=EventType.ERROR, data=f"Handoff 目标 '{target_name}' 未找到")
                         context_store.delete(session_id)
                         return
                     current_agent = new_agent
+                    current_agent_path = cls._find_agent_path(agent, current_agent)
                     handoff_switched = True
                     break
             turn += 1
@@ -202,6 +209,8 @@ class Runner:
         current_agent = cls._find_agent_by_path(agent, path) if path else None
         if current_agent is None:
             current_agent = cls._find_agent(agent, checkpoint.get("current_agent", "")) or agent
+        current_agent_path = cls._find_agent_path(agent, current_agent)
+        handoff_agent_cache: dict[str, Any | None] = {}
 
         yield Event(agent=agent.name, type=EventType.HUMAN_INPUT_RECEIVED, data={"input": user_input})
 
@@ -218,7 +227,7 @@ class Runner:
                 "turn": turn,
                 "max_turns": max_turns,
                 "current_agent": getattr(current_agent, "name", ""),
-                "agent_path": cls._find_agent_path(agent, current_agent),
+                "agent_path": current_agent_path,
             }
             handoff_switched = False
             async for event in current_agent.run(ctx):
@@ -232,7 +241,7 @@ class Runner:
                             "session_id": session_id,
                             "turn": turn,
                             "current_agent": getattr(current_agent, "name", ""),
-                            "agent_path": cls._find_agent_path(agent, current_agent),
+                            "agent_path": current_agent_path,
                         },
                     )
                     return
@@ -246,12 +255,17 @@ class Runner:
                     target_name = ""
                     if isinstance(event.data, dict):
                         target_name = event.data.get("target", "")
-                    new_agent = cls._find_agent(agent, target_name)
+                    if target_name in handoff_agent_cache:
+                        new_agent = handoff_agent_cache[target_name]
+                    else:
+                        new_agent = cls._find_agent(agent, target_name)
+                        handoff_agent_cache[target_name] = new_agent
                     if not new_agent:
                         yield Event(agent=getattr(current_agent, "name", "runner"), type=EventType.ERROR, data=f"Handoff 目标 '{target_name}' 未找到")
                         context_store.delete(session_id)
                         return
                     current_agent = new_agent
+                    current_agent_path = cls._find_agent_path(agent, current_agent)
                     handoff_switched = True
                     break
             turn += 1

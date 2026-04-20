@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import inspect
 import logging
+import time
 from pydantic_core import PydanticUndefined
 from typing import Any, AsyncGenerator, Callable, Optional, Union
 
@@ -189,6 +190,11 @@ class Agent(BaseAgent):
         llm = self._resolve_model()
         memory_injection = ""
         skill_prompt_injection = ""
+        history_messages: list[Message] = []
+        parsed_history_len = 0
+        last_tool_signature: tuple[tuple[str, int], ...] = tuple()
+        cached_tool_map: dict[str, BaseTool] = {}
+        cached_tool_defs: list[Any] = []
 
         if self.memory:
             try:
@@ -214,27 +220,39 @@ class Agent(BaseAgent):
 
                 # 2. 获取工具
                 tools = await self.get_all_tools(ctx)
-                tool_map = {tool.name: tool for tool in tools}
-                tool_defs = [t.to_tool_definition() for t in tools]
+                tool_signature = tuple((tool.name, id(tool)) for tool in tools)
+                tool_defs_start = time.perf_counter()
+                if tool_signature != last_tool_signature:
+                    cached_tool_map = {tool.name: tool for tool in tools}
+                    cached_tool_defs = [t.to_tool_definition() for t in tools]
+                    last_tool_signature = tool_signature
+                tool_defs_ms = (time.perf_counter() - tool_defs_start) * 1000.0
+                tool_map = cached_tool_map
+                tool_defs = cached_tool_defs
 
                 # 3. 构建消息
-                messages = [Message.system(instructions)]
-                messages.append(Message.user(ctx.input))
+                messages_build_start = time.perf_counter()
+                if len(ctx.messages) < parsed_history_len:
+                    history_messages = []
+                    parsed_history_len = 0
+                if len(ctx.messages) > parsed_history_len:
+                    for msg_dict in ctx.messages[parsed_history_len:]:
+                        role = MessageRole(msg_dict.get("role", "user"))
+                        tool_calls_raw = msg_dict.get("tool_calls", [])
+                        tool_calls_parsed = [
+                            LLMToolCall(id=tc["id"], name=tc["name"], arguments=tc["arguments"])
+                            for tc in tool_calls_raw
+                        ] if tool_calls_raw else []
+                        history_messages.append(Message(
+                            role=role,
+                            content=msg_dict.get("content"),
+                            tool_call_id=msg_dict.get("tool_call_id"),
+                            tool_calls=tool_calls_parsed,
+                        ))
+                    parsed_history_len = len(ctx.messages)
 
-                # 追加历史消息
-                for msg_dict in ctx.messages:
-                    role = MessageRole(msg_dict.get("role", "user"))
-                    tool_calls_raw = msg_dict.get("tool_calls", [])
-                    tool_calls_parsed = [
-                        LLMToolCall(id=tc["id"], name=tc["name"], arguments=tc["arguments"])
-                        for tc in tool_calls_raw
-                    ] if tool_calls_raw else []
-                    messages.append(Message(
-                        role=role,
-                        content=msg_dict.get("content"),
-                        tool_call_id=msg_dict.get("tool_call_id"),
-                        tool_calls=tool_calls_parsed,
-                    ))
+                messages = [Message.system(instructions), Message.user(ctx.input), *history_messages]
+                messages_build_ms = (time.perf_counter() - messages_build_start) * 1000.0
 
                 # 4. before_model 回调
                 if self.before_model_callback:
@@ -275,6 +293,18 @@ class Agent(BaseAgent):
                     # 写入缓存
                     if self.enable_cache:
                         cache.put(messages, tool_defs if tool_defs else None, response)
+
+                cache_key_ms = 0.0
+                if self.enable_cache:
+                    cache_key_ms = float(getattr(cache, "last_key_gen_ms", 0.0))
+                logger.debug(
+                    "[%s] perf round=%s messages_build_ms=%.3f tool_defs_build_ms=%.3f cache_key_ms=%.3f",
+                    self.name,
+                    round_count,
+                    messages_build_ms,
+                    tool_defs_ms,
+                    cache_key_ms,
+                )
 
                 # 6. after_model 回调
                 if self.after_model_callback:
@@ -419,7 +449,6 @@ class Agent(BaseAgent):
         finally:
             for skill in self.skills:
                 try:
-                    import time
                     start_time = time.time()
                     await skill.on_unload(ctx)
                     duration = time.time() - start_time

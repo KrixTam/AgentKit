@@ -15,11 +15,14 @@ from __future__ import annotations
 
 import hashlib
 import json
+import logging
 import time
 from collections import OrderedDict
 from typing import Optional
 
 from .types import LLMResponse, Message, ToolDefinition
+
+logger = logging.getLogger("agentkit.llm.cache")
 
 
 class LLMCache:
@@ -36,6 +39,39 @@ class LLMCache:
         self._cache: OrderedDict[str, tuple[float, LLMResponse]] = OrderedDict()
         self._hits = 0
         self._misses = 0
+        self._msg_fp_cache: dict[int, tuple[tuple, str]] = {}
+        self._tool_fp_cache: dict[int, tuple[tuple, str]] = {}
+        self._key_gen_calls = 0
+        self._key_gen_total_ms = 0.0
+        self._key_gen_last_ms = 0.0
+
+    def _message_fingerprint(self, msg: Message) -> str:
+        tool_calls_sig = tuple(
+            (tc.id, tc.name, json.dumps(tc.arguments, sort_keys=True))
+            for tc in (msg.tool_calls or [])
+        )
+        sig = (msg.role.value, msg.content or "", msg.tool_call_id or "", tool_calls_sig)
+        cache_key = id(msg)
+        cached = self._msg_fp_cache.get(cache_key)
+        if cached and cached[0] == sig:
+            return cached[1]
+        fp = hashlib.sha1(repr(sig).encode()).hexdigest()
+        self._msg_fp_cache[cache_key] = (sig, fp)
+        if len(self._msg_fp_cache) > 8192:
+            self._msg_fp_cache.clear()
+        return fp
+
+    def _tool_fingerprint(self, tool: ToolDefinition) -> str:
+        sig = (tool.name, json.dumps(tool.parameters, sort_keys=True))
+        cache_key = id(tool)
+        cached = self._tool_fp_cache.get(cache_key)
+        if cached and cached[0] == sig:
+            return cached[1]
+        fp = hashlib.sha1(repr(sig).encode()).hexdigest()
+        self._tool_fp_cache[cache_key] = (sig, fp)
+        if len(self._tool_fp_cache) > 4096:
+            self._tool_fp_cache.clear()
+        return fp
 
     def _make_key(
         self,
@@ -43,19 +79,27 @@ class LLMCache:
         tools: list[ToolDefinition] | None = None,
     ) -> str:
         """根据消息和工具列表生成缓存 key"""
-        parts = []
+        start = time.perf_counter()
+        hasher = hashlib.sha256()
         for msg in messages:
-            parts.append(f"{msg.role.value}:{msg.content or ''}:{msg.tool_call_id or ''}")
-            if msg.tool_calls:
-                for tc in msg.tool_calls:
-                    parts.append(f"tc:{tc.name}:{json.dumps(tc.arguments, sort_keys=True)}")
-
+            hasher.update(self._message_fingerprint(msg).encode())
+            hasher.update(b"|")
         if tools:
             for tool in tools:
-                parts.append(f"tool:{tool.name}:{json.dumps(tool.parameters, sort_keys=True)}")
-
-        raw = "|".join(parts)
-        return hashlib.sha256(raw.encode()).hexdigest()
+                hasher.update(self._tool_fingerprint(tool).encode())
+                hasher.update(b"|")
+        key = hasher.hexdigest()
+        elapsed_ms = (time.perf_counter() - start) * 1000.0
+        self._key_gen_calls += 1
+        self._key_gen_total_ms += elapsed_ms
+        self._key_gen_last_ms = elapsed_ms
+        logger.debug(
+            "cache_key_generated messages=%s tools=%s elapsed_ms=%.3f",
+            len(messages),
+            len(tools or []),
+            elapsed_ms,
+        )
+        return key
 
     def get(
         self,
@@ -107,6 +151,13 @@ class LLMCache:
         self._cache.clear()
         self._hits = 0
         self._misses = 0
+        self._key_gen_calls = 0
+        self._key_gen_total_ms = 0.0
+        self._key_gen_last_ms = 0.0
+
+    @property
+    def last_key_gen_ms(self) -> float:
+        return self._key_gen_last_ms
 
     @property
     def stats(self) -> dict:
@@ -118,4 +169,8 @@ class LLMCache:
             "hits": self._hits,
             "misses": self._misses,
             "hit_rate": f"{self._hits / total:.1%}" if total > 0 else "N/A",
+            "key_gen_calls": self._key_gen_calls,
+            "key_gen_total_ms": round(self._key_gen_total_ms, 3),
+            "key_gen_last_ms": round(self._key_gen_last_ms, 3),
+            "key_gen_avg_ms": round(self._key_gen_total_ms / self._key_gen_calls, 3) if self._key_gen_calls else 0.0,
         }

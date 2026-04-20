@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import copy
 import json
 import logging
 import os
@@ -21,9 +22,10 @@ from .runtime import (
     HubContextStore,
     Metrics,
     QuotaManager,
-    append_event_and_update,
+    append_event_only,
     ensure_session,
-    resolve_agent_from_registry,
+    load_entry,
+    resolve_session_status,
 )
 from .stores.base import RegistryStore, SessionStore
 from .stores.memory import InMemoryRegistryStore, InMemorySessionStore
@@ -64,12 +66,49 @@ def create_app(config: HubConfig | None = None) -> FastAPI:
     quota = QuotaManager(cfg.max_concurrency_per_user, cfg.rate_limit_per_minute)
 
     app = FastAPI(title="AgentHub", version="0.1.0")
+    _agent_prototype_cache: dict[tuple[str, str, str], Any] = {}
+
+    def _new_obs() -> dict[str, float]:
+        return {"db_ops": 0.0, "event_write_ms": 0.0, "agent_resolve_ms": 0.0}
+
+    def _add_db_ops(obs: dict[str, float], count: int = 1) -> None:
+        obs["db_ops"] += float(count)
 
     def _auth(authorization: str | None) -> dict[str, Any]:
         return authenticate_request(cfg, authorization=authorization)
 
     def _quota_key(user_id: str | None, tenant_id: str | None) -> str:
         return f"{tenant_id or 'default'}:{user_id or 'anonymous'}"
+
+    def _clear_agent_cache() -> None:
+        _agent_prototype_cache.clear()
+
+    def _clone_agent_instance(prototype: Any) -> Any:
+        if hasattr(prototype, "model_copy"):
+            return prototype.model_copy(deep=True)
+        return copy.deepcopy(prototype)
+
+    def _resolve_agent_instance(name: str, version_or_alias: str | None):
+        manifest = registry_store.resolve(name, version_or_alias)
+        if not manifest:
+            raise ValueError(f"agent_not_found:{name}:{version_or_alias or 'latest'}")
+        cache_key = (manifest.name, manifest.version, manifest.entry)
+        prototype = _agent_prototype_cache.get(cache_key)
+        if prototype is None:
+            prototype = load_entry(manifest.entry)
+            _agent_prototype_cache[cache_key] = prototype
+        return manifest, _clone_agent_instance(prototype)
+
+    def _resolve_agent_instance_observed(name: str, version_or_alias: str | None, obs: dict[str, float]):
+        _add_db_ops(obs, 1)
+        start = time.perf_counter()
+        manifest, agent = _resolve_agent_instance(name, version_or_alias)
+        obs["agent_resolve_ms"] += (time.perf_counter() - start) * 1000.0
+        return manifest, agent
+
+    def _append_event_observed(obs: dict[str, float], session_id: str, event: Event) -> None:
+        obs["event_write_ms"] += append_event_only(session_store, session_id, event)
+        _add_db_ops(obs, 1)
 
     @app.get("/healthz")
     async def healthz():
@@ -109,6 +148,7 @@ async function run(){
         _auth(authorization)
         try:
             registry_store.register(req.manifest, req.aliases)
+            _clear_agent_cache()
             _structured_audit("register_agent", agent=req.manifest.name, version=req.manifest.version)
             return ApiResponse(data={"name": req.manifest.name, "version": req.manifest.version})
         except Exception as e:
@@ -125,6 +165,7 @@ async function run(){
     async def _unregister_impl(name: str, version: str, authorization: str | None):
         _auth(authorization)
         registry_store.unregister(name, version)
+        _clear_agent_cache()
         _structured_audit("unregister_agent", agent=name, version=version)
         return ApiResponse(data={"name": name, "version": version, "status": "offline"})
 
@@ -140,9 +181,10 @@ async function run(){
         quota_key = _quota_key(req.user_id, x_tenant_id)
         start = time.time()
         session_status_for_metrics = SessionStatus.ERROR
+        obs = _new_obs()
         try:
             quota.acquire(quota_key)
-            manifest, agent = resolve_agent_from_registry(registry_store, name, version)
+            manifest, agent = _resolve_agent_instance_observed(name, version, obs)
             try:
                 agent = apply_model_cosplay(agent, req.model_cosplay)
             except ValueError as e:
@@ -154,6 +196,7 @@ async function run(){
                 agent_version=manifest.version,
                 user_id=req.user_id,
                 trace_id=req.trace_id or str(uuid.uuid4()),
+                db_op_counter=lambda n: _add_db_ops(obs, n),
             )
             result = await Runner.run(
                 agent,
@@ -164,14 +207,25 @@ async function run(){
                 max_turns=req.max_turns,
             )
             for e in result.events:
-                append_event_and_update(session_store, session.session_id, e)
+                _append_event_observed(obs, session.session_id, e)
             if result.success:
                 session_store.update_status(session.session_id, SessionStatus.COMPLETED)
+                _add_db_ops(obs, 1)
                 session_status_for_metrics = SessionStatus.COMPLETED
             else:
                 session_store.update_status(session.session_id, SessionStatus.ERROR, result.error)
+                _add_db_ops(obs, 1)
                 session_status_for_metrics = SessionStatus.ERROR
-            _structured_audit("invoke", session_id=session.session_id, agent=name, version=manifest.version, ok=result.success)
+            _structured_audit(
+                "invoke",
+                session_id=session.session_id,
+                agent=name,
+                version=manifest.version,
+                ok=result.success,
+                db_ops=int(obs["db_ops"]),
+                event_write_ms=round(obs["event_write_ms"], 3),
+                agent_resolve_ms=round(obs["agent_resolve_ms"], 3),
+            )
             return ApiResponse(
                 data={
                     "session_id": session.session_id,
@@ -199,7 +253,8 @@ async function run(){
         authorization: str | None,
     ):
         _auth(authorization)
-        manifest, agent = resolve_agent_from_registry(registry_store, name, version)
+        obs = _new_obs()
+        manifest, agent = _resolve_agent_instance_observed(name, version, obs)
         try:
             agent = apply_model_cosplay(agent, req.model_cosplay)
         except ValueError as e:
@@ -211,9 +266,11 @@ async function run(){
             agent_version=manifest.version,
             user_id=req.user_id,
             trace_id=req.trace_id or str(uuid.uuid4()),
+            db_op_counter=lambda n: _add_db_ops(obs, n),
         )
 
         async def gen() -> AsyncGenerator[str, None]:
+            stream_status = SessionStatus.RUNNING
             try:
                 async for e in Runner.run_streamed(
                     agent,
@@ -221,17 +278,39 @@ async function run(){
                     user_id=req.user_id,
                     session_id=session.session_id,
                 ):
-                    append_event_and_update(session_store, session.session_id, e)
+                    _append_event_observed(obs, session.session_id, e)
+                    next_status = resolve_session_status(e.type, stream_status)
+                    if next_status != stream_status:
+                        session_store.update_status(
+                            session.session_id,
+                            next_status,
+                            str(e.data) if next_status == SessionStatus.ERROR else None,
+                        )
+                        _add_db_ops(obs, 1)
+                        stream_status = next_status
                     payload = {"session_id": session.session_id, "trace_id": session.trace_id, "event": e.to_dict()}
                     yield f"data: {json.dumps(payload, ensure_ascii=False)}\n\n"
             except Exception as ex:
                 err = Event(agent=name, type="error", data=str(ex))
-                append_event_and_update(session_store, session.session_id, err)
+                _append_event_observed(obs, session.session_id, err)
+                session_store.update_status(session.session_id, SessionStatus.ERROR, str(ex))
+                _add_db_ops(obs, 1)
+                stream_status = SessionStatus.ERROR
                 yield f"data: {json.dumps({'event': err.to_dict()}, ensure_ascii=False)}\n\n"
             finally:
-                current = session_store.get(session.session_id)
-                if current and current.status == SessionStatus.RUNNING:
+                if stream_status == SessionStatus.RUNNING:
                     session_store.update_status(session.session_id, SessionStatus.EXPIRED, "sse_disconnected")
+                    _add_db_ops(obs, 1)
+                _structured_audit(
+                    "stream",
+                    session_id=session.session_id,
+                    agent=name,
+                    version=manifest.version,
+                    status=stream_status.value,
+                    db_ops=int(obs["db_ops"]),
+                    event_write_ms=round(obs["event_write_ms"], 3),
+                    agent_resolve_ms=round(obs["agent_resolve_ms"], 3),
+                )
 
         return StreamingResponse(gen(), media_type="text/event-stream")
 
@@ -242,23 +321,42 @@ async function run(){
         authorization: str | None,
     ):
         _auth(authorization)
+        obs = _new_obs()
         session = session_store.get(session_id)
+        _add_db_ops(obs, 1)
         if not session:
             return _json_error(1004, f"session_not_found:{session_id}", 404)
         if req.idempotency_key and session.metadata.get("last_resume_key") == req.idempotency_key:
             return ApiResponse(data={"session_id": session_id, "status": "duplicate_ignored"})
         if req.idempotency_key:
             session.metadata["last_resume_key"] = req.idempotency_key
-        _, agent = resolve_agent_from_registry(registry_store, session.agent_name, session.agent_version)
+        _, agent = _resolve_agent_instance_observed(session.agent_name, session.agent_version, obs)
         events: list[dict[str, Any]] = []
+        current_status = session.status
         async for e in Runner.resume(
             agent,
             session_id=session_id,
             user_input=req.user_input,
             context_store=context_store,
         ):
-            append_event_and_update(session_store, session_id, e)
+            _append_event_observed(obs, session_id, e)
+            current_status = resolve_session_status(e.type, current_status)
             events.append(e.to_dict())
+        if current_status != session.status:
+            session_store.update_status(
+                session_id,
+                current_status,
+                str(events[-1].get("data")) if current_status == SessionStatus.ERROR and events else None,
+            )
+            _add_db_ops(obs, 1)
+        _structured_audit(
+            "resume",
+            session_id=session_id,
+            status=current_status.value,
+            db_ops=int(obs["db_ops"]),
+            event_write_ms=round(obs["event_write_ms"], 3),
+            agent_resolve_ms=round(obs["agent_resolve_ms"], 3),
+        )
         return ApiResponse(data={"session_id": session_id, "events": events})
 
     async def _terminate_impl(
@@ -287,9 +385,10 @@ async function run(){
                 authz = msg.get("authorization")
                 _auth(authz)
                 if action == "run":
+                    obs = _new_obs()
                     agent_name = fixed_agent_name or msg["agent"]
                     version = fixed_version if fixed_agent_name else msg.get("version")
-                    manifest, agent = resolve_agent_from_registry(registry_store, agent_name, version)
+                    manifest, agent = _resolve_agent_instance_observed(agent_name, version, obs)
                     try:
                         agent = apply_model_cosplay(agent, msg.get("model_cosplay"))
                     except ValueError as e:
@@ -302,6 +401,7 @@ async function run(){
                         agent_version=manifest.version,
                         user_id=msg.get("user_id"),
                         trace_id=msg.get("trace_id") or str(uuid.uuid4()),
+                        db_op_counter=lambda n: _add_db_ops(obs, n),
                     )
                     async for e in Runner.run_with_checkpoint(
                         agent,
@@ -311,16 +411,35 @@ async function run(){
                         user_id=msg.get("user_id"),
                         max_turns=msg.get("max_turns", 10),
                     ):
-                        append_event_and_update(session_store, session.session_id, e)
+                        _append_event_observed(obs, session.session_id, e)
+                        ws_status = resolve_session_status(e.type, SessionStatus.RUNNING)
+                        if ws_status != SessionStatus.RUNNING:
+                            session_store.update_status(
+                                session.session_id,
+                                ws_status,
+                                str(e.data) if ws_status == SessionStatus.ERROR else None,
+                            )
+                            _add_db_ops(obs, 1)
                         active_sessions.add(session.session_id)
                         await ws.send_json({"session_id": session.session_id, "trace_id": session.trace_id, "event": e.to_dict()})
+                    _structured_audit(
+                        "ws_run",
+                        session_id=session.session_id,
+                        agent=agent_name,
+                        version=manifest.version,
+                        db_ops=int(obs["db_ops"]),
+                        event_write_ms=round(obs["event_write_ms"], 3),
+                        agent_resolve_ms=round(obs["agent_resolve_ms"], 3),
+                    )
                 elif action == "resume":
+                    obs = _new_obs()
                     session_id = msg["session_id"]
                     session = session_store.get(session_id)
+                    _add_db_ops(obs, 1)
                     if not session:
                         await ws.send_json({"error": f"session_not_found:{session_id}"})
                         continue
-                    _, agent = resolve_agent_from_registry(registry_store, session.agent_name, session.agent_version)
+                    _, agent = _resolve_agent_instance_observed(session.agent_name, session.agent_version, obs)
                     idempotency_key = msg.get("idempotency_key")
                     if idempotency_key and session.metadata.get("last_resume_key") == idempotency_key:
                         await ws.send_json({"session_id": session_id, "status": "duplicate_ignored"})
@@ -333,9 +452,26 @@ async function run(){
                         user_input=msg["user_input"],
                         context_store=context_store,
                     ):
-                        append_event_and_update(session_store, session_id, e)
+                        _append_event_observed(obs, session_id, e)
+                        next_status = resolve_session_status(e.type, session.status)
+                        if next_status != session.status:
+                            session_store.update_status(
+                                session_id,
+                                next_status,
+                                str(e.data) if next_status == SessionStatus.ERROR else None,
+                            )
+                            _add_db_ops(obs, 1)
+                            session.status = next_status
                         active_sessions.add(session_id)
                         await ws.send_json({"session_id": session_id, "event": e.to_dict()})
+                    _structured_audit(
+                        "ws_resume",
+                        session_id=session_id,
+                        status=session.status.value,
+                        db_ops=int(obs["db_ops"]),
+                        event_write_ms=round(obs["event_write_ms"], 3),
+                        agent_resolve_ms=round(obs["agent_resolve_ms"], 3),
+                    )
                 else:
                     await ws.send_json({"error": f"unknown_action:{action}"})
         except WebSocketDisconnect:
@@ -369,6 +505,7 @@ async function run(){
         _auth(authorization)
         try:
             registry_store.set_alias(name, alias, version)
+            _clear_agent_cache()
             return ApiResponse(data={"name": name, "alias": alias, "version": version})
         except Exception as e:
             return _json_error(1002, str(e))

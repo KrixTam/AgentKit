@@ -28,7 +28,8 @@ pip install ni.agenthub
 - 会话管理：状态机、事件回放、resume、terminate、HITL 待办与表单
 - 持久化后端：`memory` / `sqlite` 二选一（行为一致）
 - 平台治理：Bearer 鉴权（静态 token 或 OAuth/OIDC introspection，可选开启）、并发与速率配额、结构化审计日志
-- 可观测：`/healthz`、`/metrics`（Prometheus 文本格式）、基础 Playground
+- 可观测：`/healthz`、`/metrics`（Prometheus 文本格式，延迟统计为滑动窗口）、基础 Playground
+- 性能审计：请求级结构化审计日志包含 `db_ops`、`event_write_ms`、`agent_resolve_ms`
 
 ---
 

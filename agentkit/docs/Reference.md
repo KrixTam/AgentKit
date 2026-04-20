@@ -70,6 +70,7 @@ from agentkit import Agent
 | `enable_cache` | `bool` | `True` | LLM 响应缓存，默认开启。对相同输入直接返回缓存结果，缓存绑定 Agent 实例生命周期。仅缓存纯文本回复，不缓存工具调用响应 |
 | `cache_ttl` | `int` | `300` | 缓存有效期（秒）。过期条目自动淘汰 |
 | `memory_async_write` | `bool` | `True` | 记忆写入模式。`True`=fire-and-forget 异步写入（不阻塞返回）；`False`=同步等待写入完成（多轮串行对话推荐） |
+| `model_cosplay_enabled` | `bool` | `False` | 是否开启 ModelCosplay。关闭时如果类已预设 `model`，实例化时不允许覆盖；开启后允许实例化和运行时改写模型 |
 | `before_agent_callback` | `Callable \| None` | `None` | Agent 运行前回调 |
 | `after_agent_callback` | `Callable \| None` | `None` | Agent 运行后回调 |
 | `before_model_callback` | `Callable \| None` | `None` | LLM 调用前回调（可拦截/改写） |
@@ -88,6 +89,8 @@ from agentkit import Agent
 | `as_tool` | `(name: str, description: str) -> FunctionTool` | 将自身包装为工具，供其他 Agent 调用 |
 | `get_instructions` | `async (ctx) -> str` | 获取系统提示词（动态解析） |
 | `get_all_tools` | `async (ctx) -> list[BaseTool]` | 汇总所有工具（tools + skills + handoffs） |
+| `clear_cache` | `() -> None` | 清空当前 Agent 实例的 LLM 缓存 |
+| `apply_model_cosplay` | `(model_override: Any) -> Agent` | 运行时改写当前实例 `model`（仅在 `model_cosplay_enabled=True` 时允许） |
 
 **示例**：
 
@@ -114,6 +117,7 @@ agent = Agent(
 | `sub_agents` | `list[BaseAgent]` | 子 Agent（自动建立父子关系） |
 | `before_agent_callback` | `Callable \| None` | 运行前回调 |
 | `after_agent_callback` | `Callable \| None` | 运行后回调 |
+| `model_cosplay_enabled` | `bool` | 是否开启 ModelCosplay（默认 `False`） |
 
 **子类化**：
 

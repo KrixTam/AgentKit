@@ -32,7 +32,7 @@
 
 | 场景 | 耗时 | 备注 |
 |---|---:|---|
-| 全量测试套件（14 项） | 0.31s | `python -m pytest ./agenthub/tests -q`（`14 passed`） |
+| 全量测试套件（14 项） | 0.34s | `python -m pytest ./agenthub/tests -q`（`14 passed`） |
 | 注册 Agent | 已覆盖 | 含 manifest 校验 |
 | 首次 invoke | 已覆盖 | 含 entry 动态加载 |
 | SSE 流式会话 | 已覆盖 | 含事件持久化 |

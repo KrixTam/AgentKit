@@ -4,8 +4,9 @@ import importlib
 import logging
 import time
 import uuid
+from collections import deque
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, Callable
 
 from agentkit.runner.context_store import ContextStore
 from agentkit.runner.events import Event, EventType
@@ -56,7 +57,7 @@ class Metrics:
     suspended_total: int = 0
     completed_total: int = 0
     active_sessions: int = 0
-    latency_ms: list[float] = field(default_factory=list)
+    latency_ms: deque[float] = field(default_factory=lambda: deque(maxlen=2048))
 
     def observe(self, latency_ms: float, status: SessionStatus) -> None:
         self.requests_total += 1
@@ -72,7 +73,7 @@ class Metrics:
     def to_prometheus(self) -> str:
         p95 = 0.0
         if self.latency_ms:
-            sorted_ms = sorted(self.latency_ms)
+            sorted_ms = sorted(list(self.latency_ms))
             p95 = sorted_ms[int((len(sorted_ms) - 1) * 0.95)]
         lines = [
             f"agenthub_requests_total {self.requests_total}",
@@ -90,18 +91,19 @@ class QuotaManager:
     max_concurrency_per_user: int
     rate_limit_per_minute: int
     _inflight: dict[str, int] = field(default_factory=dict)
-    _bucket: dict[str, list[float]] = field(default_factory=dict)
+    _bucket: dict[str, deque[float]] = field(default_factory=dict)
 
     def acquire(self, key: str) -> None:
         now = time.time()
         inflight = self._inflight.get(key, 0)
         if inflight >= self.max_concurrency_per_user:
             raise ValueError("quota_exceeded:concurrency")
-        timestamps = [t for t in self._bucket.get(key, []) if now - t < 60]
+        timestamps = self._bucket.setdefault(key, deque())
+        while timestamps and now - timestamps[0] >= 60:
+            timestamps.popleft()
         if len(timestamps) >= self.rate_limit_per_minute:
             raise ValueError("quota_exceeded:rate")
         timestamps.append(now)
-        self._bucket[key] = timestamps
         self._inflight[key] = inflight + 1
 
     def release(self, key: str) -> None:
@@ -116,10 +118,13 @@ def ensure_session(
     agent_version: str,
     user_id: str | None,
     trace_id: str | None,
+    db_op_counter: Callable[[int], None] | None = None,
 ) -> SessionRecord:
     now = time.time()
     sid = session_id or str(uuid.uuid4())
     session = session_store.get(sid)
+    if db_op_counter:
+        db_op_counter(1)
     if session is None:
         session = SessionRecord(
             session_id=sid,
@@ -133,6 +138,8 @@ def ensure_session(
             metadata={},
         )
         session_store.create(session)
+        if db_op_counter:
+            db_op_counter(1)
     return session
 
 
@@ -145,6 +152,12 @@ def append_event_and_update(session_store: SessionStore, session_id: str, event:
     if next_status != current.status:
         session_store.update_status(session_id, next_status, str(event.data) if next_status == SessionStatus.ERROR else None)
     return next_status
+
+
+def append_event_only(session_store: SessionStore, session_id: str, event: Event) -> float:
+    start = time.perf_counter()
+    session_store.append_event(session_id, event.to_dict())
+    return (time.perf_counter() - start) * 1000.0
 
 
 def resolve_agent_from_registry(registry_store: RegistryStore, name: str, version_or_alias: str | None):

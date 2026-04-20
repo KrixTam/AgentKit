@@ -155,6 +155,7 @@ WebSocket 地址：`/api/v1/agents/{name}:{version}/ws`
   "action": "run",
   "authorization": "Bearer <token>",
   "input": "请审批",
+  "model_cosplay": "gpt-4o-mini",
   "user_id": "u1",
   "session_id": "s1"
 }
@@ -205,3 +206,4 @@ Authorization: Bearer <token>
 - 健康检查：`GET /healthz`
 - 指标：`GET /metrics`（Prometheus 文本格式）
 - Playground：`GET /playground`
+- 审计日志（结构化 JSON）：包含 `db_ops`、`event_write_ms`、`agent_resolve_ms`，用于衡量单请求存储与解析开销

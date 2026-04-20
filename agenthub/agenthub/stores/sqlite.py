@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import sqlite3
+import threading
 import time
 from typing import Any
 
@@ -14,11 +15,19 @@ from .base import RegistryStore, SessionStore
 class SQLiteMixin:
     def __init__(self, db_path: str):
         self.db_path = db_path
+        self._local = threading.local()
         self._init_db()
 
     def _conn(self) -> sqlite3.Connection:
-        conn = sqlite3.connect(self.db_path)
+        conn = getattr(self._local, "conn", None)
+        if conn is not None:
+            return conn
+        conn = sqlite3.connect(self.db_path, timeout=30.0)
         conn.row_factory = sqlite3.Row
+        conn.execute("PRAGMA journal_mode=WAL")
+        conn.execute("PRAGMA synchronous=NORMAL")
+        conn.execute("PRAGMA busy_timeout=30000")
+        self._local.conn = conn
         return conn
 
     def _init_db(self) -> None:
@@ -40,6 +49,9 @@ class SQLiteMixin:
             conn.execute(
                 "CREATE TABLE IF NOT EXISTS events ("
                 "session_id TEXT, seq INTEGER, event_json TEXT, PRIMARY KEY(session_id, seq))"
+            )
+            conn.execute(
+                "CREATE TABLE IF NOT EXISTS session_event_seq (session_id TEXT PRIMARY KEY, last_seq INTEGER NOT NULL DEFAULT 0)"
             )
             conn.execute(
                 "CREATE TABLE IF NOT EXISTS checkpoints (session_id TEXT PRIMARY KEY, context_json TEXT, updated_at REAL)"
@@ -196,8 +208,19 @@ class SQLiteSessionStore(SQLiteMixin, SessionStore):
 
     def append_event(self, session_id: str, event: dict[str, Any]) -> int:
         with self._conn() as conn:
-            row = conn.execute("SELECT COALESCE(MAX(seq), 0) AS max_seq FROM events WHERE session_id=?", (session_id,)).fetchone()
-            seq = int(row["max_seq"]) + 1
+            conn.execute(
+                "INSERT OR IGNORE INTO session_event_seq(session_id, last_seq) VALUES(?, 0)",
+                (session_id,),
+            )
+            conn.execute(
+                "UPDATE session_event_seq SET last_seq = last_seq + 1 WHERE session_id=?",
+                (session_id,),
+            )
+            row = conn.execute(
+                "SELECT last_seq FROM session_event_seq WHERE session_id=?",
+                (session_id,),
+            ).fetchone()
+            seq = int(row["last_seq"])
             conn.execute(
                 "INSERT INTO events(session_id, seq, event_json) VALUES(?, ?, ?)",
                 (session_id, seq, json.dumps(event, ensure_ascii=False)),

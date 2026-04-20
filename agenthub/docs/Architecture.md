@@ -46,7 +46,7 @@ AgentHub 不替换 AgentKit 运行时主循环，仅以适配方式调用：
 
 1. 网关解析请求与鉴权（可选）。
 2. 通过 Registry 解析 `{name, version|alias}` 到 Manifest。
-3. 动态加载入口 `entry=module:attr` 得到 Agent 实例。
+3. 解析 `{name, version|alias}` 后命中 Agent 原型缓存（未命中时加载 `entry=module:attr`），并深拷贝得到请求级实例。
 4. 创建/复用会话记录（`session_id`、`trace_id`、`user_id`）。
 5. 调用 `Runner.run(...)` 获取 `RunResult`。
 6. 事件顺序写入 SessionStore（带 `seq`）。
@@ -103,6 +103,7 @@ SQLite 关键表：
 - `registry` / `aliases`
 - `sessions`
 - `events`（按 `session_id + seq` 顺序）
+- `session_event_seq`（每会话事件序号计数，避免 `MAX(seq)` 热点）
 - `checkpoints`
 - `schema_migrations`
 
@@ -113,7 +114,8 @@ SQLite 关键表：
 - 鉴权：`Authorization: Bearer <token>`（静态 token 或 OAuth/OIDC introspection，可选）
 - 配额：`tenant:user` 维度并发与每分钟速率
 - 审计：结构化日志（JSON）
-- 指标：`requests/errors/suspended/completed/active/latency_p95`
+- 指标：`requests/errors/suspended/completed/active/latency_p95`（延迟统计使用滑动窗口）
+- 性能观测：请求级 `db_ops`、`event_write_ms`、`agent_resolve_ms`
 - 运维：`/healthz` + `/metrics`
 
 ---
