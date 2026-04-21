@@ -76,6 +76,7 @@ class InvokeRequest(BaseModel):
 
 class ResumeRequest(BaseModel):
     user_input: str
+    suspension_id: str | None = None
     idempotency_key: str | None = None
     trace_id: str | None = None
 

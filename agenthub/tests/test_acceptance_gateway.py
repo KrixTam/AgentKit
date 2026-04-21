@@ -89,16 +89,21 @@ def test_acceptance_ws_hitl_resume_and_hitl_api():
         )
         first = ws.receive_json()
         assert first["event"]["type"] == "suspend_requested"
+        suspension_id = first["event"]["data"].get("suspension_id")
+        assert suspension_id
 
     suspended = client.get("/api/v1/hitl/suspended")
     assert suspended.status_code == 200
     assert any(x["session_id"] == "ws-hitl-1" for x in suspended.json()["data"])
 
-    form = client.get("/api/v1/hitl/ws-hitl-1/form")
+    form = client.get(f"/api/v1/hitl/ws-hitl-1/form?suspension_id={suspension_id}")
     assert form.status_code == 200
     assert form.json()["data"]["form_schema"]["type"] == "object"
 
-    submit = client.post("/api/v1/hitl/ws-hitl-1/submit", json={"user_input": "yes", "idempotency_key": "k1"})
+    submit = client.post(
+        "/api/v1/hitl/ws-hitl-1/submit",
+        json={"user_input": "yes", "suspension_id": suspension_id, "idempotency_key": "k1"},
+    )
     assert submit.status_code == 200
     out_events = submit.json()["data"]["events"]
     assert any(e["type"] == "final_output" for e in out_events)

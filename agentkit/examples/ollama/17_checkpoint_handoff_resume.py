@@ -22,12 +22,20 @@ class ReviewAgent(BaseAgent):
     async def _run_impl(self, ctx: RunContext) -> AsyncGenerator[Event, None]:
         if not ctx.state.get("review_suspended_once"):
             ctx.state["review_suspended_once"] = True
-            ctx.state["__suspended_tool_call_id__"] = "manual-review-1"
-            ctx.state["__suspended_tool_name__"] = "manual_review"
+            suspension = ctx.register_suspension(
+                tool_call_id="manual-review-1",
+                tool_name="manual_review",
+                prompt="请审批该任务（approve/reject）",
+            )
             yield Event(
                 agent=self.name,
                 type=EventType.SUSPEND_REQUESTED,
-                data={"prompt": "请审批该任务（approve/reject）", "tool": "manual_review", "tool_call_id": "manual-review-1"},
+                data={
+                    "suspension_id": suspension.suspension_id,
+                    "prompt": "请审批该任务（approve/reject）",
+                    "tool": "manual_review",
+                    "tool_call_id": "manual-review-1",
+                },
             )
             return
 

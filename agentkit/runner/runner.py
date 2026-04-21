@@ -143,8 +143,9 @@ class Runner:
             }
             handoff_switched = False
             async for event in current_agent.run(ctx):
-                yield event
                 if event.type == EventType.SUSPEND_REQUESTED:
+                    suspension_id = cls._ensure_suspension_record(ctx, current_agent, event)
+                    yield event
                     context_store.save(session_id, ctx)
                     yield Event(
                         agent=getattr(current_agent, "name", "runner"),
@@ -154,9 +155,11 @@ class Runner:
                             "turn": turn,
                             "current_agent": getattr(current_agent, "name", ""),
                             "agent_path": current_agent_path,
+                            "suspension_id": suspension_id,
                         },
                     )
                     return
+                yield event
                 if event.type == EventType.FINAL_OUTPUT:
                     context_store.delete(session_id)
                     return
@@ -195,12 +198,29 @@ class Runner:
         user_input: str,
         context_store: "ContextStore",
         shared_context_cls: Any = None,
+        suspension_id: str | None = None,
+        idempotency_key: str | None = None,
     ) -> AsyncGenerator[Event, None]:
         """恢复执行被挂起的 Agent 会话"""
         ctx = context_store.load(session_id, shared_context_cls)
         if not ctx:
             yield Event(agent=agent.name, type=EventType.ERROR, data=f"找不到会话 {session_id} 的上下文快照")
             return
+
+        if idempotency_key:
+            existing = ctx.resume_idempotency.get(idempotency_key)
+            if existing is not None:
+                yield Event(
+                    agent=agent.name,
+                    type=EventType.HUMAN_INPUT_RECEIVED,
+                    data={
+                        "status": "duplicate_ignored",
+                        "idempotency_key": idempotency_key,
+                        "suspension_id": existing.get("suspension_id"),
+                        "input": existing.get("user_input"),
+                    },
+                )
+                return
 
         checkpoint = ctx.state.get("__runner_checkpoint__", {})
         max_turns = int(checkpoint.get("max_turns", 10))
@@ -212,15 +232,45 @@ class Runner:
         current_agent_path = cls._find_agent_path(agent, current_agent)
         handoff_agent_cache: dict[str, Any | None] = {}
 
-        yield Event(agent=agent.name, type=EventType.HUMAN_INPUT_RECEIVED, data={"input": user_input})
+        pending = ctx.get_pending_suspension(suspension_id=suspension_id)
+        if not pending:
+            yield Event(
+                agent=agent.name,
+                type=EventType.ERROR,
+                data=f"未找到可恢复的挂起点: {suspension_id or 'latest'}",
+            )
+            return
+        resolved = ctx.resolve_suspension(pending.suspension_id, str(user_input))
+        if resolved is None:
+            yield Event(agent=agent.name, type=EventType.ERROR, data=f"挂起点不可恢复: {pending.suspension_id}")
+            return
 
-        # 恢复挂起的工具调用
-        tool_call_id = ctx.state.pop("__suspended_tool_call_id__", None)
-        ctx.state.pop("__suspended_tool_name__", None)
+        if idempotency_key:
+            ctx.resume_idempotency[idempotency_key] = {
+                "suspension_id": resolved.suspension_id,
+                "user_input": str(user_input),
+            }
 
-        if tool_call_id:
-            # 将 user_input 作为该挂起工具调用的结果加入上下文
-            ctx.add_tool_result(tool_call_id, str(user_input))
+        yield Event(
+            agent=agent.name,
+            type=EventType.HUMAN_INPUT_RECEIVED,
+            data={
+                "input": user_input,
+                "suspension_id": resolved.suspension_id,
+                "tool": resolved.tool_name,
+                "tool_call_id": resolved.tool_call_id,
+            },
+        )
+
+        if resolved.resume_strategy == "as_tool_result":
+            ctx.add_tool_result(resolved.tool_call_id, str(user_input))
+        else:
+            yield Event(
+                agent=agent.name,
+                type=EventType.ERROR,
+                data=f"不支持的恢复策略: {resolved.resume_strategy}",
+            )
+            return
 
         while turn < max_turns:
             ctx.state["__runner_checkpoint__"] = {
@@ -231,8 +281,9 @@ class Runner:
             }
             handoff_switched = False
             async for event in current_agent.run(ctx):
-                yield event
                 if event.type == EventType.SUSPEND_REQUESTED:
+                    suspension_id = cls._ensure_suspension_record(ctx, current_agent, event)
+                    yield event
                     context_store.save(session_id, ctx)
                     yield Event(
                         agent=getattr(current_agent, "name", "runner"),
@@ -242,9 +293,11 @@ class Runner:
                             "turn": turn,
                             "current_agent": getattr(current_agent, "name", ""),
                             "agent_path": current_agent_path,
+                            "suspension_id": suspension_id,
                         },
                     )
                     return
+                yield event
                 if event.type == EventType.FINAL_OUTPUT:
                     context_store.delete(session_id)
                     return
@@ -328,3 +381,23 @@ class Runner:
                 return None
             node = next_node
         return node
+
+    @staticmethod
+    def _ensure_suspension_record(ctx: RunContext, current_agent: Any, event: Event) -> str:
+        data = event.data if isinstance(event.data, dict) else {}
+        existing_id = data.get("suspension_id")
+        if existing_id:
+            return existing_id
+        record = ctx.register_suspension(
+            tool_call_id=data.get("tool_call_id") or f"manual-{getattr(current_agent, 'name', 'agent')}",
+            tool_name=data.get("tool") or "manual_input",
+            prompt=data.get("prompt") or "需要人工输入",
+            form_schema=data.get("form_schema"),
+            resume_strategy=data.get("resume_strategy", "as_tool_result"),
+        )
+        if isinstance(event.data, dict):
+            event.data["suspension_id"] = record.suspension_id
+            event.data.setdefault("tool_call_id", record.tool_call_id)
+            event.data.setdefault("tool", record.tool_name)
+            event.data.setdefault("resume_strategy", record.resume_strategy)
+        return record.suspension_id

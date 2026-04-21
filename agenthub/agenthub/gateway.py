@@ -347,6 +347,8 @@ async function run(){
             session_id=session_id,
             user_input=req.user_input,
             context_store=context_store,
+            suspension_id=req.suspension_id,
+            idempotency_key=req.idempotency_key,
         ):
             _append_event_observed(obs, session_id, e)
             current_status = resolve_session_status(e.type, current_status)
@@ -465,6 +467,8 @@ async function run(){
                         session_id=session_id,
                         user_input=msg["user_input"],
                         context_store=context_store,
+                        suspension_id=msg.get("suspension_id"),
+                        idempotency_key=idempotency_key,
                     ):
                         _append_event_observed(obs, session_id, e)
                         next_status = resolve_session_status(e.type, session.status)
@@ -638,11 +642,24 @@ async function run(){
     @app.get("/api/v1/hitl/{session_id}/form")
     async def api_get_hitl_form(
         session_id: str,
+        suspension_id: str | None = Query(default=None),
         authorization: str | None = Header(default=None),
     ):
         _auth(authorization)
         events = session_store.list_events(session_id)
-        suspend_event = next((e for e in reversed(events) if e.get("type") == "suspend_requested"), None)
+        if suspension_id:
+            suspend_event = next(
+                (
+                    e
+                    for e in reversed(events)
+                    if e.get("type") == "suspend_requested"
+                    and isinstance(e.get("data"), dict)
+                    and e["data"].get("suspension_id") == suspension_id
+                ),
+                None,
+            )
+        else:
+            suspend_event = next((e for e in reversed(events) if e.get("type") == "suspend_requested"), None)
         if not suspend_event:
             return ApiResponse(data={"mode": "json", "form_schema": {"type": "object", "properties": {"user_input": {"type": "string"}}, "required": ["user_input"]}})
         schema = (suspend_event.get("data") or {}).get("form_schema")

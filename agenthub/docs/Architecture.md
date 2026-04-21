@@ -62,7 +62,7 @@ AgentHub 不替换 AgentKit 运行时主循环，仅以适配方式调用：
 ### 3) WS 双向调用（HITL）
 
 1. `action=run`：调用 `run_with_checkpoint(...)`，可挂起。
-2. `action=resume`：调用 `resume(...)`，支持幂等键防重。
+2. `action=resume`：调用 `resume(...)`，支持 `suspension_id` 精准恢复与幂等键防重。
 3. WS 断连时清理会话状态一致性。
 
 ---

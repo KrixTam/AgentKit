@@ -54,6 +54,15 @@
 | `context` | `dict \| null` | 可选上下文 |
 | `max_turns` | `int` | 本次调用最大轮次 |
 
+### ResumeRequest
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `user_input` | `str` | 人工输入内容 |
+| `suspension_id` | `str \| null` | 可选；指定恢复的挂起点（多挂起场景建议显式传入） |
+| `idempotency_key` | `str \| null` | 可选；幂等键，重复提交会被忽略 |
+| `trace_id` | `str \| null` | 可选；链路追踪标识 |
+
 ---
 
 ## HTTP API
@@ -83,7 +92,7 @@
 ### HITL 工作台
 
 - `GET /api/v1/hitl/suspended`
-- `GET /api/v1/hitl/{session_id}/form`
+- `GET /api/v1/hitl/{session_id}/form?suspension_id=...`
 - `POST /api/v1/hitl/{session_id}/submit`
 
 ### 运维接口
@@ -118,6 +127,7 @@
   "authorization": "Bearer <token>",
   "session_id": "s1",
   "user_input": "yes",
+  "suspension_id": "susp-001",
   "idempotency_key": "resume-001"
 }
 ```

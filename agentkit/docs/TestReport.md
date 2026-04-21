@@ -1,9 +1,9 @@
 # AgentKit 示例测试报告
 
-> 测试时间：`2026-04-20`  
+> 测试时间：`2026-04-21`  
 > 测试环境：`macOS (Apple Silicon)`  
 > 模型：Ollama `qwen3.5:cloud`  
-> AgentKit 版本：v0.6.0  
+> AgentKit 版本：v0.6.1  
 > Thinking 模式：开启（默认）  
 > LLM 调用模式：非流式（默认）  
 > 缓存：开启（默认）  
@@ -15,31 +15,31 @@
 
 | # | 示例 | 文件 | 耗时 | 状态 | 说明 |
 |---|------|------|-----:|:----:|------|
-| 1 | 基础对话 | `01_basic_chat.py` | 30.52s | ✅ | 运行通过 |
-| 2 | 工具调用 | `02_tool_calling.py` | 42.10s | ✅ | 运行通过 |
-| 3 | Skill 使用 | `03_skill_usage.py` | 200.30s | ✅ | 运行通过 |
-| 4 | 多 Agent 协作 | `04_multi_agent.py` | 110.67s | ✅ | 运行通过 |
-| 5 | 安全护栏 | `05_guardrail.py` | 7.19s | ✅ | 运行通过 |
-| 6 | 编排 Agent | `06_orchestration.py` | 54.30s | ✅ | 运行通过 |
-| 7 | 同步/异步/流式 | `07_sync_async_stream.py` | 32.54s | ✅ | 运行通过 |
-| 8 | 记忆系统 | `08_memory.py` | 778.88s | ✅ | 运行通过（本轮最慢） |
-| 9A | 结构化数据（SQL） | `09a_structured_data_sql.py` | 148.74s | ✅ | 运行通过 |
-| 9B | 结构化数据（图） | `09b_structured_data_graph.py` | 31.25s | ✅ | 运行通过 |
-| 10 | Skill 生命周期 | `10_skill_lifecycle.py` | 72.92s | ✅ | 运行通过 |
-| 11 | 编排增强 | `11_orchestration_enhancement.py` | 139.09s | ✅ | 运行通过 |
-| 12 | 序列化协议 | `12_run_context_serialization.py` | 0.33s | ✅ | 运行通过 |
-| 13 | Human in the Loop | `13_human_in_the_loop.py` | 9.75s | ✅ | 运行通过 |
-| 14 | Event 标准化 | `14_event_standardization.py` | 11.32s | ✅ | 运行通过 |
-| 15 | 多租户隔离 | `15_multi_tenant_isolation.py` | 0.39s | ✅ | 运行通过 |
-| 16 | 生命周期 Hooks | `16_lifecycle_hooks.py` | 0.29s | ✅ | 运行通过 |
-| 17 | Checkpoint + Handoff + Resume | `17_checkpoint_handoff_resume.py` | 0.30s | ✅ | 运行通过 |
+| 1 | 基础对话 | `01_basic_chat.py` | 159.01s | ✅ | 运行通过 |
+| 2 | 工具调用 | `02_tool_calling.py` | 27.62s | ✅ | 运行通过 |
+| 3 | Skill 使用 | `03_skill_usage.py` | 75.12s | ✅ | 运行通过 |
+| 4 | 多 Agent 协作 | `04_multi_agent.py` | 165.02s | ✅ | 运行通过（本轮最慢） |
+| 5 | 安全护栏 | `05_guardrail.py` | 11.55s | ✅ | 运行通过 |
+| 6 | 编排 Agent | `06_orchestration.py` | 106.53s | ✅ | 运行通过 |
+| 7 | 同步/异步/流式 | `07_sync_async_stream.py` | 64.32s | ✅ | 运行通过 |
+| 8 | 记忆系统 | `08_memory.py` | 128.42s | ✅ | 运行通过 |
+| 9A | 结构化数据（SQL） | `09a_structured_data_sql.py` | 5.98s | ✅ | 运行通过 |
+| 9B | 结构化数据（图） | `09b_structured_data_graph.py` | 8.62s | ✅ | 运行通过 |
+| 10 | Skill 生命周期 | `10_skill_lifecycle.py` | 1.91s | ✅ | 运行通过 |
+| 11 | 编排增强 | `11_orchestration_enhancement.py` | 108.73s | ✅ | 运行通过 |
+| 12 | 序列化协议 | `12_run_context_serialization.py` | 0.31s | ✅ | 运行通过 |
+| 13 | Human in the Loop | `13_human_in_the_loop.py` | 7.42s | ✅ | 运行通过 |
+| 14 | Event 标准化 | `14_event_standardization.py` | 5.72s | ✅ | 运行通过 |
+| 15 | 多租户隔离 | `15_multi_tenant_isolation.py` | 0.62s | ✅ | 运行通过 |
+| 16 | 生命周期 Hooks | `16_lifecycle_hooks.py` | 0.27s | ✅ | 运行通过 |
+| 17 | Checkpoint + Handoff + Resume | `17_checkpoint_handoff_resume.py` | 0.18s | ✅ | 运行通过 |
 | 18 | ModelCosplay | `18_model_cosplay.py` | 0.21s | ✅ | 运行通过 |
-| | **合计** | | **1671.09s** | **19/19** | |
+| | **合计** | | **877.53s** | **19/19** | |
 
 ## 耗时分析
 
-- **最快示例**：18 ModelCosplay（0.21s）
-- **最慢示例**：8 记忆系统（778.88s）
+- **最快示例**：17 Checkpoint + Handoff + Resume（0.18s）
+- **最慢示例**：4 多 Agent 协作（165.02s）
 - **耗时集中区间**：涉及多轮推理/记忆写入/编排循环的示例耗时显著更高
 
 ## 各示例 LLM 调用次数估算

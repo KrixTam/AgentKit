@@ -1,6 +1,6 @@
 # AgentHub 快速入门
 
-> 本文档基于当前代码实现（发行包：`ni.agenthub==0.3.1`，运行命令：`agenthub`）。
+> 本文档基于当前代码实现（发行包：`ni.agenthub==0.3.2`，运行命令：`agenthub`）。
 
 ---
 
@@ -149,7 +149,7 @@ WebSocket 地址：`/api/v1/agents/{name}:{version}/ws`
 - `action=run`：启动可挂起运行（内部走 `Runner.run_with_checkpoint`）
 - `action=resume`：提交人工输入恢复（内部走 `Runner.resume`）
 
-`resume` 支持 `idempotency_key` 防重。
+`resume` 支持 `suspension_id` 精准恢复（多挂起场景）和 `idempotency_key` 防重。
 
 `run` 消息体示例：
 
@@ -193,6 +193,8 @@ REST 对应接口：
 - `GET /api/v1/sessions/{session_id}/events`
 - `POST /api/v1/sessions/{session_id}/resume`
 - `DELETE /api/v1/sessions/{session_id}`
+
+补充说明：当同一会话存在多个 pending 挂起点时，`resume`/`submit` 建议传 `suspension_id` 精准恢复；`GET /api/v1/hitl/{session_id}/form` 也支持同名 query 参数按挂起点读取表单。
 
 ## 8. 鉴权说明
 

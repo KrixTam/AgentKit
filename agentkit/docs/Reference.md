@@ -181,7 +181,7 @@ from agentkit import Runner
 | `run_sync` | `(agent, **kwargs) -> RunResult` | 同步运行（内部调用 asyncio.run） |
 | `run_streamed` | `async (agent, *, input, user_id=None, session_id=None, **kwargs) -> AsyncGenerator[Event, None]` | 流式运行，实时产出 Event |
 | `run_with_checkpoint` | `async (agent, *, input, session_id, context_store, ..., max_turns=10) -> AsyncGenerator[Event, None]` | 流式运行（支持挂起），遇到 `suspend_requested` 时自动保存上下文与执行指针（turn/current_agent/agent_path），并追加发出 `suspended` 事件 |
-| `resume` | `async (agent, *, session_id, user_input, context_store, ...) -> AsyncGenerator[Event, None]` | 恢复被挂起会话；优先按 checkpoint 的 `agent_path` 定位恢复节点，再将 `user_input` 作为挂起工具结果继续流转 |
+| `resume` | `async (agent, *, session_id, user_input, context_store, ..., suspension_id=None, idempotency_key=None) -> AsyncGenerator[Event, None]` | 恢复被挂起会话；优先按 checkpoint 的 `agent_path` 定位恢复节点，再按 `suspension_id`（或最新 pending）恢复挂起点；支持 `idempotency_key` 幂等 |
 
 **参数**：
 
@@ -211,7 +211,9 @@ from agentkit.runner.context import RunContext
 | `user_id` | `str \| None` | 用户 ID（用于多租户和记忆隔离） |
 | `session_id` | `str` | 会话 ID，默认随机生成（用于断点续跑和上下文隔离） |
 | `messages` | `list[dict]` | 当前完整的对话消息链 |
-| `state` | `dict` | 运行期间的内部状态，挂起工具等信息暂存于此 |
+| `state` | `dict` | 运行期间的内部状态（不再承载挂起协议字段） |
+| `suspensions` | `list[SuspensionRecord]` | 框架托管的挂起记录列表（含 `suspension_id/tool_call_id/tool_name/prompt/form_schema/resume_strategy`） |
+| `resume_idempotency` | `dict[str, dict]` | resume 幂等记录，避免重复提交人工输入 |
 
 **方法**：
 
