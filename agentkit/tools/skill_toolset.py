@@ -27,6 +27,10 @@ class SkillToolset(BaseToolset):
         self._additional_tools: dict[str, BaseTool] = {t.name: t for t in (additional_tools or [])}
         self._activated_skills: set[str] = set()
 
+    def set_additional_tools(self, tools: list[BaseTool]) -> None:
+        """更新可供 Skill 动态注入的工具集合。"""
+        self._additional_tools = {t.name: t for t in tools}
+
     async def get_tools(self, ctx: Any) -> list[BaseTool]:
         base_tools = [
             self._make_list_skills_tool(),

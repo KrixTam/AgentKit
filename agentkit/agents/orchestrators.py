@@ -8,6 +8,7 @@ agentkit/agents/loop_agent.py      — 循环执行子 Agent
 from __future__ import annotations
 
 import asyncio
+from contextlib import aclosing
 from typing import TYPE_CHECKING, Any, AsyncGenerator, Callable
 
 from ..runner.events import Event
@@ -22,10 +23,11 @@ class SequentialAgent(BaseAgent):
 
     async def _run_impl(self, ctx: "RunContext") -> AsyncGenerator[Event, None]:
         for sub in self.sub_agents:
-            async for event in sub.run(ctx):
-                yield event
-                if event.type == "escalate":
-                    return
+            async with aclosing(sub.run(ctx)) as stream:
+                async for event in stream:
+                    yield event
+                    if event.type == "escalate":
+                        return
 
 
 class ParallelAgent(BaseAgent):
@@ -60,12 +62,13 @@ class ParallelAgent(BaseAgent):
         async def run_branch(agent: BaseAgent, branch_ctx: "RunContext") -> None:
             branch_status[agent.name] = "running"
             try:
-                async for event in agent.run(branch_ctx):
-                    all_events[agent.name].append(event)
-                    await queue.put((agent.name, event))
-                    if event.type == "escalate":
-                        branch_status[agent.name] = "escalated"
-                        return
+                async with aclosing(agent.run(branch_ctx)) as stream:
+                    async for event in stream:
+                        all_events[agent.name].append(event)
+                        await queue.put((agent.name, event))
+                        if event.type == "escalate":
+                            branch_status[agent.name] = "escalated"
+                            return
                 branch_status[agent.name] = "completed"
             except asyncio.CancelledError:
                 branch_status[agent.name] = "cancelled"
@@ -112,10 +115,11 @@ class LoopAgent(BaseAgent):
     async def _run_impl(self, ctx: "RunContext") -> AsyncGenerator[Event, None]:
         for iteration in range(self.max_iterations):
             for sub in self.sub_agents:
-                async for event in sub.run(ctx):
-                    yield event
-                    if event.type == "escalate":
-                        return
+                async with aclosing(sub.run(ctx)) as stream:
+                    async for event in stream:
+                        yield event
+                        if event.type == "escalate":
+                            return
 
             if self.loop_condition is not None:
                 # Provide ctx and current iteration index (0-based) as state

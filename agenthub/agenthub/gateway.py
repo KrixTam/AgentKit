@@ -115,6 +115,14 @@ def create_app(config: HubConfig | None = None) -> FastAPI:
         obs["event_write_ms"] += append_event_only(session_store, session_id, event)
         _add_db_ops(obs, 1)
 
+    def _append_events_observed(obs: dict[str, float], session_id: str, events: list[Event]) -> None:
+        if not events:
+            return
+        start = time.perf_counter()
+        session_store.append_events(session_id, [e.to_dict() for e in events])
+        obs["event_write_ms"] += (time.perf_counter() - start) * 1000.0
+        _add_db_ops(obs, len(events))
+
     @app.get("/healthz")
     async def healthz():
         return {"status": "ok", "store": cfg.store_type}
@@ -211,8 +219,7 @@ async function run(){
                 session_id=session.session_id,
                 max_turns=req.max_turns,
             )
-            for e in result.events:
-                _append_event_observed(obs, session.session_id, e)
+            _append_events_observed(obs, session.session_id, result.events)
             if result.success:
                 session_store.update_status(session.session_id, SessionStatus.COMPLETED)
                 _add_db_ops(obs, 1)
@@ -646,20 +653,11 @@ async function run(){
         authorization: str | None = Header(default=None),
     ):
         _auth(authorization)
-        events = session_store.list_events(session_id)
-        if suspension_id:
-            suspend_event = next(
-                (
-                    e
-                    for e in reversed(events)
-                    if e.get("type") == "suspend_requested"
-                    and isinstance(e.get("data"), dict)
-                    and e["data"].get("suspension_id") == suspension_id
-                ),
-                None,
-            )
-        else:
-            suspend_event = next((e for e in reversed(events) if e.get("type") == "suspend_requested"), None)
+        suspend_event = session_store.get_latest_event(
+            session_id,
+            event_type="suspend_requested",
+            suspension_id=suspension_id,
+        )
         if not suspend_event:
             return ApiResponse(data={"mode": "json", "form_schema": {"type": "object", "properties": {"user_input": {"type": "string"}}, "required": ["user_input"]}})
         schema = (suspend_event.get("data") or {}).get("form_schema")

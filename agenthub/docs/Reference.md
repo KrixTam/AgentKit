@@ -217,6 +217,8 @@ pip install ni.agenthub
 - `update_status(session_id, status, error=None)`
 - `list_sessions(status=None)`
 - `append_event(session_id, event)`（返回 `seq`）
+- `append_events(session_id, events)`（批量写入，返回 `seq` 列表）
 - `list_events(session_id)`（按 `seq` 升序）
+- `get_latest_event(session_id, event_type=None, suspension_id=None)`（按条件获取最新事件）
 - `save_checkpoint/load_checkpoint/delete_checkpoint`
 - `terminate(session_id)`

@@ -5,7 +5,9 @@ agentkit/agents/base_agent.py — 所有 Agent 的基类
 """
 from __future__ import annotations
 
+import asyncio
 from abc import abstractmethod
+from contextlib import aclosing
 from typing import TYPE_CHECKING, Any, AsyncGenerator, Callable, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -62,30 +64,37 @@ class BaseAgent(BaseModel):
 
     async def run(self, ctx: "RunContext") -> AsyncGenerator[Event, None]:
         """运行入口 — 子类不可覆盖"""
-        # 1. before callback
-        if self.before_agent_callback:
-            result, duration, err = await self._run_hook(self.before_agent_callback, "before_agent_callback", ctx)
-            if err:
-                yield Event(agent=self.name, type="error", data={"hook": "before_agent", "error": str(err), "duration": duration})
-                if self.fail_fast_on_hook_error:
+        emit_after_events = True
+        try:
+            # 1. before callback
+            if self.before_agent_callback:
+                result, duration, err = await self._run_hook(self.before_agent_callback, "before_agent_callback", ctx)
+                if err:
+                    yield Event(agent=self.name, type="error", data={"hook": "before_agent", "error": str(err), "duration": duration})
+                    if self.fail_fast_on_hook_error:
+                        return
+                elif result is not None:
+                    yield Event(agent=self.name, type="callback", data={"result": result, "duration": duration})
                     return
-            elif result is not None:
-                yield Event(agent=self.name, type="callback", data={"result": result, "duration": duration})
-                return
 
-        # 2. 核心逻辑（子类实现）
-        async for event in self._run_impl(ctx):
-            yield event
-
-        # 3. after callback
-        if self.after_agent_callback:
-            result, duration, err = await self._run_hook(self.after_agent_callback, "after_agent_callback", ctx)
-            if err:
-                yield Event(agent=self.name, type="error", data={"hook": "after_agent", "error": str(err), "duration": duration})
-                if self.fail_fast_on_hook_error:
-                    return
-            elif result is not None:
-                yield Event(agent=self.name, type="callback", data={"result": result, "duration": duration})
+            # 2. 核心逻辑（子类实现）
+            impl_stream = self._run_impl(ctx)
+            async with aclosing(impl_stream):
+                async for event in impl_stream:
+                    yield event
+        except (GeneratorExit, asyncio.CancelledError):
+            # 外部提前中断时不再尝试向外 yield 事件，但必须执行 after 回调逻辑
+            emit_after_events = False
+            raise
+        finally:
+            # 3. after callback（保证执行）
+            if self.after_agent_callback:
+                result, duration, err = await self._run_hook(self.after_agent_callback, "after_agent_callback", ctx)
+                if emit_after_events:
+                    if err:
+                        yield Event(agent=self.name, type="error", data={"hook": "after_agent", "error": str(err), "duration": duration})
+                    elif result is not None:
+                        yield Event(agent=self.name, type="callback", data={"result": result, "duration": duration})
 
     @abstractmethod
     async def _run_impl(self, ctx: "RunContext") -> AsyncGenerator[Event, None]:

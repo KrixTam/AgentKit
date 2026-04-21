@@ -72,7 +72,7 @@ from agentkit import Agent
 | `memory_async_write` | `bool` | `True` | 记忆写入模式。`True`=fire-and-forget 异步写入（不阻塞返回）；`False`=同步等待写入完成（多轮串行对话推荐） |
 | `model_cosplay_enabled` | `bool` | `False` | 是否开启 ModelCosplay。关闭时如果类已预设 `model`，实例化时不允许覆盖；开启后允许实例化和运行时改写模型 |
 | `before_agent_callback` | `Callable \| None` | `None` | Agent 运行前回调 |
-| `after_agent_callback` | `Callable \| None` | `None` | Agent 运行后回调 |
+| `after_agent_callback` | `Callable \| None` | `None` | Agent 运行后回调。通过 `finally` 语义保证执行；即使上游提前中断或外部关闭流（`aclose`）也会触发，但关闭路径不保证继续外发 callback 事件 |
 | `before_model_callback` | `Callable \| None` | `None` | LLM 调用前回调（可拦截/改写） |
 | `after_model_callback` | `Callable \| None` | `None` | LLM 调用后回调（可改写响应） |
 | `before_tool_callback` | `Callable \| None` | `None` | 工具调用前回调（可拦截执行） |
@@ -116,7 +116,7 @@ agent = Agent(
 | `description` | `str` | 描述 |
 | `sub_agents` | `list[BaseAgent]` | 子 Agent（自动建立父子关系） |
 | `before_agent_callback` | `Callable \| None` | 运行前回调 |
-| `after_agent_callback` | `Callable \| None` | 运行后回调 |
+| `after_agent_callback` | `Callable \| None` | 运行后回调。支持提前中断/流关闭场景下的收尾触发（关闭路径不保证事件外发） |
 | `model_cosplay_enabled` | `bool` | 是否开启 ModelCosplay（默认 `False`） |
 
 **子类化**：

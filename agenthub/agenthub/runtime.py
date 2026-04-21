@@ -58,10 +58,13 @@ class Metrics:
     completed_total: int = 0
     active_sessions: int = 0
     latency_ms: deque[float] = field(default_factory=lambda: deque(maxlen=2048))
+    _latency_p95_ms: float = 0.0
+    _latency_dirty: bool = False
 
     def observe(self, latency_ms: float, status: SessionStatus) -> None:
         self.requests_total += 1
         self.latency_ms.append(latency_ms)
+        self._latency_dirty = True
         self.active_sessions = max(0, self.active_sessions + (1 if status == SessionStatus.RUNNING else -1))
         if status == SessionStatus.ERROR:
             self.errors_total += 1
@@ -70,11 +73,17 @@ class Metrics:
         elif status == SessionStatus.COMPLETED:
             self.completed_total += 1
 
+    def _p95_latency_ms(self) -> float:
+        if not self.latency_ms:
+            return 0.0
+        if self._latency_dirty:
+            sorted_ms = sorted(self.latency_ms)
+            self._latency_p95_ms = sorted_ms[int((len(sorted_ms) - 1) * 0.95)]
+            self._latency_dirty = False
+        return self._latency_p95_ms
+
     def to_prometheus(self) -> str:
-        p95 = 0.0
-        if self.latency_ms:
-            sorted_ms = sorted(list(self.latency_ms))
-            p95 = sorted_ms[int((len(sorted_ms) - 1) * 0.95)]
+        p95 = self._p95_latency_ms()
         lines = [
             f"agenthub_requests_total {self.requests_total}",
             f"agenthub_errors_total {self.errors_total}",

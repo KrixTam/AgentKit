@@ -190,6 +190,7 @@ class Agent(BaseAgent):
         llm = self._resolve_model()
         memory_injection = ""
         skill_prompt_injection = ""
+        runtime_skill_toolset: SkillToolset | None = None
         history_messages: list[Message] = []
         parsed_history_len = 0
         last_tool_signature: tuple[tuple[str, int], ...] = tuple()
@@ -206,8 +207,8 @@ class Agent(BaseAgent):
                 logger.warning("检索记忆失败: %s", e)
 
         if self.skills:
-            skill_toolset = SkillToolset(skills=self.skills)
-            skill_prompt_injection = "\n\n" + skill_toolset.get_system_prompt_injection()
+            runtime_skill_toolset = SkillToolset(skills=self.skills)
+            skill_prompt_injection = "\n\n" + runtime_skill_toolset.get_system_prompt_injection()
 
         try:
             while round_count < self.max_tool_rounds:
@@ -219,7 +220,32 @@ class Agent(BaseAgent):
                 instructions += skill_prompt_injection
 
                 # 2. 获取工具
-                tools = await self.get_all_tools(ctx)
+                tools: list[BaseTool] = []
+                for tool_union in self.tools:
+                    if isinstance(tool_union, BaseTool):
+                        tools.append(tool_union)
+                    elif isinstance(tool_union, BaseToolset):
+                        tools.extend(await tool_union.get_tools(ctx))
+                    elif callable(tool_union):
+                        fn_key = id(tool_union)
+                        cached_tool = self._callable_tool_cache.get(fn_key)
+                        if cached_tool is None:
+                            cached_tool = FunctionTool.from_function(tool_union)
+                            self._callable_tool_cache[fn_key] = cached_tool
+                        tools.append(cached_tool)
+
+                if runtime_skill_toolset is not None:
+                    runtime_skill_toolset.set_additional_tools(tools.copy())
+                    tools.extend(await runtime_skill_toolset.get_tools(ctx))
+
+                for target in self.handoffs:
+                    if isinstance(target, BaseAgent):
+                        target_key = id(target)
+                        cached_handoff_tool = self._handoff_tool_cache.get(target_key)
+                        if cached_handoff_tool is None:
+                            cached_handoff_tool = self._create_handoff_tool(target)
+                            self._handoff_tool_cache[target_key] = cached_handoff_tool
+                        tools.append(cached_handoff_tool)
                 tool_signature = tuple((tool.name, id(tool)) for tool in tools)
                 tool_defs_start = time.perf_counter()
                 if tool_signature != last_tool_signature:

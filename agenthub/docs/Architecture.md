@@ -50,7 +50,7 @@ AgentHub 不替换 AgentKit 运行时主循环，仅以适配方式调用：
 4. 应用模型改写策略：优先请求参数 `model_cosplay`，否则使用 Manifest 的 `model_cosplay` 默认值（仅对开启能力的 Agent 生效）。
 5. 创建/复用会话记录（`session_id`、`trace_id`、`user_id`）。
 6. 调用 `Runner.run(...)` 获取 `RunResult`。
-7. 事件顺序写入 SessionStore（带 `seq`）。
+7. 事件顺序写入 SessionStore（带 `seq`）；同步 `invoke` 路径使用批量写入（`append_events`）降低存储往返。
 8. 返回统一响应结构 `ApiResponse`。
 
 ### 2) SSE 流式调用
@@ -93,6 +93,11 @@ running/suspended -> terminated
 
 - `RegistryStore`
 - `SessionStore`
+
+当前 `SessionStore` 契约除单条 `append_event` 外，还支持：
+
+- `append_events`：批量事件写入（同步 `invoke` 走单次批量落盘）
+- `get_latest_event`：按条件获取最新事件（HITL 表单按 `suspension_id` 精准查询）
 
 两种实现：
 

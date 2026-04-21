@@ -90,8 +90,37 @@ class InMemorySessionStore(SessionStore):
         self._events[session_id].append({"seq": seq, **event})
         return seq
 
+    def append_events(self, session_id: str, events: list[dict[str, Any]]) -> list[int]:
+        seq = self._seq[session_id]
+        out: list[int] = []
+        target = self._events[session_id]
+        for event in events:
+            seq += 1
+            target.append({"seq": seq, **event})
+            out.append(seq)
+        self._seq[session_id] = seq
+        return out
+
     def list_events(self, session_id: str) -> list[dict[str, Any]]:
         return list(self._events.get(session_id, []))
+
+    def get_latest_event(
+        self,
+        session_id: str,
+        *,
+        event_type: str | None = None,
+        suspension_id: str | None = None,
+    ) -> dict[str, Any] | None:
+        events = self._events.get(session_id, [])
+        for event in reversed(events):
+            if event_type is not None and event.get("type") != event_type:
+                continue
+            if suspension_id is not None:
+                data = event.get("data")
+                if not isinstance(data, dict) or data.get("suspension_id") != suspension_id:
+                    continue
+            return event
+        return None
 
     def save_checkpoint(self, session_id: str, context: RunContext) -> None:
         self._checkpoints[session_id] = RunContext.from_dict(context.to_dict())

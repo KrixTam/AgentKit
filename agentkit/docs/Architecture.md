@@ -157,6 +157,8 @@ Runner.run()
 
 **9 个回调点**标记为 ❶ ~ ❾，覆盖了 Agent、Model、Tool、Handoff 四个层面的前后拦截及错误处理（含 `on_error_callback`）。
 
+补充说明：`after_agent_callback` 通过 `finally` 语义保证执行。即使上游编排发生提前 `return`（如 `escalate`）或外部关闭流式生成器（`aclose`），也会触发该回调；但在生成器关闭路径下，不保证回调事件继续对外 `yield`。
+
 ---
 
 ## Human-in-the-loop (HITL) 与状态管理
@@ -541,7 +543,7 @@ agent = Agent(memory=my_memory, memory_async_write=False, ...)
 
 #### 生命周期 Hooks / Callbacks
 AgentKit 提供细粒度的执行拦截点，支持同步/异步回调，并允许请求与响应改写：
-- **`before_agent_callback` / `after_agent_callback`**: 拦截整个 Agent 会话。
+- **`before_agent_callback` / `after_agent_callback`**: 拦截整个 Agent 会话。`after_agent_callback` 在提前中断/外部关闭流的场景下也会执行（收尾保证），但关闭路径不保证继续外发 callback 事件。
 - **`before_model_callback` / `after_model_callback`**: 在 LLM 调用前后拦截，允许改写 Prompt 和模型输出。
 - **`before_tool_callback` / `after_tool_callback`**: 在工具执行前后拦截，允许改写执行结果。
 - **`before_handoff_callback` / `after_handoff_callback`**: 在触发 Handoff 转移前拦截，可动态修改目标 Agent。

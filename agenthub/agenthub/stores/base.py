@@ -55,9 +55,35 @@ class SessionStore(ABC):
     def append_event(self, session_id: str, event: dict[str, Any]) -> int:
         raise NotImplementedError
 
+    def append_events(self, session_id: str, events: list[dict[str, Any]]) -> list[int]:
+        """批量写入事件；默认逐条写入，子类可覆盖为单事务优化实现。"""
+        seqs: list[int] = []
+        for event in events:
+            seqs.append(self.append_event(session_id, event))
+        return seqs
+
     @abstractmethod
     def list_events(self, session_id: str) -> list[dict[str, Any]]:
         raise NotImplementedError
+
+    def get_latest_event(
+        self,
+        session_id: str,
+        *,
+        event_type: str | None = None,
+        suspension_id: str | None = None,
+    ) -> dict[str, Any] | None:
+        """获取最新匹配事件；默认基于 list_events 反向扫描，子类可覆盖为索引查询。"""
+        events = self.list_events(session_id)
+        for event in reversed(events):
+            if event_type is not None and event.get("type") != event_type:
+                continue
+            if suspension_id is not None:
+                data = event.get("data")
+                if not isinstance(data, dict) or data.get("suspension_id") != suspension_id:
+                    continue
+            return event
+        return None
 
     @abstractmethod
     def save_checkpoint(self, session_id: str, context: RunContext) -> None:

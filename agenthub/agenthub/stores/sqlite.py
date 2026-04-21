@@ -206,26 +206,53 @@ class SQLiteSessionStore(SQLiteMixin, SessionStore):
             for r in rows
         ]
 
-    def append_event(self, session_id: str, event: dict[str, Any]) -> int:
-        with self._conn() as conn:
+    def _allocate_seq_range(self, conn: sqlite3.Connection, session_id: str, count: int) -> tuple[int, int]:
+        conn.execute(
+            "INSERT OR IGNORE INTO session_event_seq(session_id, last_seq) VALUES(?, 0)",
+            (session_id,),
+        )
+        try:
+            row = conn.execute(
+                "UPDATE session_event_seq SET last_seq = last_seq + ? WHERE session_id=? RETURNING last_seq",
+                (count, session_id),
+            ).fetchone()
+        except sqlite3.OperationalError:
             conn.execute(
-                "INSERT OR IGNORE INTO session_event_seq(session_id, last_seq) VALUES(?, 0)",
-                (session_id,),
-            )
-            conn.execute(
-                "UPDATE session_event_seq SET last_seq = last_seq + 1 WHERE session_id=?",
-                (session_id,),
+                "UPDATE session_event_seq SET last_seq = last_seq + ? WHERE session_id=?",
+                (count, session_id),
             )
             row = conn.execute(
                 "SELECT last_seq FROM session_event_seq WHERE session_id=?",
                 (session_id,),
             ).fetchone()
-            seq = int(row["last_seq"])
+        end_seq = int(row["last_seq"])
+        return end_seq - count + 1, end_seq
+
+    def append_event(self, session_id: str, event: dict[str, Any]) -> int:
+        with self._conn() as conn:
+            seq, _ = self._allocate_seq_range(conn, session_id, 1)
             conn.execute(
                 "INSERT INTO events(session_id, seq, event_json) VALUES(?, ?, ?)",
                 (session_id, seq, json.dumps(event, ensure_ascii=False)),
             )
             return seq
+
+    def append_events(self, session_id: str, events: list[dict[str, Any]]) -> list[int]:
+        if not events:
+            return []
+        with self._conn() as conn:
+            start_seq, _ = self._allocate_seq_range(conn, session_id, len(events))
+            rows = []
+            seqs = []
+            for idx, event in enumerate(events):
+                seq = start_seq + idx
+                seqs.append(seq)
+                rows.append((session_id, seq, json.dumps(event, ensure_ascii=False)))
+            conn.executemany(
+                "INSERT INTO events(session_id, seq, event_json) VALUES(?, ?, ?)",
+                rows,
+            )
+            return seqs
 
     def list_events(self, session_id: str) -> list[dict[str, Any]]:
         with self._conn() as conn:
@@ -238,6 +265,29 @@ class SQLiteSessionStore(SQLiteMixin, SessionStore):
             payload = json.loads(row["event_json"])
             result.append({"seq": row["seq"], **payload})
         return result
+
+    def get_latest_event(
+        self,
+        session_id: str,
+        *,
+        event_type: str | None = None,
+        suspension_id: str | None = None,
+    ) -> dict[str, Any] | None:
+        sql = "SELECT seq, event_json FROM events WHERE session_id=?"
+        params: list[Any] = [session_id]
+        if event_type is not None:
+            sql += " AND json_extract(event_json, '$.type') = ?"
+            params.append(event_type)
+        if suspension_id is not None:
+            sql += " AND json_extract(event_json, '$.data.suspension_id') = ?"
+            params.append(suspension_id)
+        sql += " ORDER BY seq DESC LIMIT 1"
+        with self._conn() as conn:
+            row = conn.execute(sql, tuple(params)).fetchone()
+        if not row:
+            return None
+        payload = json.loads(row["event_json"])
+        return {"seq": row["seq"], **payload}
 
     def save_checkpoint(self, session_id: str, context: RunContext) -> None:
         with self._conn() as conn:

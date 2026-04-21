@@ -1,6 +1,6 @@
 # AgentHub 快速入门
 
-> 本文档基于当前代码实现（发行包：`ni.agenthub==0.3.2`，运行命令：`agenthub`）。
+> 本文档基于当前代码实现（发行包：`ni.agenthub==0.3.3`，运行命令：`agenthub`）。
 
 ---
 
