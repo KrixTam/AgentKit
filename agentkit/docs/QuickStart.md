@@ -1,6 +1,6 @@
 # AgentKit 快速入门教程
 
-> 本教程将带你从零开始，通过 18 组由简到繁的示例（含 9A/9B），掌握 AgentKit 的核心用法。
+> 本教程将带你从零开始，通过 18 组由简到繁的示例（含 8A/8B/8C、9A/9B），掌握 AgentKit 的核心用法。
 
 ---
 
@@ -608,60 +608,45 @@ asyncio.run(stream_demo())
 
 默认情况下，Agent 每次运行都是无状态的。配上记忆后，Agent 可以记住用户的偏好和历史。
 
-### 无需外部依赖的 SimpleMemory
+### 8A：SimpleMemory
 
 ```python
 from agentkit import Agent, Runner, BaseMemoryProvider, Memory
 
 class SimpleMemory(BaseMemoryProvider):
-    """轻量内存记忆——适合开发测试"""
     def __init__(self):
         self._store, self._counter = [], 0
-
     async def add(self, content, *, user_id=None, agent_id=None, metadata=None):
         self._counter += 1
         m = Memory(id=str(self._counter), content=content)
         self._store.append(m)
         return [m]
-
     async def search(self, query, *, user_id=None, agent_id=None, limit=10):
-        # 简单关键词匹配（生产环境用 Mem0 的向量搜索）
         query_words = set(query)
         scored = [(len(query_words & set(m.content)), m) for m in self._store]
         scored.sort(reverse=True, key=lambda x: x[0])
         return [m for s, m in scored[:limit] if s > 0]
-
     async def get_all(self, *, user_id=None, agent_id=None):
         return list(self._store)
-
     async def delete(self, memory_id):
         self._store = [m for m in self._store if m.id != memory_id]
         return True
 
-# 给 Agent 配上记忆
 memory = SimpleMemory()
-
 agent = Agent(
     name="personal-assistant",
     instructions="你是一个贴心的个人助手。根据记忆来个性化回答。",
     model="ollama/qwen3.5:cloud",
-    memory=memory,       # ← 加上这一行
+    memory=memory,
+    memory_async_write=False,
 )
 
-# 第 1 轮：告诉偏好
 Runner.run_sync(agent, input="我叫小明，我喜欢喝咖啡，讨厌喝茶", user_id="krix")
-
-# 第 2 轮：Agent 会记住偏好，推荐咖啡而不是茶
 result = Runner.run_sync(agent, input="帮我推荐一杯饮料", user_id="krix")
-print(result.final_output)  # "推荐拿铁！" — 基于记忆推荐
+print(result.final_output)  # 基于记忆推荐
 ```
 
-**要点**：
-- 默认不开启记忆，需要给 `Agent` 传 `memory=...` 参数
-- 配好后**不需要写额外代码**——框架自动在对话前检索记忆、对话后存储记忆
-- `user_id` 用于多用户隔离
-
-### 生产环境使用 Mem0
+### 8B：Mem0Provider（生产级）
 
 ```bash
 pip install mem0ai
@@ -678,10 +663,46 @@ memory = Mem0Provider({
     }
 })
 
-agent = Agent(memory=memory, ...)     # 替换 SimpleMemory 即可
+agent = Agent(memory=memory, ...)  # 先构建 memory，再注入 Agent
 ```
 
 Mem0 相比 SimpleMemory 的优势：**语义搜索**（理解意思而非关键词）、**持久化**（重启不丢失）、**智能提取**（从对话中自动抽取关键信息）。
+
+### 8C：自定义 Memory（文件持久化）
+
+```python
+import json
+from pathlib import Path
+from agentkit import BaseMemoryProvider, Memory, Agent
+
+class FileMemoryProvider(BaseMemoryProvider):
+    def __init__(self, file_path: str):
+        self.path = Path(file_path)
+        self.records = json.loads(self.path.read_text()) if self.path.exists() else []
+    async def add(self, content, *, user_id=None, agent_id=None, metadata=None):
+        new_id = str(len(self.records) + 1)
+        self.records.append({"id": new_id, "content": content, "user_id": user_id})
+        self.path.write_text(json.dumps(self.records, ensure_ascii=False, indent=2))
+        return [Memory(id=new_id, content=content)]
+    async def search(self, query, *, user_id=None, agent_id=None, limit=10):
+        q = query.lower()
+        out = [r for r in self.records if q in r["content"].lower()]
+        return [Memory(id=r["id"], content=r["content"]) for r in out[:limit]]
+    async def get_all(self, *, user_id=None, agent_id=None):
+        return [Memory(id=r["id"], content=r["content"]) for r in self.records]
+    async def delete(self, memory_id):
+        self.records = [r for r in self.records if r["id"] != memory_id]
+        self.path.write_text(json.dumps(self.records, ensure_ascii=False, indent=2))
+        return True
+
+memory = FileMemoryProvider("/tmp/agentkit_memory.json")
+agent = Agent(memory=memory, ...)
+```
+
+**要点**：
+- 默认不开启记忆，需要给 `Agent` 传 `memory=...` 参数
+- `SimpleMemory` 适合开发测试，`Mem0Provider` 适合生产语义检索
+- 自定义 `FileMemoryProvider` 可实现轻量持久化（进程重启后仍可读取）
 
 ---
 
@@ -1159,7 +1180,9 @@ agent = Agent(name="assistant", instructions="...")
 | [`05_guardrail.py`](../examples/standard/05_guardrail.py) | 示例 5：安全护栏 |
 | [`06_orchestration.py`](../examples/standard/06_orchestration.py) | 示例 6：编排 Agent |
 | [`07_sync_async_stream.py`](../examples/standard/07_sync_async_stream.py) | 示例 7：同步/异步/流式运行 |
-| [`08_memory.py`](../examples/standard/08_memory.py) | 示例 8：记忆系统 |
+| [`08a_memory_simple_provider.py`](../examples/standard/08a_memory_simple_provider.py) | 示例 8A：记忆系统（SimpleMemory） |
+| [`08b_memory_mem0_provider.py`](../examples/standard/08b_memory_mem0_provider.py) | 示例 8B：记忆系统（Mem0Provider） |
+| [`08c_memory_file_provider.py`](../examples/standard/08c_memory_file_provider.py) | 示例 8C：记忆系统（文件持久化） |
 | [`09a_structured_data_sql.py`](../examples/standard/09a_structured_data_sql.py) | 示例 9A：关系型数据库 |
 | [`09b_structured_data_graph.py`](../examples/standard/09b_structured_data_graph.py) | 示例 9B：图数据库 |
 | [`10_skill_lifecycle.py`](../examples/standard/10_skill_lifecycle.py) | 示例 10：Skill 生命周期 |
@@ -1183,7 +1206,9 @@ agent = Agent(name="assistant", instructions="...")
 | [`05_guardrail.py`](../examples/ollama/05_guardrail.py) | 示例 5：安全护栏 |
 | [`06_orchestration.py`](../examples/ollama/06_orchestration.py) | 示例 6：编排 Agent |
 | [`07_sync_async_stream.py`](../examples/ollama/07_sync_async_stream.py) | 示例 7：同步/异步/流式运行 |
-| [`08_memory.py`](../examples/ollama/08_memory.py) | 示例 8：记忆系统 |
+| [`08a_memory_simple_provider.py`](../examples/ollama/08a_memory_simple_provider.py) | 示例 8A：记忆系统（SimpleMemory） |
+| [`08b_memory_mem0_provider.py`](../examples/ollama/08b_memory_mem0_provider.py) | 示例 8B：记忆系统（Mem0Provider） |
+| [`08c_memory_file_provider.py`](../examples/ollama/08c_memory_file_provider.py) | 示例 8C：记忆系统（文件持久化） |
 | [`09a_structured_data_sql.py`](../examples/ollama/09a_structured_data_sql.py) | 示例 9A：关系型数据库 |
 | [`09b_structured_data_graph.py`](../examples/ollama/09b_structured_data_graph.py) | 示例 9B：图数据库 |
 | [`10_skill_lifecycle.py`](../examples/ollama/10_skill_lifecycle.py) | 示例 10：Skill 生命周期 |
