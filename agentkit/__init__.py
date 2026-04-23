@@ -31,7 +31,7 @@ from .tools.function_tool import FunctionTool, function_tool
 from .tools.structured_data import ResultFormatter, StructuredDataTool
 from .tools.sqlite_tool import SQLiteTool, SQLiteResultFormatter
 
-__version__ = "0.6.2"
+__version__ = "0.6.3"
 
 
 def get_docs_dir() -> str:

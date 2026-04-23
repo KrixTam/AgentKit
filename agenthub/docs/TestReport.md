@@ -1,9 +1,9 @@
 # AgentHub 测试报告
 
-> 测试时间：`2026-04-22`  
+> 测试时间：`2026-04-23`  
 > 测试环境：`macOS (Apple Silicon)`  
-> AgentHub 版本：`v0.3.3`  
-> AgentKit 版本：`v0.6.2`  
+> AgentHub 版本：`v0.3.4`  
+> AgentKit 版本：`v0.6.3`  
 > 存储模式：`memory + sqlite`
 
 ---
@@ -15,7 +15,7 @@
 | 1 | 注册中心 | `agent.yaml` 校验（字段缺失/格式错误） | ✅ | `test_manifest.py` 覆盖，字段级错误可定位 |
 | 2 | 注册中心 | 注册 / 查询 / 下线 / 别名 latest/stable | ✅ | `test_acceptance_gateway.py` 覆盖注册、查询、别名 |
 | 3 | REST 网关 | `invoke` 同步调用 | ✅ | 返回统一 `ApiResponse`，包含 `session_id/trace_id` |
-| 4 | SSE 网关 | `stream` 事件透传 | ✅ | 事件流包含 `data:` 与 `final_output` |
+| 4 | SSE 网关 | `stream` 事件透传 | ✅ | 事件流包含 `data:` 与 `final_output`，并按 `run_with_checkpoint` 写入会话上下文 |
 | 5 | WS 网关 | `run` / `resume` 双向通道 | ✅ | 挂起后可恢复，事件链路完整 |
 | 6 | 会话管理 | `list/get/events/replay` | ✅ | 事件按 `seq` 顺序回放，状态查询正常 |
 | 7 | HITL 工作台 | suspended 列表 + form + submit | ✅ | 支持 schema/JSON 回退与幂等防重 |
@@ -32,7 +32,7 @@
 
 | 场景 | 耗时 | 备注 |
 |---|---:|---|
-| 全量测试套件（15 项） | 0.31s | `python -m pytest ./agenthub/tests -q`（`15 passed`） |
+| 全量测试套件（16 项） | 0.27s | `python -m pytest ./agenthub/tests -q`（`16 passed`） |
 | 注册 Agent | 已覆盖 | 含 manifest 校验 |
 | 首次 invoke | 已覆盖 | 含 entry 首次加载与原型缓存路径 |
 | SSE 流式会话 | 已覆盖 | 含事件持久化 |

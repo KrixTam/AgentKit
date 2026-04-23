@@ -12,7 +12,6 @@ AgentHub 是 AgentKit 的 Control Plane：
 AgentHub 不替换 AgentKit 运行时主循环，仅以适配方式调用：
 
 - `Runner.run`
-- `Runner.run_streamed`
 - `Runner.run_with_checkpoint`
 - `Runner.resume`
 
@@ -55,7 +54,7 @@ AgentHub 不替换 AgentKit 运行时主循环，仅以适配方式调用：
 
 ### 2) SSE 流式调用
 
-1. 调用 `Runner.run_streamed(...)`。
+1. 调用 `Runner.run_with_checkpoint(...)`（与 WS `action=run` 保持一致）。
 2. 每个 Event 落盘后按 SSE 透传。
 3. 断连时若状态仍为 `running`，标记为 `expired`。
 

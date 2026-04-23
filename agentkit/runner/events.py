@@ -6,7 +6,7 @@ agentkit/runner/events.py — Event / RunResult
 from __future__ import annotations
 
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, asdict, is_dataclass
 from enum import Enum
 from typing import Any, Optional, Type, TypeVar, Dict
 
@@ -47,6 +47,36 @@ class Event:
     trace_path: Optional[str] = None
     parent_agent: Optional[str] = None
 
+    @staticmethod
+    def _jsonable(value: Any) -> Any:
+        """将任意对象尽量转换为 JSON 可序列化结构。"""
+        if value is None or isinstance(value, (str, int, float, bool)):
+            return value
+        if isinstance(value, Enum):
+            return value.value
+        if isinstance(value, dict):
+            return {str(k): Event._jsonable(v) for k, v in value.items()}
+        if isinstance(value, (list, tuple, set)):
+            return [Event._jsonable(v) for v in value]
+        if is_dataclass(value):
+            return Event._jsonable(asdict(value))
+
+        model_dump = getattr(value, "model_dump", None)
+        if callable(model_dump):
+            try:
+                return Event._jsonable(model_dump())
+            except Exception:
+                pass
+
+        to_dict = getattr(value, "to_dict", None)
+        if callable(to_dict):
+            try:
+                return Event._jsonable(to_dict())
+            except Exception:
+                pass
+
+        return str(value)
+
     def validate_data(self, schema: Type[T]) -> T:
         """
         强类型校验 Event.data。
@@ -83,7 +113,7 @@ class Event:
         return {
             "agent": self.agent,
             "type": self.type.value if isinstance(self.type, Enum) else self.type,
-            "data": self.data,
+            "data": self._jsonable(self.data),
             "timestamp": self.timestamp,
             "trace_path": self.trace_path,
             "parent_agent": self.parent_agent,

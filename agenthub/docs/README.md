@@ -21,7 +21,7 @@ pip install ni.agenthub
 
 ---
 
-## 当前实现范围（v0.3.3）
+## 当前实现范围（v0.3.4）
 
 - 注册发现：`agent.yaml` 清单校验、注册、查询、下线、别名（`latest`/`stable`）
 - 统一网关：REST 同步调用、SSE 事件流、WS 双向通道（run/resume）
@@ -29,7 +29,7 @@ pip install ni.agenthub
 - 会话管理：状态机、事件回放、resume、terminate、HITL 待办与表单
 - 持久化后端：`memory` / `sqlite` 二选一（行为一致）
 - 平台治理：Bearer 鉴权（静态 token 或 OAuth/OIDC introspection，可选开启）、并发与速率配额、结构化审计日志
-- 可观测：`/healthz`、`/metrics`（Prometheus 文本格式，延迟统计为滑动窗口）、基础 Playground
+- 可观测：`/healthz`、`/metrics`（Prometheus 文本格式，延迟统计为滑动窗口）、内置 Playground 控制台（鉴权/注册/调用/流式/HITL）
 - 性能审计：请求级结构化审计日志包含 `db_ops`、`event_write_ms`、`agent_resolve_ms`
 - 存储优化：同步 `invoke` 路径支持批量事件写入（`append_events`）；HITL 表单支持按 `suspension_id` 定向读取最新挂起事件（`get_latest_event`）
 
@@ -45,6 +45,6 @@ pip install ni.agenthub
 
 ## 兼容与边界
 
-- AgentHub 不替换 AgentKit 执行引擎，仅编排调用 `Runner.run` / `run_streamed` / `run_with_checkpoint` / `resume`
+- AgentHub 不替换 AgentKit 执行引擎，仅编排调用 `Runner.run` / `run_with_checkpoint` / `resume`
 - 所有能力默认可选：不开启鉴权/配额时，保持最小接入成本
 - `memory` 存储模式会在重启后丢失数据；`sqlite` 提供单机持久化

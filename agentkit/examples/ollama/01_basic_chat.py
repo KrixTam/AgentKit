@@ -21,14 +21,15 @@ agent = Agent(
 )
 
 # 同步运行
-result = Runner.run_sync(agent, input="什么是量子计算？请用一句话解释。")
+if __name__ == "__main__":
+    result = Runner.run_sync(agent, input="什么是量子计算？请用一句话解释。")
 
-if result.success:
-    print(f"✅ 回复: {result.final_output}")
-else:
-    print(f"❌ 错误: {result.error}")
+    if result.success:
+        print(f"✅ 回复: {result.final_output}")
+    else:
+        print(f"❌ 错误: {result.error}")
 
-# 查看事件流
-print("\n📋 事件流:")
-for event in result.events:
-    print(f"  [{event.type}] {str(event.data)[:80]}")
+    # 查看事件流
+    print("\n📋 事件流:")
+    for event in result.events:
+        print(f"  [{event.type}] {str(event.data)[:80]}")

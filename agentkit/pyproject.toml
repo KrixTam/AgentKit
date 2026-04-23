@@ -1,6 +1,6 @@
 [project]
 name = "ni.agentkit"
-version = "0.6.2"
+version = "0.6.3"
 description = "A Python-native Agent framework with first-class Skill support and multi-LLM adapter"
 authors = [
     { name = "Krix Tam", email = "krix.tam@qq.com" }

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import os
 import sys
 import tempfile
@@ -71,6 +72,18 @@ def test_acceptance_memory_rest_sse_and_session_replay():
     listed_completed = client.get("/api/v1/sessions?status=completed")
     assert listed_completed.status_code == 200
     assert any(x["session_id"] == "s-rest-1" for x in listed_completed.json()["data"])
+
+
+def test_stream_returns_404_when_agent_not_found():
+    app = create_app(HubConfig(store_type="memory"))
+    client = TestClient(app)
+
+    with client.stream("POST", "/api/v1/agents/demo-missing:latest/stream", json={"input": "hello"}) as stream_resp:
+        assert stream_resp.status_code == 404
+        payload = stream_resp.read().decode("utf-8")
+    payload = json.loads(payload)
+    assert payload["code"] == 1004
+    assert "agent_not_found" in payload["message"]
 
 
 def test_acceptance_ws_hitl_resume_and_hitl_api():

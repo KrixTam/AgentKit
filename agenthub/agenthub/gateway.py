@@ -127,6 +127,11 @@ def create_app(config: HubConfig | None = None) -> FastAPI:
     async def healthz():
         return {"status": "ok", "store": cfg.store_type}
 
+    @app.get("/.well-known/appspecific/com.chrome.devtools.json")
+    async def chrome_devtools_probe():
+        # Some browser tooling probes this path; return a harmless empty payload.
+        return {}
+
     @app.get("/metrics")
     async def metrics_endpoint():
         return PlainTextResponse(metrics.to_prometheus(), media_type="text/plain; version=0.0.4")
@@ -135,21 +140,537 @@ def create_app(config: HubConfig | None = None) -> FastAPI:
     async def playground():
         html = """
 <!doctype html>
-<html><body>
-<h3>AgentHub Playground</h3>
-<input id='agent' value='demo-agent' />
-<input id='input' value='你好' />
-<button onclick='run()'>Run</button>
-<pre id='out'></pre>
-<script>
-async function run(){
-  const name=document.getElementById('agent').value;
-  const input=document.getElementById('input').value;
-  const r=await fetch(`/v1/agents/${name}/invoke`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({input})});
-  document.getElementById('out').textContent=JSON.stringify(await r.json(),null,2);
-}
-</script>
-</body></html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>AgentHub Playground</title>
+  <style>
+    :root {
+      --bg: #0b1020;
+      --panel: #121a31;
+      --panel2: #182241;
+      --text: #e7ecff;
+      --muted: #9aa7d2;
+      --accent: #5fa8ff;
+      --ok: #2bc48a;
+      --warn: #ffcc66;
+      --bad: #ff6b6b;
+      --border: #2b3762;
+    }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; overflow: hidden; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font: 14px/1.4 ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+    }
+    .wrap {
+      max-width: 1260px;
+      margin: 0 auto;
+      padding: 16px;
+      height: 100vh;
+      height: 100dvh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    h1 { margin: 0 0 8px; font-size: 20px; }
+    .muted { color: var(--muted); }
+    .grid {
+      display: grid;
+      grid-template-columns: 340px 1fr;
+      gap: 12px;
+      flex: 1;
+      min-height: 0;
+      overflow: hidden;
+      margin-top: 16px;
+    }
+    .left-pane {
+      height: 100%;
+      overflow-y: auto;
+      padding-right: 4px;
+    }
+    .right-pane {
+      height: 100%;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+    .right-pane > .card {
+      flex: 1;
+      margin-bottom: 0;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+    }
+    .left-pane::-webkit-scrollbar { width: 10px; }
+    .left-pane::-webkit-scrollbar-thumb {
+      background: #2a3b71;
+      border-radius: 999px;
+    }
+    .left-pane::-webkit-scrollbar-track { background: transparent; }
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px;
+      margin-bottom: 10px;
+    }
+    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    label { display: block; margin: 8px 0 4px; color: var(--muted); font-size: 12px; }
+    input, textarea, select, button {
+      width: 100%;
+      background: var(--panel2);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 8px 10px;
+      font: inherit;
+    }
+    textarea { min-height: 92px; resize: vertical; }
+    button {
+      cursor: pointer;
+      background: #20346b;
+      border-color: #3153a8;
+    }
+    button:hover { filter: brightness(1.08); }
+    .btns { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-top: 8px; }
+    .btn-wide { grid-column: 1 / -1; }
+    .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+    .chip {
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: 2px 8px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .chip.ok { color: var(--ok); border-color: #1e6f53; }
+    .chip.warn { color: var(--warn); border-color: #8d6e2f; }
+    .chip.bad { color: var(--bad); border-color: #8a2f2f; }
+    pre {
+      margin: 0;
+      background: #0a1228;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px;
+      min-height: 280px;
+      height: 100%;
+      overflow: auto;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    .split { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .title { margin: 0 0 8px; font-size: 14px; color: var(--muted); }
+    .tiny { font-size: 12px; color: var(--muted); }
+    .tabs { display: flex; gap: 6px; flex-wrap: wrap; margin: 0 0 8px; }
+    .tab {
+      width: auto;
+      padding: 6px 10px;
+      border-radius: 999px;
+      background: #182449;
+      color: var(--muted);
+    }
+    .tab.active { background: #244291; color: #fff; }
+    .section { display: none; }
+    .section.active {
+      display: block;
+      flex: 1;
+      min-height: 0;
+      overflow: auto;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>AgentHub Playground</h1>
+    <div class="muted">面向联调的控制台：鉴权、注册、Invoke、SSE、会话事件与 HITL 恢复</div>
+    <div class="grid">
+      <div class="left-pane">
+        <div class="card">
+          <div class="title">连接配置</div>
+          <label>Base URL</label>
+          <input id="baseUrl" value="" />
+          <label>Bearer Token（可选）</label>
+          <input id="token" type="password" placeholder="留空表示不带鉴权头" />
+          <div class="btns">
+            <button onclick="saveSettings()">保存配置</button>
+            <button onclick="checkHealth()">检查健康</button>
+          </div>
+          <div class="chips">
+            <span class="chip" id="statusChip">未连接</span>
+            <span class="chip" id="latencyChip">-</span>
+            <span class="chip" id="sessionChip">session: -</span>
+            <span class="chip" id="suspensionChip">suspension: -</span>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="title">Registry 快捷操作</div>
+          <label>Manifest JSON</label>
+          <textarea id="manifestJson" placeholder='{"name":"demo-agent","version":"0.1.0","entry":"pkg.mod:agent"}'>{
+  "name": "demo-agent",
+  "version": "0.1.0",
+  "description": "测试Agent",
+  "entry": "agentkit.examples.ollama.01_basic_chat:agent"
+}</textarea>
+          <label>aliases（逗号分隔，可选）</label>
+          <input id="aliases" placeholder="latest,stable" />
+          <div class="btns">
+            <button onclick="registerAgent()">注册</button>
+            <button onclick="listAgents()">列出 Agents</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="title">Agent 目标</div>
+          <label>Agent 名称或 name:version</label>
+          <input id="nameVersion" value="demo-agent" />
+          <label>输入文本</label>
+          <textarea id="inputText">你好</textarea>
+          <div class="row">
+            <div>
+              <label>user_id（可选）</label>
+              <input id="userId" />
+            </div>
+            <div>
+              <label>session_id（可选）</label>
+              <input id="sessionId" />
+            </div>
+          </div>
+          <div class="row">
+            <div>
+              <label>model_cosplay（可选）</label>
+              <input id="modelCosplay" placeholder="如 ollama/qwen3.5:cloud" />
+            </div>
+            <div>
+              <label>max_turns（默认 10）</label>
+              <input id="maxTurns" type="number" value="10" min="1" />
+            </div>
+          </div>
+          <div class="btns">
+            <button onclick="invoke()">同步 Invoke</button>
+            <button onclick="startStream()">SSE Stream</button>
+            <button onclick="stopStream()" class="btn-wide">停止 Stream</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="title">HITL 操作</div>
+          <label>resume 输入</label>
+          <textarea id="resumeInput">approve</textarea>
+          <label>suspension_id（可选）</label>
+          <input id="resumeSuspensionId" placeholder="留空则使用最新捕获值" />
+          <div class="btns">
+            <button onclick="listSuspended()">列出挂起会话</button>
+            <button onclick="getHitlForm()">获取表单</button>
+            <button onclick="submitHitl()" class="btn-wide">提交 HITL / Resume</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="right-pane">
+        <div class="card">
+          <div class="tabs">
+            <button class="tab active" data-tab="response" onclick="switchTab('response')">响应</button>
+            <button class="tab" data-tab="events" onclick="switchTab('events')">事件流</button>
+            <button class="tab" data-tab="session" onclick="switchTab('session')">会话</button>
+            <button class="tab" data-tab="request" onclick="switchTab('request')">请求快照</button>
+          </div>
+
+          <div id="tab-response" class="section active">
+            <pre id="responseOut">{}</pre>
+          </div>
+          <div id="tab-events" class="section">
+            <pre id="eventOut">等待流式事件...</pre>
+          </div>
+          <div id="tab-session" class="section">
+            <div class="btns" style="margin-bottom:8px">
+              <button onclick="getSession()">查询 Session</button>
+              <button onclick="getSessionEvents()">查询 Events</button>
+            </div>
+            <pre id="sessionOut">{}</pre>
+          </div>
+          <div id="tab-request" class="section">
+            <div class="tiny">最近一次请求（method / path / payload）</div>
+            <pre id="requestOut">{}</pre>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let streamController = null;
+    let currentSessionId = "";
+    let currentSuspensionId = "";
+
+    const byId = (id) => document.getElementById(id);
+    const setJson = (id, data) => byId(id).textContent = JSON.stringify(data, null, 2);
+
+    function nowBaseUrl() {
+      const raw = byId("baseUrl").value.trim();
+      return raw || window.location.origin;
+    }
+
+    function authHeaders(jsonBody = true) {
+      const h = {};
+      if (jsonBody) h["Content-Type"] = "application/json";
+      const token = byId("token").value.trim();
+      if (token) h["Authorization"] = `Bearer ${token}`;
+      return h;
+    }
+
+    function setStatus(kind, text) {
+      const chip = byId("statusChip");
+      chip.className = "chip";
+      if (kind === "ok") chip.classList.add("ok");
+      if (kind === "warn") chip.classList.add("warn");
+      if (kind === "bad") chip.classList.add("bad");
+      chip.textContent = text;
+    }
+
+    function setLatency(ms) {
+      byId("latencyChip").textContent = `latency: ${ms.toFixed(1)} ms`;
+    }
+
+    function updateSessionHint(sessionId, suspensionId) {
+      if (sessionId) currentSessionId = sessionId;
+      if (suspensionId) currentSuspensionId = suspensionId;
+      byId("sessionChip").textContent = `session: ${currentSessionId || "-"}`;
+      byId("suspensionChip").textContent = `suspension: ${currentSuspensionId || "-"}`;
+      if (currentSessionId) byId("sessionId").value = currentSessionId;
+      if (currentSuspensionId) byId("resumeSuspensionId").value = currentSuspensionId;
+    }
+
+    function saveSettings() {
+      localStorage.setItem("agenthub_base_url", byId("baseUrl").value.trim());
+      localStorage.setItem("agenthub_token", byId("token").value.trim());
+      setStatus("ok", "配置已保存");
+    }
+
+    function loadSettings() {
+      byId("baseUrl").value = localStorage.getItem("agenthub_base_url") || window.location.origin;
+      byId("token").value = localStorage.getItem("agenthub_token") || "";
+    }
+
+    function switchTab(name) {
+      document.querySelectorAll(".tab").forEach((x) => x.classList.remove("active"));
+      document.querySelector(`[data-tab="${name}"]`).classList.add("active");
+      document.querySelectorAll(".section").forEach((x) => x.classList.remove("active"));
+      byId(`tab-${name}`).classList.add("active");
+    }
+
+    async function api(method, path, payload = null, opts = {}) {
+      const reqSnapshot = { method, path, payload };
+      setJson("requestOut", reqSnapshot);
+      const start = performance.now();
+      const resp = await fetch(`${nowBaseUrl()}${path}`, {
+        method,
+        headers: authHeaders(payload !== null),
+        body: payload === null ? null : JSON.stringify(payload),
+        signal: opts.signal || null,
+      });
+      const elapsed = performance.now() - start;
+      setLatency(elapsed);
+
+      let body = null;
+      try {
+        body = await resp.json();
+      } catch (_) {
+        body = { code: resp.status, message: "non-json response" };
+      }
+      return { ok: resp.ok, status: resp.status, body };
+    }
+
+    function buildInvokePayload() {
+      const sessionId = byId("sessionId").value.trim();
+      const maxTurns = parseInt(byId("maxTurns").value || "10", 10);
+      const payload = {
+        input: byId("inputText").value,
+        user_id: byId("userId").value.trim() || null,
+        session_id: sessionId || null,
+        model_cosplay: byId("modelCosplay").value.trim() || null,
+        max_turns: Number.isFinite(maxTurns) ? maxTurns : 10,
+      };
+      return payload;
+    }
+
+    async function checkHealth() {
+      try {
+        const r = await api("GET", "/healthz");
+        setJson("responseOut", r.body);
+        setStatus(r.ok ? "ok" : "bad", r.ok ? "健康检查通过" : `健康检查失败(${r.status})`);
+        switchTab("response");
+      } catch (e) {
+        setStatus("bad", `连接异常: ${e.message}`);
+      }
+    }
+
+    async function invoke() {
+      const nameVersion = encodeURIComponent(byId("nameVersion").value.trim());
+      const r = await api("POST", `/api/v1/agents/${nameVersion}/invoke`, buildInvokePayload());
+      setJson("responseOut", r.body);
+      const sid = r.body?.data?.session_id;
+      if (sid) {
+        updateSessionHint(sid, null);
+      }
+      setStatus(r.ok ? "ok" : "bad", r.ok ? "Invoke 成功" : `Invoke 失败(${r.status})`);
+      switchTab("response");
+    }
+
+    async function startStream() {
+      stopStream();
+      byId("eventOut").textContent = "";
+      const nameVersion = encodeURIComponent(byId("nameVersion").value.trim());
+      const payload = buildInvokePayload();
+      const reqSnapshot = { method: "POST", path: `/api/v1/agents/${nameVersion}/stream`, payload };
+      setJson("requestOut", reqSnapshot);
+      switchTab("events");
+      streamController = new AbortController();
+      setStatus("warn", "SSE 连接中");
+
+      const start = performance.now();
+      let resp;
+      try {
+        resp = await fetch(`${nowBaseUrl()}/api/v1/agents/${nameVersion}/stream`, {
+          method: "POST",
+          headers: authHeaders(true),
+          body: JSON.stringify(payload),
+          signal: streamController.signal,
+        });
+      } catch (e) {
+        setStatus("bad", `SSE 建立失败: ${e.message}`);
+        return;
+      }
+      setLatency(performance.now() - start);
+      if (!resp.ok || !resp.body) {
+        const txt = await resp.text();
+        byId("eventOut").textContent = `SSE 建立失败: ${resp.status}\\n${txt}`;
+        setStatus("bad", `SSE 失败(${resp.status})`);
+        return;
+      }
+
+      const reader = resp.body.getReader();
+      const decoder = new TextDecoder("utf-8");
+      let buf = "";
+      setStatus("ok", "SSE 已连接");
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buf += decoder.decode(value, { stream: true });
+        const lines = buf.split("\\n");
+        buf = lines.pop() || "";
+        for (const raw of lines) {
+          const line = raw.trim();
+          if (!line.startsWith("data:")) continue;
+          const payloadText = line.slice(5).trim();
+          if (!payloadText) continue;
+          try {
+            const obj = JSON.parse(payloadText);
+            const sid = obj.session_id;
+            const event = obj.event || {};
+            const suspensionId = event?.data?.suspension_id;
+            updateSessionHint(sid, suspensionId || null);
+            byId("eventOut").textContent += JSON.stringify(obj, null, 2) + "\\n";
+          } catch (e) {
+            byId("eventOut").textContent += payloadText + "\\n";
+          }
+        }
+      }
+      setStatus("warn", "SSE 已结束");
+    }
+
+    function stopStream() {
+      if (streamController) {
+        streamController.abort();
+        streamController = null;
+        setStatus("warn", "SSE 已停止");
+      }
+    }
+
+    async function getSession() {
+      const sid = byId("sessionId").value.trim() || currentSessionId;
+      if (!sid) return setStatus("warn", "请先提供 session_id");
+      const r = await api("GET", `/api/v1/sessions/${encodeURIComponent(sid)}`);
+      setJson("sessionOut", r.body);
+      setStatus(r.ok ? "ok" : "bad", r.ok ? "Session 获取成功" : `Session 获取失败(${r.status})`);
+      switchTab("session");
+    }
+
+    async function getSessionEvents() {
+      const sid = byId("sessionId").value.trim() || currentSessionId;
+      if (!sid) return setStatus("warn", "请先提供 session_id");
+      const r = await api("GET", `/api/v1/sessions/${encodeURIComponent(sid)}/events`);
+      setJson("sessionOut", r.body);
+      setStatus(r.ok ? "ok" : "bad", r.ok ? "Events 获取成功" : `Events 获取失败(${r.status})`);
+      switchTab("session");
+    }
+
+    async function listSuspended() {
+      const r = await api("GET", "/api/v1/hitl/suspended");
+      setJson("responseOut", r.body);
+      const list = r.body?.data || [];
+      if (Array.isArray(list) && list.length > 0) {
+        updateSessionHint(list[0].session_id, null);
+      }
+      setStatus(r.ok ? "ok" : "bad", r.ok ? "挂起会话已加载" : `查询失败(${r.status})`);
+      switchTab("response");
+    }
+
+    async function getHitlForm() {
+      const sid = byId("sessionId").value.trim() || currentSessionId;
+      if (!sid) return setStatus("warn", "请先提供 session_id");
+      const suspensionId = byId("resumeSuspensionId").value.trim() || currentSuspensionId;
+      const query = suspensionId ? `?suspension_id=${encodeURIComponent(suspensionId)}` : "";
+      const r = await api("GET", `/api/v1/hitl/${encodeURIComponent(sid)}/form${query}`);
+      setJson("responseOut", r.body);
+      setStatus(r.ok ? "ok" : "bad", r.ok ? "HITL 表单已获取" : `获取失败(${r.status})`);
+      switchTab("response");
+    }
+
+    async function submitHitl() {
+      const sid = byId("sessionId").value.trim() || currentSessionId;
+      if (!sid) return setStatus("warn", "请先提供 session_id");
+      const suspensionId = byId("resumeSuspensionId").value.trim() || currentSuspensionId || null;
+      const payload = {
+        user_input: byId("resumeInput").value,
+        suspension_id: suspensionId,
+      };
+      const r = await api("POST", `/api/v1/hitl/${encodeURIComponent(sid)}/submit`, payload);
+      setJson("responseOut", r.body);
+      setStatus(r.ok ? "ok" : "bad", r.ok ? "HITL 提交成功" : `提交失败(${r.status})`);
+      switchTab("response");
+    }
+
+    async function registerAgent() {
+      let manifest = null;
+      try {
+        manifest = JSON.parse(byId("manifestJson").value || "{}");
+      } catch (e) {
+        setStatus("bad", `Manifest JSON 无效: ${e.message}`);
+        return;
+      }
+      const aliases = byId("aliases").value.split(",").map((x) => x.trim()).filter(Boolean);
+      const r = await api("POST", "/api/v1/registry/agents", { manifest, aliases });
+      setJson("responseOut", r.body);
+      setStatus(r.ok ? "ok" : "bad", r.ok ? "注册成功" : `注册失败(${r.status})`);
+      switchTab("response");
+    }
+
+    async function listAgents() {
+      const r = await api("GET", "/api/v1/registry/agents");
+      setJson("responseOut", r.body);
+      setStatus(r.ok ? "ok" : "bad", r.ok ? "Agents 已加载" : `查询失败(${r.status})`);
+      switchTab("response");
+    }
+
+    loadSettings();
+    checkHealth();
+  </script>
+</body>
+</html>
 """
         return HTMLResponse(html)
 
@@ -165,7 +686,7 @@ async function run(){
             _structured_audit("register_agent", agent=req.manifest.name, version=req.manifest.version)
             return ApiResponse(data={"name": req.manifest.name, "version": req.manifest.version})
         except Exception as e:
-            return _json_error(1001, str(e))
+            return _json_error(1001, str(e), status_code=400)
 
     async def _list_agents_impl(authorization: str | None):
         _auth(authorization)
@@ -197,7 +718,12 @@ async function run(){
         obs = _new_obs()
         try:
             quota.acquire(quota_key)
-            manifest, agent = _resolve_agent_instance_observed(name, version, obs)
+            try:
+                manifest, agent = _resolve_agent_instance_observed(name, version, obs)
+            except ValueError as e:
+                if str(e).startswith("agent_not_found:"):
+                    return _json_error(1004, str(e), status_code=404)
+                raise
             try:
                 agent = apply_model_cosplay(agent, _effective_model_cosplay(manifest, req.model_cosplay))
             except ValueError as e:
@@ -251,6 +777,7 @@ async function run(){
                 }
             )
         except Exception as e:
+            logger.error(f"Invoke error: {e}", exc_info=True)
             session_status_for_metrics = SessionStatus.ERROR
             return _json_error(1003, str(e), status_code=500)
         finally:
@@ -266,7 +793,12 @@ async function run(){
     ):
         _auth(authorization)
         obs = _new_obs()
-        manifest, agent = _resolve_agent_instance_observed(name, version, obs)
+        try:
+            manifest, agent = _resolve_agent_instance_observed(name, version, obs)
+        except ValueError as e:
+            if str(e).startswith("agent_not_found:"):
+                return _json_error(1004, str(e), status_code=404)
+            return _json_error(1003, str(e), status_code=500)
         try:
             agent = apply_model_cosplay(agent, _effective_model_cosplay(manifest, req.model_cosplay))
         except ValueError as e:
@@ -284,9 +816,12 @@ async function run(){
         async def gen() -> AsyncGenerator[str, None]:
             stream_status = SessionStatus.RUNNING
             try:
-                async for e in Runner.run_streamed(
+                async for e in Runner.run_with_checkpoint(
                     agent,
                     input=req.input,
+                    context=req.context,
+                    context_store=context_store,
+                    max_turns=req.max_turns,
                     user_id=req.user_id,
                     session_id=session.session_id,
                 ):
@@ -406,7 +941,11 @@ async function run(){
                     obs = _new_obs()
                     agent_name = fixed_agent_name or msg["agent"]
                     version = fixed_version if fixed_agent_name else msg.get("version")
-                    manifest, agent = _resolve_agent_instance_observed(agent_name, version, obs)
+                    try:
+                        manifest, agent = _resolve_agent_instance_observed(agent_name, version, obs)
+                    except ValueError as e:
+                        await ws.send_json({"error": str(e)})
+                        continue
                     try:
                         agent = apply_model_cosplay(agent, _effective_model_cosplay(manifest, msg.get("model_cosplay")))
                     except ValueError as e:

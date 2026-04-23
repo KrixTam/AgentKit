@@ -78,7 +78,7 @@
 ### 调用网关
 
 - `POST /api/v1/agents/{name}:{version}/invoke`
-- `POST /api/v1/agents/{name}:{version}/stream`（SSE）
+- `POST /api/v1/agents/{name}:{version}/stream`（SSE，内部按 `run_with_checkpoint` 执行并写入会话事件）
 - `WS /api/v1/agents/{name}:{version}/ws`（`action=run|resume`）
 
 ### 会话管理
@@ -99,7 +99,7 @@
 
 - `GET /healthz`
 - `GET /metrics`
-- `GET /playground`
+- `GET /playground`：内置联调控制台（可配置 Bearer Token，支持 invoke/stream、会话查询、HITL 提交、Registry 快捷注册）
 
 ---
 
