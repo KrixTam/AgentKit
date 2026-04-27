@@ -21,6 +21,7 @@
   - [FunctionTool](#functiontool)
   - [BaseTool / BaseToolset](#basetool--basetoolset)
   - [StructuredDataTool (结构化数据源)](#structureddatatool-结构化数据源)
+  - [Graph 统一接口层（Adapter / Repository / Tool）](#graph-统一接口层adapter--repository--tool)
 - [Skill 类](#skill-类)
   - [Skill](#skill)
   - [SkillFrontmatter](#skillfrontmatter)
@@ -440,6 +441,50 @@ from agentkit.tools.nebula_tool import NebulaGraphTool
 
 - **`SQLiteTool`**：关系型数据库工具。使用 `sqlite3` 的命名占位符机制绑定参数。
 - **`NebulaGraphTool`**：图数据库工具。支持 `connection_pool` 生命周期管理，允许注入动态连接池。
+
+---
+
+### Graph 统一接口层（Adapter / Repository / Tool）
+
+用于在开发/测试/生产环境之间切换图后端，统一业务侧调用方式。
+
+```python
+from agentkit.tools.graph import (
+    GraphRepository,
+    GraphQueryTool,
+    NodeSpec,
+    EdgeSpec,
+    QuerySpec,
+    create_graph_repository,
+    create_graph_repository_from_env,
+)
+```
+
+**核心模型**：
+
+| 类型 | 关键字段 | 说明 |
+|------|----------|------|
+| `NodeSpec` | `node_id`、`label`、`properties` | 节点写入规范 |
+| `EdgeSpec` | `source_id`、`target_id`、`edge_type`、`directed`、`properties` | 边写入规范 |
+| `QuerySpec` | `operation`、`node_id/source_id/target_id`、`filters`、`limit` | 图查询参数规范（`neighbors/shortest_path/find_nodes/edges`） |
+| `GraphResult` | `backend`、`rows`、`summary`、`meta` | 统一查询返回结构 |
+
+**适配器与仓储**：
+
+| 组件 | 说明 |
+|------|------|
+| `GraphAdapter` | 适配器协议，统一 `upsert_node/upsert_edge/query/healthcheck/close` |
+| `NetworkXAdapter` | 开发态图后端，可选本地 JSON 持久化 |
+| `LiteGraphAdapter` | 基于 SQLite 的轻量图后端，适合测试与单机场景 |
+| `NebulaAdapter` | Nebula 生产后端适配器 |
+| `GraphRepository` | 业务统一入口，屏蔽底层后端差异 |
+| `create_graph_repository` | 按 `backend` + `config` 创建仓储 |
+| `create_graph_repository_from_env` | 按环境变量快速创建仓储（`AGENTKIT_GRAPH_*`） |
+
+**Tool 集成**：
+
+- `GraphQueryTool` 继承 `StructuredDataTool`，参数 Schema 固定为 `GraphQueryArgs`，底层通过 `GraphRepository.query()` 执行并返回标准化 `dict`。
+- 默认支持后端：`networkx` / `litegraph` / `nebula`。
 
 ---
 

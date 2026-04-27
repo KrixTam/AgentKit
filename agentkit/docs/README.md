@@ -3,7 +3,7 @@
 > Python 原生的 Agent 开发框架，内置一等公民级别的 Skill 支持和自研多模型适配层。
 
 [![Python](https://img.shields.io/badge/Python-≥3.11-blue.svg)](https://python.org)
-[![Version](https://img.shields.io/badge/Version-0.6.3-green.svg)]()
+[![Version](https://img.shields.io/badge/Version-0.7.0-green.svg)]()
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)]()
 
 ---
@@ -17,6 +17,7 @@
 | **双协作模式** | Handoff（控制权转移）+ as_tool（Agent 当工具调用），灵活覆盖所有协作场景 |
 | **编排 Agent** | SequentialAgent / ParallelAgent / LoopAgent，组合出任意复杂的工作流。支持 Loop 动态退出条件与 Parallel 提前取消增强 |
 | **@function_tool** | 一行装饰器把 Python 函数变成 LLM 工具，自动推断 JSON Schema。内建 `StructuredDataTool` 防止数据库注入 |
+| **图数据统一接口层** | 提供 `GraphAdapter + GraphRepository + GraphQueryTool`，开发/测试可切换 `networkx/litegraph`，生产可切换 `nebula` |
 | **安全内置** | Input/Output 双向 Guardrail + 三层权限控制；`run_skill_script` 当前为占位执行（SandboxExecutor 预留扩展） |
 | **记忆系统** | Mem0 集成，跨会话长期记忆 |
 | **9 个回调点** | before/after × agent/model/tool/handoff + error，任何环节可拦截定制 |
@@ -70,7 +71,7 @@ print(result.final_output)
 
 | 文档 | 说明 |
 |------|------|
-| **[QuickStart.md](QuickStart.md)** | 详细入门教程，包含 18 组从简到繁的完整示例（含 9A/9B） |
+| **[QuickStart.md](QuickStart.md)** | 详细入门教程，包含 18 组从简到繁的完整示例（含 8A/8B/8C、9A/9B/9C） |
 | **[Architecture.md](Architecture.md)** | 架构设计说明：六层分层、设计原则、核心流程 |
 | **[Reference.md](Reference.md)** | 完整 API 参考手册：所有类、方法、参数说明 |
 

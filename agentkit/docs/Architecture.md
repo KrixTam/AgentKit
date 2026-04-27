@@ -575,6 +575,14 @@ agentkit/
 │   ├── structured_data.py   #   StructuredDataTool / ResultFormatter
 │   ├── sqlite_tool.py       #   SQLiteTool
 │   ├── nebula_tool.py       #   NebulaGraphTool
+│   ├── graph/               #   统一图接口层（Adapter/Repository/Tool）
+│   │   ├── protocols.py     #     GraphAdapter 协议
+│   │   ├── repository.py    #     GraphRepository（统一访问入口）
+│   │   ├── factory.py       #     create_graph_repository* 工厂
+│   │   ├── networkx_adapter.py
+│   │   ├── litegraph_adapter.py
+│   │   ├── nebula_adapter.py
+│   │   └── tool.py          #     GraphQueryTool
 │   └── skill_toolset.py     #   SkillToolset（4 个桥接工具）
 │
 ├── skills/                  # Skill 层
@@ -612,8 +620,8 @@ agentkit/
 │   └── schema.py            #   函数签名 → JSON Schema
 │
 ├── examples/                # 示例
-│   ├── standard/            #   标准版示例（01-18，含 9A/9B）
-│   ├── ollama/              #   Ollama 版示例（01-18，含 9A/9B）
+│   ├── standard/            #   标准版示例（01-18，含 8A/8B/8C、9A/9B/9C）
+│   ├── ollama/              #   Ollama 版示例（01-19，含 8A/8B/8C、9A/9B/9C）
 │   ├── quickstart.py
 │   └── test_ollama.py
 │

@@ -30,6 +30,7 @@ pip install ni.agentkit
 | `08_memory.py` | 记忆系统 — 跨会话长期记忆 | QuickStart 示例 8 |
 | `09a_structured_data_sql.py` | 关系型数据库 — 防止 SQL 注入的参数化 Tool | QuickStart 示例 9A |
 | `09b_structured_data_graph.py` | 图数据库 — 配合 Mock 运行的 NebulaGraphTool | QuickStart 示例 9B |
+| `09c_nebula_graph_tool.py` | NebulaGraphTool 最小可执行示例（工具层直调） | QuickStart 示例 9C |
 | `10_skill_lifecycle.py` | Skill 生命周期 — 管理外部资源连接池 | QuickStart 示例 10 |
 | `11_orchestration_enhancement.py` | 编排增强 — 循环退出条件与并行提前终止 | QuickStart 示例 11 |
 | `12_run_context_serialization.py` | RunContext 序列化与共享状态 | QuickStart 示例 12 |

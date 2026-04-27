@@ -43,7 +43,7 @@ flowchart LR
 ### AgentKit 文档
 
 - [概述](agentkit/docs/README.md)
-- [快速开始（18 组示例，含 9A/9B）](agentkit/docs/QuickStart.md)
+- [快速开始（18 组示例，含 8A/8B/8C、9A/9B/9C）](agentkit/docs/QuickStart.md)
 - [架构设计](agentkit/docs/Architecture.md)
 - [API 参考](agentkit/docs/Reference.md)
 - [示例目录（standard）](agentkit/examples/standard/README.md)

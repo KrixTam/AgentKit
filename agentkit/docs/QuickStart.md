@@ -1,6 +1,6 @@
 # AgentKit 快速入门教程
 
-> 本教程将带你从零开始，通过 18 组由简到繁的示例（含 8A/8B/8C、9A/9B），掌握 AgentKit 的核心用法。
+> 本教程将带你从零开始，通过 18 组由简到繁的示例（含 8A/8B/8C、9A/9B/9C），掌握 AgentKit 的核心用法。
 
 ---
 
@@ -21,6 +21,7 @@
 - [示例 8：记忆系统 — 跨会话长期记忆](#示例-8记忆系统--跨会话长期记忆)
 - [示例 9A：关系型数据库 — 防止 SQL 注入的参数化 Tool](#示例-9a关系型数据库--防止-sql-注入的参数化-tool)
 - [示例 9B：图数据库 — 配合 Mock 运行的 NebulaGraphTool](#示例-9b图数据库--配合-mock-运行的-nebulagraphtool)
+- [示例 9C：NebulaGraphTool 最小可执行示例（工具层直调）](#示例-9cnebulagraphtool-最小可执行示例工具层直调)
 - [示例 10：Skill 生命周期 — 管理外部资源连接池](#示例-10skill-生命周期--管理外部资源连接池)
 - [示例 11：编排增强 — 循环退出条件与并行提前终止](#示例-11编排增强--循环退出条件与并行提前终止)
 - [示例 12：RunContext 序列化与共享状态](#示例-12runcontext-序列化与共享状态)
@@ -824,6 +825,63 @@ if __name__ == "__main__":
 
 ---
 
+## 示例 9C：NebulaGraphTool 最小可执行示例（工具层直调）
+
+如果你想先验证 `NebulaGraphTool` 本身（参数校验、查询模板拼接、formatter 输出）是否工作正常，可以不经过 LLM，直接调用工具执行。
+
+```python
+import asyncio
+from typing import Any
+from pydantic import BaseModel, Field
+from agentkit.runner.context import RunContext
+from agentkit.tools.nebula_tool import NebulaGraphTool
+from agentkit.tools.structured_data import ResultFormatter
+
+class MockSession:
+    def execute(self, query: str):
+        print(f"[MockSession] execute gql => {query}")
+        return "mock_result_set"
+    def release(self): pass
+
+class MockConnectionPool:
+    def get_session(self, user, password):
+        return MockSession()
+
+class MockNebulaFormatter(ResultFormatter):
+    def format(self, raw_result: Any) -> Any:
+        return {"summary": "Query succeeded (mock)", "data": [{"friend_name": "Bob"}]}
+
+class PersonQueryArgs(BaseModel):
+    name: str = Field(..., pattern=r"^[A-Za-z0-9_]+$")
+
+nebula_tool = NebulaGraphTool(
+    name="find_person_friends",
+    description="查询某个人在图谱中的朋友关系",
+    parameters_schema=PersonQueryArgs,
+    query_template='MATCH (v:person)-[:friend]->(e:person) WHERE id(v) == "{name}" RETURN e.name AS friend_name;',
+    space_name="social_graph",
+    connection_pool=MockConnectionPool(),
+    formatter=MockNebulaFormatter(),
+)
+
+async def main():
+    payload = await nebula_tool.execute(RunContext(input="demo"), {"name": "Alice_001"})
+    print(payload)
+
+if __name__ == "__main__":
+    asyncio.run(main())
+```
+
+运行文件：
+- `examples/standard/09c_nebula_graph_tool.py`
+- `examples/ollama/09c_nebula_graph_tool.py`
+
+**要点**：
+- 该示例不依赖真实 Nebula 集群，也不依赖 LLM，可用于本地快速验证 Tool 行为。
+- 后续接入真实 Nebula 时，只需替换 `connection_pool` 与（可选）`formatter`。
+
+---
+
 ## 示例 10：Skill 生命周期 — 管理外部资源连接池
 
 当 Skill 依赖外部资源（如数据库连接池、长期会话句柄）时，你需要确保在使用前正确初始化，并在结束时安全释放。
@@ -1185,6 +1243,7 @@ agent = Agent(name="assistant", instructions="...")
 | [`08c_memory_file_provider.py`](../examples/standard/08c_memory_file_provider.py) | 示例 8C：记忆系统（文件持久化） |
 | [`09a_structured_data_sql.py`](../examples/standard/09a_structured_data_sql.py) | 示例 9A：关系型数据库 |
 | [`09b_structured_data_graph.py`](../examples/standard/09b_structured_data_graph.py) | 示例 9B：图数据库 |
+| [`09c_nebula_graph_tool.py`](../examples/standard/09c_nebula_graph_tool.py) | 示例 9C：NebulaGraphTool 最小可执行示例 |
 | [`10_skill_lifecycle.py`](../examples/standard/10_skill_lifecycle.py) | 示例 10：Skill 生命周期 |
 | [`11_orchestration_enhancement.py`](../examples/standard/11_orchestration_enhancement.py) | 示例 11：编排增强 |
 | [`12_run_context_serialization.py`](../examples/standard/12_run_context_serialization.py) | 示例 12：RunContext 序列化与共享状态 |
@@ -1211,6 +1270,7 @@ agent = Agent(name="assistant", instructions="...")
 | [`08c_memory_file_provider.py`](../examples/ollama/08c_memory_file_provider.py) | 示例 8C：记忆系统（文件持久化） |
 | [`09a_structured_data_sql.py`](../examples/ollama/09a_structured_data_sql.py) | 示例 9A：关系型数据库 |
 | [`09b_structured_data_graph.py`](../examples/ollama/09b_structured_data_graph.py) | 示例 9B：图数据库 |
+| [`09c_nebula_graph_tool.py`](../examples/ollama/09c_nebula_graph_tool.py) | 示例 9C：NebulaGraphTool 最小可执行示例 |
 | [`10_skill_lifecycle.py`](../examples/ollama/10_skill_lifecycle.py) | 示例 10：Skill 生命周期 |
 | [`11_orchestration_enhancement.py`](../examples/ollama/11_orchestration_enhancement.py) | 示例 11：编排增强 |
 | [`12_run_context_serialization.py`](../examples/ollama/12_run_context_serialization.py) | 示例 12：RunContext 序列化与共享状态 |
