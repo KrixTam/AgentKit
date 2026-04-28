@@ -308,6 +308,66 @@ agent = Agent(
 )
 ```
 
+### 方式 C：通过 `SKILL.md` 的 `tools.entry` 动态注册工具
+
+当 Skill 需要自带工具实现时，可以在 `tools` 字段中声明 `entry`。Skill 激活后，AgentKit 会按 `entry` 自动发现并注册工具。
+
+Skill 目录结构：
+
+```text
+skills/weather-tools-entry/
+├── SKILL.md
+└── tools/
+    └── weather_tools.py
+```
+
+`SKILL.md`（关键片段）：
+
+```yaml
+---
+name: weather-tools-entry
+description: 通过 SKILL.md 的 tools.entry 动态注册天气查询工具
+tools:
+  - name: weather_lookup
+    description: 查询城市天气并给出简要信息
+    entry: tools/weather_tools.py:weather_lookup
+    parameters:
+      city: { type: string, description: "城市名称，如北京/上海/深圳" }
+---
+```
+
+`tools/weather_tools.py`：
+
+```python
+def weather_lookup(city: str) -> str:
+    data = {"北京": "晴，25°C", "深圳": "阵雨，28°C"}
+    return data.get(city, f"{city}：暂无数据")
+```
+
+加载并使用（无需手动把 `weather_lookup` 放入 `Agent.tools`）：
+
+```python
+from pathlib import Path
+from agentkit import Agent, Runner, load_skill_from_dir
+
+skill_dir = Path("./skills/weather-tools-entry")
+skill = load_skill_from_dir(skill_dir)
+
+agent = Agent(
+    name="skill-tools-entry-agent",
+    instructions="你是天气助手。遇到天气问题优先加载并使用 weather-tools-entry Skill。",
+    model="ollama/qwen3.5:cloud",
+    skills=[skill],
+)
+
+result = Runner.run_sync(agent, input="深圳今天适合穿什么？")
+print(result.final_output)
+```
+
+> 可运行示例：
+> - `examples/standard/03b_skill_tools_entry.py`
+> - `examples/ollama/03b_skill_tools_entry.py`
+
 ### Skill 三级加载机制
 
 AgentKit 的 Skill 采用三级渐进式加载，避免浪费 token：
@@ -1234,6 +1294,7 @@ agent = Agent(name="assistant", instructions="...")
 | [`01_basic_chat.py`](../examples/standard/01_basic_chat.py) | 示例 1：最简 Agent |
 | [`02_tool_calling.py`](../examples/standard/02_tool_calling.py) | 示例 2：工具调用 |
 | [`03_skill_usage.py`](../examples/standard/03_skill_usage.py) | 示例 3：Skill 使用 |
+| [`03b_skill_tools_entry.py`](../examples/standard/03b_skill_tools_entry.py) | 示例 3B：Skill tools.entry 动态注册/发现 |
 | [`04_multi_agent.py`](../examples/standard/04_multi_agent.py) | 示例 4：多 Agent 协作 |
 | [`05_guardrail.py`](../examples/standard/05_guardrail.py) | 示例 5：安全护栏 |
 | [`06_orchestration.py`](../examples/standard/06_orchestration.py) | 示例 6：编排 Agent |
@@ -1261,6 +1322,7 @@ agent = Agent(name="assistant", instructions="...")
 | [`01_basic_chat.py`](../examples/ollama/01_basic_chat.py) | 示例 1：最简 Agent |
 | [`02_tool_calling.py`](../examples/ollama/02_tool_calling.py) | 示例 2：工具调用 |
 | [`03_skill_usage.py`](../examples/ollama/03_skill_usage.py) | 示例 3：Skill 使用 |
+| [`03b_skill_tools_entry.py`](../examples/ollama/03b_skill_tools_entry.py) | 示例 3B：Skill tools.entry 动态注册/发现 |
 | [`04_multi_agent.py`](../examples/ollama/04_multi_agent.py) | 示例 4：多 Agent 协作 |
 | [`05_guardrail.py`](../examples/ollama/05_guardrail.py) | 示例 5：安全护栏 |
 | [`06_orchestration.py`](../examples/ollama/06_orchestration.py) | 示例 6：编排 Agent |
@@ -1280,6 +1342,7 @@ agent = Agent(name="assistant", instructions="...")
 | [`16_lifecycle_hooks.py`](../examples/ollama/16_lifecycle_hooks.py) | 示例 16：生命周期 Hooks 与 Callbacks |
 | [`17_checkpoint_handoff_resume.py`](../examples/ollama/17_checkpoint_handoff_resume.py) | 示例 17：Checkpoint 深度恢复（Handoff + Resume） |
 | [`18_model_cosplay.py`](../examples/ollama/18_model_cosplay.py) | 示例 18：ModelCosplay（运行时改写预设模型） |
+| [`19_hitl_deterministic.py`](../examples/ollama/19_hitl_deterministic.py) | 示例 19：HITL 确定性触发 |
 
 ---
 

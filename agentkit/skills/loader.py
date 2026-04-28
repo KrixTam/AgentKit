@@ -60,6 +60,7 @@ def load_skill_from_dir(skill_dir: Union[str, pathlib.Path]) -> Skill:
         frontmatter=frontmatter,
         instructions=body,
         resources=SkillResources(references=references, assets=assets, scripts=scripts),
+        source_dir=str(skill_dir),
     )
 
 

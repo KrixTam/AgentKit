@@ -19,6 +19,7 @@ export OPENAI_API_KEY="sk-..."
 | `01_basic_chat.py` | 最简 Agent — 纯对话 | QuickStart 示例 1 |
 | `02_tool_calling.py` | 带工具的 Agent — Function Calling | QuickStart 示例 2 |
 | `03_skill_usage.py` | 带 Skill 的 Agent — 领域知识包 | QuickStart 示例 3 |
+| `03b_skill_tools_entry.py` | SKILL.md 的 tools.entry 动态工具注册/发现 | QuickStart 示例 3（方式 C） |
 | `04_multi_agent.py` | 多 Agent 协作 — Handoff 与 as_tool | QuickStart 示例 4 |
 | `05_guardrail.py` | 安全护栏 — Guardrail 与权限控制 | QuickStart 示例 5 |
 | `06_orchestration.py` | 编排 Agent — 流水线与循环 | QuickStart 示例 6 |

@@ -505,7 +505,7 @@ from agentkit import Skill, SkillFrontmatter, SkillResources
 | `on_load_hook` | `Callable \| None` | **生命周期钩子**：在 Agent 执行前加载资源 |
 | `on_unload_hook` | `Callable \| None` | **生命周期钩子**：在 Agent 执行后释放资源 |
 
-**便捷属性**：`skill.name`、`skill.description`、`skill.additional_tools`、`skill.llm_config`
+**便捷属性**：`skill.name`、`skill.description`、`skill.additional_tools`、`skill.triggers`、`skill.dependencies`、`skill.tools`、`skill.tool_specs`、`skill.llm_config`
 
 ---
 
@@ -516,7 +516,20 @@ from agentkit import Skill, SkillFrontmatter, SkillResources
 | `name` | `str` | kebab-case 标识符（≤64 字符） |
 | `description` | `str` | 描述（≤1024 字符） |
 | `license` | `str \| None` | 许可证 |
-| `metadata` | `dict` | 扩展元数据，可含 `additional_tools` 和 `llm_config` |
+| `compatibility` | `str \| None` | 可选兼容性标记（版本/平台约束） |
+| `triggers` | `list[str]` | 触发关键词列表，用于描述 Skill 的适用场景 |
+| `dependencies` | `list[str]` | Skill 运行依赖声明（如三方包/外部能力） |
+| `tools` | `list[SkillToolSpec]` | Skill 声明的工具列表；支持字符串简写和对象写法，最终归一化为 `SkillToolSpec` |
+| `metadata` | `dict` | 扩展元数据，可含 `additional_tools`（兼容旧写法）和 `llm_config` |
+
+`SkillToolSpec` 字段：
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `name` | `str` | 工具名称（必填） |
+| `description` | `str \| None` | 工具描述 |
+| `entry` | `str \| None` | 动态加载入口，格式 `module:attr` 或相对 Skill 目录的 `path.py:attr` |
+| `parameters` | `dict[str, Any]` | 参数 Schema 片段，用于构建工具 JSON Schema |
 
 ---
 

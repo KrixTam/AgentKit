@@ -13,12 +13,32 @@ from pydantic import BaseModel, Field, field_validator
 from ..llm.types import LLMConfig
 
 
+class SkillToolSpec(BaseModel):
+    """Skill frontmatter 中声明的工具规范。"""
+
+    name: str
+    description: Optional[str] = None
+    entry: Optional[str] = None
+    parameters: dict[str, Any] = Field(default_factory=dict)
+
+    @field_validator("name")
+    @classmethod
+    def validate_name(cls, v: str) -> str:
+        name = v.strip()
+        if not name:
+            raise ValueError("tool.name 不能为空")
+        return name
+
+
 class SkillFrontmatter(BaseModel):
     """L1：Skill 元数据"""
     name: str
     description: str
     license: Optional[str] = None
     compatibility: Optional[str] = None
+    triggers: list[str] = Field(default_factory=list)
+    dependencies: list[str] = Field(default_factory=list)
+    tools: list[SkillToolSpec] = Field(default_factory=list)
     metadata: dict[str, Any] = Field(default_factory=dict)
 
     @field_validator("name")
@@ -36,6 +56,42 @@ class SkillFrontmatter(BaseModel):
             raise ValueError("description 不超过 1024 字符")
         return v
 
+    @field_validator("triggers", "dependencies", mode="before")
+    @classmethod
+    def normalize_string_list(cls, v: Any) -> list[str]:
+        if v is None:
+            return []
+        if not isinstance(v, list):
+            raise ValueError("必须是字符串列表")
+        result: list[str] = []
+        for item in v:
+            if not isinstance(item, str):
+                raise ValueError("必须是字符串列表")
+            text = item.strip()
+            if text:
+                result.append(text)
+        return result
+
+    @field_validator("tools", mode="before")
+    @classmethod
+    def normalize_tools(cls, v: Any) -> list[dict[str, Any]]:
+        if v is None:
+            return []
+        if not isinstance(v, list):
+            raise ValueError("tools 必须是列表")
+        result: list[dict[str, Any]] = []
+        for item in v:
+            if isinstance(item, str):
+                name = item.strip()
+                if name:
+                    result.append({"name": name})
+                continue
+            if isinstance(item, dict):
+                result.append(item)
+                continue
+            raise ValueError("tools 列表项必须是字符串或对象")
+        return result
+
     @property
     def llm_config(self) -> Optional[LLMConfig]:
         raw = self.metadata.get("llm_config")
@@ -45,6 +101,8 @@ class SkillFrontmatter(BaseModel):
 
     @property
     def additional_tools(self) -> list[str]:
+        if self.tools:
+            return [tool.name for tool in self.tools]
         return self.metadata.get("additional_tools", [])
 
 
@@ -88,6 +146,7 @@ class Skill(BaseModel):
     frontmatter: SkillFrontmatter
     instructions: str
     resources: SkillResources = Field(default_factory=SkillResources)
+    source_dir: Optional[str] = Field(default=None, exclude=True)
     
     # 资源与生命周期
     context: dict[str, Any] = Field(default_factory=dict, exclude=True)
@@ -141,6 +200,22 @@ class Skill(BaseModel):
     @property
     def additional_tools(self) -> list[str]:
         return self.frontmatter.additional_tools
+
+    @property
+    def triggers(self) -> list[str]:
+        return self.frontmatter.triggers
+
+    @property
+    def dependencies(self) -> list[str]:
+        return self.frontmatter.dependencies
+
+    @property
+    def tools(self) -> list[str]:
+        return [tool.name for tool in self.frontmatter.tools]
+
+    @property
+    def tool_specs(self) -> list[SkillToolSpec]:
+        return self.frontmatter.tools
 
     @property
     def llm_config(self) -> Optional[LLMConfig]:

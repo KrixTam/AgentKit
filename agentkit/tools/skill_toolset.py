@@ -9,10 +9,18 @@ agentkit/tools/skill_toolset.py — SkillToolset：Skill → Tool 桥接器
 """
 from __future__ import annotations
 
+import importlib
+import importlib.util
+import inspect
+import logging
+import pathlib
+import types
 from typing import Any
 from ..skills.models import Skill
 from .base_tool import BaseTool, BaseToolset
 from .function_tool import FunctionTool
+
+logger = logging.getLogger("agentkit.skill_toolset")
 
 
 class SkillToolset(BaseToolset):
@@ -26,6 +34,7 @@ class SkillToolset(BaseToolset):
         self._skills: dict[str, Skill] = {s.name: s for s in skills}
         self._additional_tools: dict[str, BaseTool] = {t.name: t for t in (additional_tools or [])}
         self._activated_skills: set[str] = set()
+        self._entry_tool_cache: dict[tuple[str, str], BaseTool] = {}
 
     def set_additional_tools(self, tools: list[BaseTool]) -> None:
         """更新可供 Skill 动态注入的工具集合。"""
@@ -201,7 +210,112 @@ class SkillToolset(BaseToolset):
             skill = self._skills.get(skill_name)
             if skill:
                 for tool_name in skill.additional_tools:
-                    if tool_name in self._additional_tools and tool_name not in seen_tools:
-                        tools.append(self._additional_tools[tool_name])
+                    if tool_name in seen_tools:
+                        continue
+                    tool = self._additional_tools.get(tool_name)
+                    if tool is None:
+                        tool = self._load_tool_from_skill_entry(skill, tool_name)
+                        if tool is not None:
+                            self._additional_tools[tool_name] = tool
+                    if tool is not None:
+                        tools.append(tool)
                         seen_tools.add(tool_name)
         return tools
+
+    def _load_tool_from_skill_entry(self, skill: Skill, tool_name: str) -> BaseTool | None:
+        spec = next((item for item in skill.tool_specs if item.name == tool_name), None)
+        if spec is None or not spec.entry:
+            return None
+
+        cache_key = (skill.name, tool_name)
+        if cache_key in self._entry_tool_cache:
+            return self._entry_tool_cache[cache_key]
+
+        try:
+            target = self._resolve_entry_target(skill, spec.entry)
+            if isinstance(target, BaseTool):
+                tool = target
+            elif callable(target):
+                tool = FunctionTool(
+                    name=spec.name,
+                    description=spec.description or "",
+                    handler=target,
+                    json_schema=self._build_json_schema(spec.parameters),
+                    takes_context=self._callable_takes_context(target),
+                )
+            else:
+                logger.warning(
+                    "Skill '%s' tool '%s' entry '%s' 不是可调用对象",
+                    skill.name,
+                    tool_name,
+                    spec.entry,
+                )
+                return None
+        except Exception as exc:
+            logger.warning(
+                "加载 Skill '%s' tool '%s' entry '%s' 失败: %s",
+                skill.name,
+                tool_name,
+                spec.entry,
+                exc,
+            )
+            return None
+
+        self._entry_tool_cache[cache_key] = tool
+        return tool
+
+    def _resolve_entry_target(self, skill: Skill, entry: str) -> Any:
+        module_ref, attr_name = entry.split(":", 1)
+        module_ref = module_ref.strip()
+        attr_name = attr_name.strip()
+        if not module_ref or not attr_name:
+            raise ValueError("entry 格式必须为 '<module_or_path>:<attr>'")
+
+        if module_ref.endswith(".py") or "/" in module_ref or module_ref.startswith("."):
+            if not skill.source_dir:
+                raise ValueError("Skill 未提供 source_dir，无法解析相对 entry 路径")
+            file_path = pathlib.Path(module_ref)
+            if not file_path.is_absolute():
+                file_path = pathlib.Path(skill.source_dir) / file_path
+            if not file_path.exists():
+                raise FileNotFoundError(f"未找到 entry 文件: {file_path}")
+            module_name = f"_agentkit_skill_{skill.name}_{attr_name}_{abs(hash(str(file_path)))}"
+            module_spec = importlib.util.spec_from_file_location(module_name, str(file_path))
+            if module_spec is None or module_spec.loader is None:
+                raise ImportError(f"无法加载模块: {file_path}")
+            module = importlib.util.module_from_spec(module_spec)
+            module_spec.loader.exec_module(module)
+        else:
+            module = importlib.import_module(module_ref)
+
+        if not hasattr(module, attr_name):
+            raise AttributeError(f"模块中不存在属性: {attr_name}")
+        return getattr(module, attr_name)
+
+    def _build_json_schema(self, params: dict[str, Any]) -> dict[str, Any]:
+        properties: dict[str, Any] = {}
+        required: list[str] = []
+        for name, spec in (params or {}).items():
+            if isinstance(spec, dict):
+                properties[name] = dict(spec)
+                if "type" not in properties[name]:
+                    properties[name]["type"] = "string"
+                if "default" not in properties[name]:
+                    required.append(name)
+            else:
+                properties[name] = {"type": "string", "description": str(spec)}
+                required.append(name)
+        schema: dict[str, Any] = {"type": "object", "properties": properties}
+        if required:
+            schema["required"] = required
+        return schema
+
+    def _callable_takes_context(self, fn: Any) -> bool:
+        if not isinstance(fn, (types.FunctionType, types.MethodType)):
+            return False
+        sig = inspect.signature(fn)
+        params = list(sig.parameters.values())
+        if not params:
+            return False
+        first = params[0]
+        return first.name in {"ctx", "context", "run_context"}

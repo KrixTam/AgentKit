@@ -1,9 +1,9 @@
 # AgentHub 测试报告
 
-> 测试时间：`2026-04-23`  
+> 测试时间：`2026-04-28`  
 > 测试环境：`macOS (Apple Silicon)`  
 > AgentHub 版本：`v0.3.4`  
-> AgentKit 版本：`v0.6.3`  
+> AgentKit 版本：`v0.7.1`  
 > 存储模式：`memory + sqlite`
 
 ---
@@ -32,7 +32,7 @@
 
 | 场景 | 耗时 | 备注 |
 |---|---:|---|
-| 全量测试套件（16 项） | 0.27s | `python -m pytest ./agenthub/tests -q`（`16 passed`） |
+| 全量测试套件（16 项） | 0.32s | `python -m pytest ./tests -q`（`16 passed`） |
 | 注册 Agent | 已覆盖 | 含 manifest 校验 |
 | 首次 invoke | 已覆盖 | 含 entry 首次加载与原型缓存路径 |
 | SSE 流式会话 | 已覆盖 | 含事件持久化 |
