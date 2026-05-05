@@ -5,6 +5,7 @@ import os
 
 # 确保能导入 agentkit
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../../..")))
+from model_config import resolve_model
 
 from agentkit import Agent, Runner, Skill, SkillFrontmatter
 
@@ -38,7 +39,7 @@ async def main():
     agent = Agent(
         name="assistant",
         instructions="你是一个助手，请简短回答即可。",
-        model="gpt-4o",
+        model=resolve_model("gpt-4o"),
         skills=[db_skill],
     )
     

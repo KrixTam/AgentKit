@@ -8,6 +8,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../.
 from agentkit import Agent, Runner, LoopAgent, ParallelAgent
 from agentkit.runner.events import Event
 from agentkit.agents.base_agent import BaseAgent
+from model_config import resolve_model
 
 # ==========================================
 # 1. LoopAgent 增强：基于动态状态提前退出循环
@@ -28,7 +29,7 @@ loop_agent = LoopAgent(
         Agent(
             name="coder", 
             instructions="请说：'我已经优化了一版代码'", 
-            model="ollama/qwen3.5:cloud" # Ollama 版
+            model=resolve_model() # Ollama 版
         ),
     ]
 )

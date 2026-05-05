@@ -3,12 +3,11 @@ import os
 import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", ".."))
+from model_config import resolve_model
 
 from agentkit import Agent, BaseMemoryProvider, Memory, Runner
 
-MODEL = "gpt-4o"
-
-
+MODEL = resolve_model("gpt-4o")
 class SimpleMemory(BaseMemoryProvider):
     def __init__(self) -> None:
         self._store: list[Memory] = []
@@ -37,7 +36,6 @@ class SimpleMemory(BaseMemoryProvider):
         self._store = [m for m in self._store if m.id != memory_id]
         return True
 
-
 async def main() -> None:
     print("=== 示例 8A：SimpleMemory ===")
     memory = SimpleMemory()
@@ -53,7 +51,6 @@ async def main() -> None:
     result = await Runner.run(agent, input="帮我推荐一杯饮料。", user_id="user_001")
     print("推荐:", result.final_output)
     print("记忆条数:", len(await memory.get_all()))
-
 
 if __name__ == "__main__":
     asyncio.run(main())

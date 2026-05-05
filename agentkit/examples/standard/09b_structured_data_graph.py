@@ -2,6 +2,7 @@ import asyncio
 import logging
 from typing import Any
 from pydantic import BaseModel, Field
+from model_config import resolve_model
 from agentkit import Agent, Runner
 
 from agentkit.tools.structured_data import ResultFormatter
@@ -61,7 +62,7 @@ async def main():
     agent = Agent(
         name="GraphAssistant",
         instructions="你是一个图数据库查询助手，请帮我查询并用自然语言总结结果。",
-        model="gpt-4o", # 标准版使用 GPT-4o
+        model=resolve_model("gpt-4o"), # 标准版使用 GPT-4o
         tools=[nebula_tool],
     )
     

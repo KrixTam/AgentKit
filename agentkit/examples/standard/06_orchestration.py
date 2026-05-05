@@ -14,9 +14,9 @@
 """
 import sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", ".."))
+from model_config import resolve_model
 
 from agentkit import Agent, Runner, SequentialAgent, ParallelAgent, LoopAgent
-
 
 # ============================================================
 # 模式 A：顺序执行 — 报告生成流水线
@@ -32,17 +32,17 @@ pipeline = SequentialAgent(
         Agent(
             name="extractor",
             instructions="你是数据提取专家。从用户输入中提取所有关键数据点，以列表形式输出。",
-            model="gpt-4o",
+            model=resolve_model("gpt-4o"),
         ),
         Agent(
             name="analyzer",
             instructions="你是数据分析专家。分析上文提取的数据点，找出趋势和规律，给出 2-3 条洞察。",
-            model="gpt-4o",
+            model=resolve_model("gpt-4o"),
         ),
         Agent(
             name="reporter",
             instructions="你是报告撰写专家。将上文的分析结果写成一段简洁的中文报告（不超过 100 字）。",
-            model="gpt-4o",
+            model=resolve_model("gpt-4o"),
         ),
     ],
 )
@@ -52,7 +52,6 @@ print(f"\n输入: 今年Q1销售额1000万...")
 for event in result.events:
     if event.type == "final_output":
         print(f"  [{event.agent}] {event.data}")
-
 
 # ============================================================
 # 模式 B：并行执行 — 多维度分析
@@ -68,17 +67,17 @@ parallel = ParallelAgent(
         Agent(
             name="financial",
             instructions="你是财务分析师。用一句话分析给定数据的财务状况。",
-            model="gpt-4o",
+            model=resolve_model("gpt-4o"),
         ),
         Agent(
             name="market",
             instructions="你是市场分析师。用一句话分析给定数据反映的市场趋势。",
-            model="gpt-4o",
+            model=resolve_model("gpt-4o"),
         ),
         Agent(
             name="risk",
             instructions="你是风险分析师。用一句话分析给定数据中的潜在风险。",
-            model="gpt-4o",
+            model=resolve_model("gpt-4o"),
         ),
     ],
 )
@@ -88,7 +87,6 @@ print(f"\n输入: 公司年收入 5 亿...")
 for event in result.events:
     if event.type == "final_output":
         print(f"  [{event.agent}] {event.data}")
-
 
 # ============================================================
 # 模式 C：循环执行 — 迭代优化
@@ -105,12 +103,12 @@ loop = LoopAgent(
         Agent(
             name="writer",
             instructions="你是一个文案写手。根据用户需求或上轮反馈，写一句广告语。只输出广告语本身。",
-            model="gpt-4o",
+            model=resolve_model("gpt-4o"),
         ),
         Agent(
             name="critic",
             instructions="你是一个文案评审。评估上面的广告语，如果已经很好则只输出'通过'，否则给出简短的改进建议。",
-            model="gpt-4o",
+            model=resolve_model("gpt-4o"),
         ),
     ],
 )

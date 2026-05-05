@@ -12,9 +12,9 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", ".."))
+from model_config import resolve_model
 
 from agentkit import Agent, Runner, load_skill_from_dir
-
 
 skill_dir = Path(__file__).resolve().parents[1] / "skills" / "weather-tools-entry"
 weather_skill = load_skill_from_dir(skill_dir)
@@ -22,7 +22,7 @@ weather_skill = load_skill_from_dir(skill_dir)
 agent = Agent(
     name="skill-tools-entry-agent",
     instructions="你是天气助手。遇到天气问题优先加载并使用 weather-tools-entry Skill。",
-    model="gpt-4o",
+    model=resolve_model("gpt-4o"),
     skills=[weather_skill],
 )
 

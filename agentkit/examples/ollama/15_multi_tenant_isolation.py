@@ -18,6 +18,7 @@ from agentkit.agents.agent import Agent
 from agentkit.runner.runner import Runner
 from agentkit.memory.mem0_provider import Mem0Provider
 from agentkit.skills.models import Skill, SkillFrontmatter
+from model_config import resolve_model
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 
@@ -71,7 +72,7 @@ async def main():
         memory=memory,
         skills=[tenant_skill],
         tools=[increment_counter],
-        model="ollama/qwen2.5:7b" # 使用 Ollama
+        model=resolve_model() # 使用 Ollama
     )
 
     print("=== 测试 1：User A 存储记忆并增加计数 ===")

@@ -1,6 +1,6 @@
 # AgentHub 快速入门
 
-> 本文档基于当前代码实现（发行包：`ni.agenthub==0.3.4`，运行命令：`agenthub`）。
+> 本文档基于当前代码实现（发行包：`ni.agenthub==0.4.0`，运行命令：`agenthub`）。
 
 ***
 
@@ -23,6 +23,13 @@ pip install -e .
 agenthub serve --store sqlite --sqlite-path .agenthub/agenthub.db
 ```
 
+默认会将 AgentHub 结构化日志写入：`.agenthub/agenthub.log`。
+可实时查看：
+
+```bash
+tail -f .agenthub/agenthub.log
+```
+
 ### 内存模式（轻量调试）
 
 ```bash
@@ -40,6 +47,45 @@ agenthub serve --store memory
 ```bash
 cp ./docs/agent.yaml.example ./agent.yaml
 ```
+
+也可以通过命令行根据 Agent 代码入口自动生成：
+
+```bash
+agenthub manifest generate \
+  --entry agenthub.demo_agent:create_agent \
+  --output ./agent.yaml
+```
+
+或使用本地文件路径入口：
+
+```bash
+agenthub manifest generate \
+  --entry ./agenthub/demo_agent.py:create_agent \
+  --output ./agent.yaml
+```
+
+常用参数：
+
+- `--name`：覆盖自动推断的 Agent 名称
+- `--version`：设置语义化版本（默认 `1.0.0`）
+- `--description`：覆盖自动推断描述
+- `--max-turns`：设置 `runner_config.max_turns`（默认 `10`）
+- `--force`：覆盖已存在的输出文件
+
+其中 `--entry` 同时支持两种格式：
+
+- `module:attr`（如 `agenthub.demo_agent:create_agent`）
+- `path.py:attr`（如 `./agenthub/demo_agent.py:create_agent`）
+
+说明：文件路径写法建议显式带 `.py`；当前实现也兼容不带后缀的同名 Python 文件（如 `./agenthub/demo_agent:create_agent`）。
+
+常见报错排查：
+
+- `manifest_generate_failed: not enough values to unpack ...`：`--entry` 格式错误，需使用 `module:attr` 或 `path.py:attr`。
+- `manifest_generate_failed: entry 文件不存在 ...`：文件路径不存在或当前目录不正确，建议先执行 `pwd` 确认位置。
+- `manifest_generate_failed: No module named ...`：模块不可导入，检查虚拟环境依赖与执行目录。
+- `manifest_generate_failed: 模块中不存在属性 ...`：`attr` 名称错误，确认代码中确实定义了该符号。
+- `manifest_generate_failed: ... required positional arguments ...`：入口函数需要参数，建议改为无参工厂，或让 `entry` 指向已创建的 Agent 实例。
 
 ```yaml
 name: demo-echo
@@ -68,7 +114,7 @@ runner_config:
 tags: [demo, stable]
 ```
 
-`entry` 必须是 `module:attr` 格式；若校验失败，服务端会返回字段级错误信息。
+`entry` 支持 `module:attr` 与 `path.py:attr` 两种格式；若校验失败，服务端会返回字段级错误信息。
 当 `agent.yaml` 配置了 `model_cosplay` 时，Hub 会在实例化该 Agent 后默认应用该配置；如果调用请求中也传入了 `model_cosplay`，则请求参数优先。
 上述示例可直接用（将 `agent.yaml.example` 重命名/复制为 `agent.yaml` 后可注册并调用）。
 
@@ -116,7 +162,50 @@ Content-Type: application/json
 
 ***
 
-## 5. 流式调用（SSE）
+## 5. Chat 页面（Streamlit）
+
+### 前置步骤（必需）
+
+在启动 Chat 页面前，请先确认以下条件已满足：
+
+1. AgentHub 网关已启动（例如 `agenthub serve --store sqlite --sqlite-path .agenthub/agenthub.db`）。
+2. 至少已注册一个 Agent（参考上文“3. 注册与发现”）。
+3. 若启用了鉴权，请准备 Bearer token（`--token`）。
+
+可选连通性自检：
+
+```bash
+agenthub list
+```
+
+若该命令失败或返回连接错误，请先排查网关地址与进程状态，再启动 Chat。
+
+安装 Chat 可选依赖：
+
+```bash
+pip install "ni.agenthub[chat]"
+```
+
+启动 Chat 页面（默认 `http://127.0.0.1:8501`）：
+
+```bash
+agenthub chat --server http://127.0.0.1:8008
+```
+
+常用参数：
+
+- `--name`：默认选中的 Agent 名称
+- `--version`：默认版本或别名（默认 `latest`）
+- `--user-id`：默认透传 `user_id`
+- `--model-cosplay`：默认 `model_cosplay`
+- `--max-turns`：默认最大轮次
+- `--token`：Bearer token（可复用全局参数）
+
+页面会自动读取当前已注册 Agent 列表，并通过 `/api/v1/agents/{name}:{version}/invoke` 发起对话调用。
+
+***
+
+## 6. 流式调用（SSE）
 
 ```bash
 curl -N \
@@ -142,7 +231,7 @@ SSE 消息体示例：
 
 ***
 
-## 6. 双向通道（WS）与 HITL
+## 7. 双向通道（WS）与 HITL
 
 WebSocket 地址：`/api/v1/agents/{name}:{version}/ws`
 
@@ -166,7 +255,7 @@ WebSocket 地址：`/api/v1/agents/{name}:{version}/ws`
 
 ***
 
-## 7. 会话与回放
+## 8. 会话与回放
 
 ```bash
 # 列出会话（可选按状态过滤）
@@ -196,7 +285,7 @@ REST 对应接口：
 
 补充说明：当同一会话存在多个 pending 挂起点时，`resume`/`submit` 建议传 `suspension_id` 精准恢复；`GET /api/v1/hitl/{session_id}/form` 也支持同名 query 参数按挂起点读取表单。
 
-## 8. 鉴权说明
+## 9. 鉴权说明
 
 当前仅支持 Bearer 头：
 
@@ -206,7 +295,7 @@ Authorization: Bearer <token>
 
 ***
 
-## 9. 运维与观测
+## 10. 运维与观测
 
 - 健康检查：`GET /healthz`
 - 指标：`GET /metrics`（Prometheus 文本格式）
@@ -215,7 +304,7 @@ Authorization: Bearer <token>
 
 ***
 
-## 10. Playground 体验指南
+## 11. Playground 体验指南
 
 Playground 是 AgentHub 内置的可视化联调控制台。你可以通过浏览器访问 `http://127.0.0.1:8008/playground` 体验全流程。
 

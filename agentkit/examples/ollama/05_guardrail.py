@@ -18,7 +18,7 @@ from agentkit import (
     input_guardrail, output_guardrail, GuardrailResult,
     PermissionPolicy,
 )
-
+from model_config import resolve_model
 
 # ===== 定义工具 =====
 
@@ -31,7 +31,6 @@ def read_file(filename: str) -> str:
 def delete_file(filename: str) -> str:
     """删除文件"""
     return f"[模拟] 已删除文件 {filename}"
-
 
 # ===== 定义护栏 =====
 
@@ -54,13 +53,12 @@ async def check_output_safety(ctx, output):
             return GuardrailResult(triggered=True, reason=f"输出包含危险内容: {word}")
     return GuardrailResult(triggered=False)
 
-
 # ===== 创建带安全护栏的 Agent =====
 
 agent = Agent(
     name="safe-agent",
     instructions="你是一个安全的助手。可以帮用户读取文件，但不能删除文件。",
-    model="ollama/qwen3.5:cloud",
+    model=resolve_model("qwen3.5:cloud"),
     tools=[read_file, delete_file],
     input_guardrails=[block_sensitive_words],
     output_guardrails=[check_output_safety],
@@ -69,7 +67,6 @@ agent = Agent(
         allowed_tools={"read_file"},
     ),
 )
-
 
 # ===== 运行测试 =====
 

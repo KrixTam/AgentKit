@@ -17,7 +17,6 @@ from agentkit.agents.base_agent import BaseAgent
 from agentkit.runner.context import RunContext
 from agentkit.runner.events import Event, EventType
 
-
 class DeterministicHITLAgent(BaseAgent):
     async def _run_impl(self, ctx: RunContext) -> AsyncGenerator[Event, None]:
         # 第一次进入会话时，确定性触发挂起。
@@ -51,7 +50,6 @@ class DeterministicHITLAgent(BaseAgent):
             type=EventType.FINAL_OUTPUT,
             data=f"已收到人工决策: {decision}",
         )
-
 
 agent = DeterministicHITLAgent(name="deterministic-hitl-agent")
 

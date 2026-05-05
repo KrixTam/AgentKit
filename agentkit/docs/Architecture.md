@@ -620,8 +620,8 @@ agentkit/
 │   └── schema.py            #   函数签名 → JSON Schema
 │
 ├── examples/                # 示例
-│   ├── standard/            #   标准版示例（01-18 + 03B，含 8A/8B/8C、9A/9B/9C）
-│   ├── ollama/              #   Ollama 版示例（01-19 + 03B，含 8A/8B/8C、9A/9B/9C）
+│   ├── standard/            #   标准版示例（24 个：01-18 + 03B，含 8A/8B/8C、9A/9B/9C）
+│   ├── ollama/              #   Ollama 版示例（26 个：01-19 + 03B + 05_human_in_the_loop，含 8A/8B/8C、9A/9B/9C）
 │   ├── quickstart.py
 │   └── test_ollama.py
 │

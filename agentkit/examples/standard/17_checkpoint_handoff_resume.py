@@ -17,7 +17,6 @@ from agentkit.runner.context_store import InMemoryContextStore
 from agentkit.runner.events import Event, EventType
 from agentkit.runner.runner import Runner
 
-
 class ReviewAgent(BaseAgent):
     async def _run_impl(self, ctx: RunContext) -> AsyncGenerator[Event, None]:
         # 第一次进入：请求人工输入并挂起
@@ -45,11 +44,9 @@ class ReviewAgent(BaseAgent):
         decision = tool_msgs[-1].get("content", "unknown") if tool_msgs else "unknown"
         yield Event(agent=self.name, type=EventType.FINAL_OUTPUT, data=f"Review completed: {decision}")
 
-
 class RootAgent(BaseAgent):
     async def _run_impl(self, ctx: RunContext) -> AsyncGenerator[Event, None]:
         yield Event(agent=self.name, type=EventType.HANDOFF, data={"target": "reviewer"})
-
 
 async def main() -> None:
     root = RootAgent(name="root")
@@ -78,7 +75,6 @@ async def main() -> None:
         context_store=store,
     ):
         print(f"[resume] {event.type} | agent={event.agent} | data={event.data}")
-
 
 if __name__ == "__main__":
     asyncio.run(main())

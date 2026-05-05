@@ -15,7 +15,7 @@ from pathlib import Path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", ".."))
 
 from agentkit import Agent, Runner, load_skill_from_dir
-
+from model_config import resolve_model
 
 skill_dir = Path(__file__).resolve().parents[1] / "skills" / "weather-tools-entry"
 weather_skill = load_skill_from_dir(skill_dir)
@@ -23,7 +23,7 @@ weather_skill = load_skill_from_dir(skill_dir)
 agent = Agent(
     name="skill-tools-entry-agent",
     instructions="你是天气助手。遇到天气问题优先加载并使用 weather-tools-entry Skill。",
-    model="ollama/qwen3.5:cloud",
+    model=resolve_model(),
     skills=[weather_skill],
 )
 

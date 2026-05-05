@@ -7,6 +7,7 @@ import os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../../..")))
 
 from agentkit import Agent, Runner, Skill, SkillFrontmatter
+from model_config import resolve_model
 
 logging.basicConfig(level=logging.INFO)
 
@@ -35,7 +36,7 @@ async def main():
     agent = Agent(
         name="assistant",
         instructions="你是一个助手，请简短回答即可。",
-        model="ollama/qwen3.5:cloud", # Ollama 版
+        model=resolve_model(), # Ollama 版
         skills=[db_skill],
     )
     

@@ -9,6 +9,7 @@
 """
 import sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", ".."))
+from model_config import resolve_model
 
 from agentkit import Agent, Runner
 
@@ -16,7 +17,7 @@ from agentkit import Agent, Runner
 agent = Agent(
     name="assistant",
     instructions="你是一个有帮助的中文助手。回答尽量简洁。",
-    model="gpt-4o",
+    model=resolve_model("gpt-4o"),
 )
 
 # 同步运行

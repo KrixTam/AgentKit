@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import importlib
+import importlib.util
 import logging
 import time
 import uuid
 from collections import deque
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any, Callable
 
 from agentkit.runner.context_store import ContextStore
@@ -17,9 +19,46 @@ from .stores.base import RegistryStore, SessionStore
 logger = logging.getLogger("agenthub.runtime")
 
 
+def _is_file_entry_target(target: str) -> bool:
+    return target.endswith(".py") or "/" in target or "\\" in target or target.startswith(".")
+
+
+def _resolve_entry_file_path(target: str) -> Path:
+    path = Path(target).expanduser()
+    if not path.is_absolute():
+        path = (Path.cwd() / path).resolve()
+    if path.exists():
+        return path
+    # 兼容：用户传入不带 .py 的路径时，自动补全后缀再探测
+    if not path.suffix:
+        with_py = path.with_suffix(".py")
+        if with_py.exists():
+            return with_py
+    raise FileNotFoundError(f"entry 文件不存在: {path}")
+
+
+def _load_module_from_file(target: str):
+    file_path = _resolve_entry_file_path(target)
+    module_name = f"_agenthub_entry_{file_path.stem}_{abs(hash(str(file_path)))}"
+    spec = importlib.util.spec_from_file_location(module_name, str(file_path))
+    if spec is None or spec.loader is None:
+        raise ImportError(f"无法从文件加载模块: {file_path}")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
 def load_entry(entry: str) -> Any:
     module_name, attr_name = entry.split(":", 1)
-    module = importlib.import_module(module_name)
+    module_name = module_name.strip()
+    attr_name = attr_name.strip()
+    if not module_name or not attr_name:
+        raise ValueError("entry 格式必须为 module:attr 或 path.py:attr")
+
+    if _is_file_entry_target(module_name):
+        module = _load_module_from_file(module_name)
+    else:
+        module = importlib.import_module(module_name)
     value = getattr(module, attr_name)
     return value() if callable(value) else value
 

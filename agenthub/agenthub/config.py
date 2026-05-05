@@ -19,6 +19,8 @@ class HubConfig:
     oidc_issuer: str | None = None
     max_concurrency_per_user: int = 8
     rate_limit_per_minute: int = 120
+    log_file: str = ".agenthub/agenthub.log"
+    log_level: str = "INFO"
 
     @classmethod
     def from_env(cls) -> "HubConfig":
@@ -34,4 +36,6 @@ class HubConfig:
             oidc_issuer=os.getenv("AGENTHUB_OIDC_ISSUER"),
             max_concurrency_per_user=int(os.getenv("AGENTHUB_MAX_CONCURRENCY_PER_USER", "8")),
             rate_limit_per_minute=int(os.getenv("AGENTHUB_RATE_LIMIT_PER_MINUTE", "120")),
+            log_file=os.getenv("AGENTHUB_LOG_FILE", ".agenthub/agenthub.log"),
+            log_level=os.getenv("AGENTHUB_LOG_LEVEL", "INFO"),
         )

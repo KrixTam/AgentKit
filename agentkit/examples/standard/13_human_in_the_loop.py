@@ -5,6 +5,7 @@
 并在挂起后通过 ContextStore 保存状态，之后再通过 resume 恢复执行。
 """
 import asyncio
+from model_config import resolve_model
 from agentkit import Agent, Runner
 from agentkit.tools.function_tool import FunctionTool
 from agentkit.tools.base_tool import request_human_input
@@ -33,7 +34,7 @@ async def main():
         name="ops_agent",
         instructions="你是一个运维助手。当用户要求执行操作时，你必须先使用 confirm_action 工具获取确认。只有确认后才能使用 execute_action 工具。",
         tools=[confirm_tool, execute_tool],
-        model="gpt-4o-mini" # 或你配置的默认模型
+        model=resolve_model("gpt-4o-mini") # 或你配置的默认模型
     )
     
     # 使用内存存储保存挂起的上下文

@@ -216,3 +216,26 @@ def test_manifest_model_cosplay_default_applied():
     )
     assert resp.status_code == 200
     assert resp.json()["data"]["run_result"]["final_output"] == "model:manifest-default-model"
+
+
+def test_acceptance_file_path_entry_loads_agent():
+    with tempfile.TemporaryDirectory() as d:
+        entry_file = os.path.join(d, "demo_path_entry.py")
+        with open(entry_file, "w", encoding="utf-8") as f:
+            f.write(
+                "from tests.fixtures.demo_agents import create_echo_agent\n\n"
+                "def create_agent():\n"
+                "    return create_echo_agent()\n"
+            )
+
+        app = create_app(HubConfig(store_type="memory"))
+        client = TestClient(app)
+        _register(
+            client,
+            _manifest("demo-path-entry", "1.0.0", f"{entry_file}:create_agent"),
+            aliases=["latest"],
+        )
+
+        invoke = client.post("/api/v1/agents/demo-path-entry:latest/invoke", json={"input": "hello", "session_id": "path-s1"})
+        assert invoke.status_code == 200
+        assert invoke.json()["data"]["run_result"]["final_output"] == "echo:hello"

@@ -7,10 +7,8 @@ from pathlib import Path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", ".."))
 
 from agentkit import Agent, BaseMemoryProvider, Memory, Runner
-
-MODEL = "ollama/qwen3.5:cloud"
+from model_config import resolve_model
 MEMORY_FILE = "/tmp/agentkit_memory_ollama.json"
-
 
 class FileMemoryProvider(BaseMemoryProvider):
     def __init__(self, file_path: str) -> None:
@@ -79,14 +77,13 @@ class FileMemoryProvider(BaseMemoryProvider):
         self._save()
         return len(self._records) < before
 
-
 async def main() -> None:
     print("=== 示例 8C：自定义 FileMemoryProvider（文件持久化） ===")
     memory = FileMemoryProvider(MEMORY_FILE)
     agent = Agent(
         name="file-memory-assistant",
         instructions="你是贴心助手。根据记忆回答，回答简洁。",
-        model=MODEL,
+        model=resolve_model(),
         memory=memory,
         memory_async_write=False,
     )
@@ -96,7 +93,6 @@ async def main() -> None:
     print("推荐:", result.final_output)
     print("持久化文件:", MEMORY_FILE)
     print("当前记忆数:", len(await memory.get_all(user_id="user_001")))
-
 
 if __name__ == "__main__":
     asyncio.run(main())

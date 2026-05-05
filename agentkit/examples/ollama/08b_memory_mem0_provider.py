@@ -5,9 +5,7 @@ import sys
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", ".."))
 
 from agentkit import Agent, Runner
-
-MODEL = "ollama/qwen3.5:cloud"
-
+from model_config import resolve_model
 
 async def main() -> None:
     print("=== 示例 8B：Mem0Provider ===")
@@ -17,10 +15,6 @@ async def main() -> None:
         print("未安装 mem0ai，跳过运行。")
         print("安装: pip install mem0ai")
         print("并启动 qdrant: docker run -p 6333:6333 qdrant/qdrant")
-        return
-
-    if not os.getenv("OPENAI_API_KEY"):
-        print("未设置 OPENAI_API_KEY，跳过运行。")
         return
 
     try:
@@ -43,7 +37,7 @@ async def main() -> None:
     agent = Agent(
         name="mem0-assistant",
         instructions="你是贴心助手。根据记忆回答，回答简洁。",
-        model=MODEL,
+        model=resolve_model(),
         memory=memory,
         memory_async_write=False,
     )
@@ -51,7 +45,6 @@ async def main() -> None:
     await Runner.run(agent, input="记住：我喜欢低糖拿铁。", user_id="user_001")
     result = await Runner.run(agent, input="给我推荐一杯饮料。", user_id="user_001")
     print("推荐:", result.final_output)
-
 
 if __name__ == "__main__":
     asyncio.run(main())

@@ -13,6 +13,7 @@ import logging
 
 # 确保能导入 agentkit
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
+from model_config import resolve_model
 
 from agentkit.agents.agent import Agent
 from agentkit.runner.runner import Runner
@@ -77,7 +78,7 @@ async def main():
         memory=memory,
         skills=[tenant_skill],
         tools=[increment_counter],
-        model="gpt-4o-mini" # 使用标准的适配器（此处将被 Mock 或实际调用）
+        model=resolve_model("gpt-4o-mini") # 使用标准的适配器（此处将被 Mock 或实际调用）
     )
 
     # 我们使用一个简单的回显 Mock 模型，为了测试逻辑而不是测试大模型能力

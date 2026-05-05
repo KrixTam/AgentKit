@@ -18,7 +18,7 @@ import time
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", ".."))
 
 from agentkit import Agent, Runner, function_tool
-
+from model_config import resolve_model
 
 # ===== 定义一个简单工具 =====
 
@@ -27,16 +27,14 @@ def get_weather(city: str) -> str:
     """获取指定城市的天气信息"""
     return {"北京": "晴，25°C", "上海": "多云，22°C"}.get(city, f"{city}：暂无数据")
 
-
 # ===== 创建 Agent（三种方式共用同一个） =====
 
 agent = Agent(
     name="assistant",
     instructions="你是一个简洁的中文助手。回答尽量简短。",
-    model="ollama/qwen3.5:cloud",
+    model=resolve_model(),
     tools=[get_weather],
 )
-
 
 # ============================================================
 # 方式 1：同步运行 — Runner.run_sync()
@@ -58,7 +56,6 @@ def demo_sync():
         print(f"  ❌ 错误: {result.error}")
     print(f"  ⏱️ 耗时: {elapsed:.1f}s")
 
-
 # ============================================================
 # 方式 2：异步运行 — await Runner.run()
 # 推荐用于 Web 服务、并发任务等生产场景。
@@ -78,7 +75,6 @@ async def demo_async():
     else:
         print(f"  ❌ 错误: {result.error}")
     print(f"  ⏱️ 耗时: {elapsed:.1f}s")
-
 
 # ============================================================
 # 方式 2b：异步并发 — 同时运行多个 Agent
@@ -111,7 +107,6 @@ async def demo_async_concurrent():
 
     print(f"  ⏱️ 3 个请求并发总耗时: {elapsed:.1f}s（如果串行需要约 3 倍时间）")
 
-
 # ============================================================
 # 方式 3：流式运行 — async for event in Runner.run_streamed()
 # 实时获取每一个事件，适合聊天界面、进度展示。
@@ -139,7 +134,6 @@ async def demo_stream():
             print(f"  [{elapsed:5.1f}s] ✅ 最终输出: {event.data}")
         else:
             print(f"  [{elapsed:5.1f}s] 📋 {event.type}: {str(event.data)[:60]}")
-
 
 # ============================================================
 # 主入口
@@ -174,7 +168,6 @@ def run_all():
    已有事件循环中使用。如果你的代码已经是 async 的，
    请直接用 await Runner.run()。
 """)
-
 
 if __name__ == "__main__":
     run_all()

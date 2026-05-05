@@ -9,6 +9,7 @@ from agentkit import Agent, Runner
 
 from agentkit.tools.structured_data import ResultFormatter
 from agentkit.tools.nebula_tool import NebulaGraphTool, NEBULA_AVAILABLE
+from model_config import resolve_model
 
 logging.basicConfig(level=logging.INFO)
 
@@ -64,7 +65,7 @@ async def main():
     agent = Agent(
         name="GraphAssistant",
         instructions="你是一个图数据库查询助手，请帮我查询并用自然语言总结结果。",
-        model="ollama/qwen3.5:cloud", # Ollama 版
+        model=resolve_model(), # Ollama 版
         tools=[nebula_tool],
     )
     

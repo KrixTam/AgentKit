@@ -3,7 +3,7 @@
 > Python 原生的 Agent 开发框架，内置一等公民级别的 Skill 支持和自研多模型适配层。
 
 [![Python](https://img.shields.io/badge/Python-≥3.11-blue.svg)](https://python.org)
-[![Version](https://img.shields.io/badge/Version-0.7.1-green.svg)]()
+[![Version](https://img.shields.io/badge/Version-0.7.2-green.svg)]()
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)]()
 
 ---
@@ -35,7 +35,6 @@ pip install "ni.agentkit[openai]"    # OpenAI + 国内兼容厂商
 pip install "ni.agentkit[anthropic]" # Anthropic Claude
 pip install "ni.agentkit[google]"    # Google Gemini
 pip install "ni.agentkit[memory]"    # 记忆系统 (mem0)
-pip install "ni.agentkit[docker]"    # 预留：SandboxExecutor Docker 扩展依赖
 pip install "ni.agentkit[all]"       # 安装所有可选依赖
 ```
 

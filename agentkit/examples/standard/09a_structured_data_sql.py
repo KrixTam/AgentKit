@@ -1,6 +1,7 @@
 import asyncio
 import sqlite3
 from pydantic import BaseModel, Field
+from model_config import resolve_model
 from agentkit import Agent, Runner
 from agentkit.tools.sqlite_tool import SQLiteTool
 
@@ -42,7 +43,7 @@ async def main():
     agent = Agent(
         name="DBAssistant",
         instructions="你是一个数据库查询助手，请帮用户查询数据库。如果查询成功，请用中文自然地回复查询结果。",
-        model="gpt-4o", # 标准版使用 GPT-4o
+        model=resolve_model("gpt-4o"), # 标准版使用 GPT-4o
         tools=[sqlite_tool],
     )
     

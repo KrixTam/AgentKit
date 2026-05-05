@@ -18,6 +18,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../.
 
 from agentkit.agents.agent import Agent
 from agentkit.runner.runner import Runner
+from model_config import resolve_model
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(message)s")
 
@@ -60,7 +61,7 @@ async def main():
         name="HookAgent",
         instructions="你是一个天气助手。请使用工具查询天气。",
         tools=[get_weather],
-        model="ollama/qwen2.5:7b", # Ollama
+        model=resolve_model(), # Ollama
         
         # 注册回调
         before_agent_callback=before_agent,

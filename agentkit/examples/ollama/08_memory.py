@@ -20,11 +20,7 @@ import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", ".."))
 
 from agentkit import Agent, Runner, BaseMemoryProvider, Memory
-
-
-MODEL = "ollama/qwen3.5:cloud"
-
-
+from model_config import resolve_model
 # ============================================================
 # SimpleMemory：轻量内存记忆实现（无需外部依赖）
 #
@@ -67,7 +63,6 @@ class SimpleMemory(BaseMemoryProvider):
         self._store = [m for m in self._store if m.id != memory_id]
         return True
 
-
 # ============================================================
 # 演示 A：无记忆（默认）
 # ============================================================
@@ -80,7 +75,7 @@ async def demo_no_memory():
     agent = Agent(
         name="forgetful",
         instructions="你是一个简洁的助手。回答尽量简短。",
-        model=MODEL,
+        model=resolve_model(),
     )
 
     # 第一次告诉它信息
@@ -91,7 +86,6 @@ async def demo_no_memory():
     result = await Runner.run(agent, input="我叫什么名字？我喜欢喝什么？")
     print(f"  对话2: {result.final_output}")
     print("  📝 无记忆 → Agent 不记得之前的对话\n")
-
 
 # ============================================================
 # 演示 B：使用 SimpleMemory
@@ -107,7 +101,7 @@ async def demo_simple_memory():
     agent = Agent(
         name="remembering",
         instructions="你是一个贴心的个人助手。根据相关记忆来个性化回答。回答简洁。",
-        model=MODEL,
+        model=resolve_model(),
         memory=memory,
         memory_async_write=False,   # 多轮串行对话需要即时读取记忆
     )
@@ -135,7 +129,6 @@ async def demo_simple_memory():
     # 查看存储的所有记忆
     all_memories = await memory.get_all()
     print(f"\n  📋 记忆库中共 {len(all_memories)} 条记忆")
-
 
 # ============================================================
 # 演示 C：Mem0 说明（仅展示配置方式）
@@ -180,7 +173,6 @@ def demo_mem0_info():
     ✅ 支持 user_id / agent_id 多维度隔离
 """)
 
-
 # ============================================================
 # 主入口
 # ============================================================
@@ -195,7 +187,6 @@ async def main():
     print("=" * 55)
     print("  演示完成 🎉")
     print("=" * 55)
-
 
 if __name__ == "__main__":
     asyncio.run(main())

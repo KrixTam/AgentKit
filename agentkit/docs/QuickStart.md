@@ -1299,6 +1299,7 @@ agent = Agent(name="assistant", instructions="...")
 | [`05_guardrail.py`](../examples/standard/05_guardrail.py) | 示例 5：安全护栏 |
 | [`06_orchestration.py`](../examples/standard/06_orchestration.py) | 示例 6：编排 Agent |
 | [`07_sync_async_stream.py`](../examples/standard/07_sync_async_stream.py) | 示例 7：同步/异步/流式运行 |
+| [`08_memory.py`](../examples/standard/08_memory.py) | 示例 8：记忆系统（综合） |
 | [`08a_memory_simple_provider.py`](../examples/standard/08a_memory_simple_provider.py) | 示例 8A：记忆系统（SimpleMemory） |
 | [`08b_memory_mem0_provider.py`](../examples/standard/08b_memory_mem0_provider.py) | 示例 8B：记忆系统（Mem0Provider） |
 | [`08c_memory_file_provider.py`](../examples/standard/08c_memory_file_provider.py) | 示例 8C：记忆系统（文件持久化） |
@@ -1325,8 +1326,10 @@ agent = Agent(name="assistant", instructions="...")
 | [`03b_skill_tools_entry.py`](../examples/ollama/03b_skill_tools_entry.py) | 示例 3B：Skill tools.entry 动态注册/发现 |
 | [`04_multi_agent.py`](../examples/ollama/04_multi_agent.py) | 示例 4：多 Agent 协作 |
 | [`05_guardrail.py`](../examples/ollama/05_guardrail.py) | 示例 5：安全护栏 |
+| [`05_human_in_the_loop.py`](../examples/ollama/05_human_in_the_loop.py) | 扩展示例：HITL 工具触发（Playground） |
 | [`06_orchestration.py`](../examples/ollama/06_orchestration.py) | 示例 6：编排 Agent |
 | [`07_sync_async_stream.py`](../examples/ollama/07_sync_async_stream.py) | 示例 7：同步/异步/流式运行 |
+| [`08_memory.py`](../examples/ollama/08_memory.py) | 示例 8：记忆系统（综合） |
 | [`08a_memory_simple_provider.py`](../examples/ollama/08a_memory_simple_provider.py) | 示例 8A：记忆系统（SimpleMemory） |
 | [`08b_memory_mem0_provider.py`](../examples/ollama/08b_memory_mem0_provider.py) | 示例 8B：记忆系统（Mem0Provider） |
 | [`08c_memory_file_provider.py`](../examples/ollama/08c_memory_file_provider.py) | 示例 8C：记忆系统（文件持久化） |

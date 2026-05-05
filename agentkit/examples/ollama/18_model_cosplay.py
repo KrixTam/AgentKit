@@ -21,42 +21,42 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", ".."))
 
 from agentkit import Agent, Runner
 from agentkit.runner.events import Event, EventType
+from model_config import resolve_model
 
+MODEL = resolve_model("llama3")
+
+OVERRIDE_MODEL = f"{MODEL}-override"
 
 class ModelEchoAgent(Agent):
     async def _run_impl(self, ctx) -> AsyncGenerator[Event, None]:
         yield Event(agent=self.name, type=EventType.FINAL_OUTPUT, data=f"active_model={self.model}")
 
-
 class LockedOllamaAgent(ModelEchoAgent):
-    model: str = "ollama/qwen3.5:cloud"
+    model: str = MODEL
     model_cosplay_enabled: bool = False
 
-
 class CosplayOllamaAgent(ModelEchoAgent):
-    model: str = "ollama/qwen3.5:cloud"
+    model: str = MODEL
     model_cosplay_enabled: bool = True
-
 
 def main() -> None:
     print("=== 1) 关闭能力：实例化覆盖应失败 ===")
     try:
-        LockedOllamaAgent(name="locked-agent", model="ollama/llama3:8b")
+        LockedOllamaAgent(name="locked-agent", model=OVERRIDE_MODEL)
         print("❌ 预期失败，但实例化成功了")
     except ValueError as e:
         print(f"✅ 拒绝覆盖成功: {e}")
 
     print("\n=== 2) 开启能力：实例化覆盖应成功 ===")
-    cosplay_agent = CosplayOllamaAgent(name="cosplay-agent", model="ollama/llama3:8b")
+    cosplay_agent = CosplayOllamaAgent(name="cosplay-agent", model=OVERRIDE_MODEL)
     result = Runner.run_sync(cosplay_agent, input="show model")
     print(f"✅ 实例化覆盖后输出: {result.final_output}")
 
     print("\n=== 3) 开启能力：运行时覆盖应成功 ===")
     runtime_agent = CosplayOllamaAgent(name="runtime-agent")
-    runtime_agent.apply_model_cosplay("ollama/qwen2.5:7b")
+    runtime_agent.apply_model_cosplay(OVERRIDE_MODEL)
     result = Runner.run_sync(runtime_agent, input="show model")
     print(f"✅ 运行时覆盖后输出: {result.final_output}")
-
 
 if __name__ == "__main__":
     main()

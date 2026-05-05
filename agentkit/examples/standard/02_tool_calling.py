@@ -11,9 +11,9 @@
 """
 import sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", ".."))
+from model_config import resolve_model
 
 from agentkit import Agent, Runner, function_tool
-
 
 # ===== 定义工具 =====
 
@@ -37,16 +37,14 @@ def get_weather(city: str) -> str:
     }
     return weather_data.get(city, f"{city}：暂无数据")
 
-
 # ===== 创建 Agent =====
 
 agent = Agent(
     name="smart-assistant",
     instructions="你是一个全能助手。可以做数学计算和查天气。根据用户需求选择合适的工具。回答简洁。",
-    model="gpt-4o",
+    model=resolve_model("gpt-4o"),
     tools=[add, multiply, get_weather],
 )
-
 
 # ===== 运行测试 =====
 

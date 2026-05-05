@@ -5,10 +5,7 @@ import sys
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", ".."))
 
 from agentkit import Agent, BaseMemoryProvider, Memory, Runner
-
-MODEL = "ollama/qwen3.5:cloud"
-
-
+from model_config import resolve_model
 class SimpleMemory(BaseMemoryProvider):
     def __init__(self) -> None:
         self._store: list[Memory] = []
@@ -37,14 +34,13 @@ class SimpleMemory(BaseMemoryProvider):
         self._store = [m for m in self._store if m.id != memory_id]
         return True
 
-
 async def main() -> None:
     print("=== 示例 8A：SimpleMemory ===")
     memory = SimpleMemory()
     agent = Agent(
-        name="remembering",
+        name="simple-memory-assistant",
         instructions="你是贴心助手。根据记忆回答，回答简洁。",
-        model=MODEL,
+        model=resolve_model(),
         memory=memory,
         memory_async_write=False,
     )
@@ -53,7 +49,6 @@ async def main() -> None:
     result = await Runner.run(agent, input="帮我推荐一杯饮料。", user_id="user_001")
     print("推荐:", result.final_output)
     print("记忆条数:", len(await memory.get_all()))
-
 
 if __name__ == "__main__":
     asyncio.run(main())

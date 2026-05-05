@@ -12,12 +12,13 @@ import sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", ".."))
 
 from agentkit import Agent, Runner
+from model_config import resolve_model
 
 # 创建最简 Agent —— 使用本地 Ollama 模型
 agent = Agent(
     name="assistant",
     instructions="你是一个有帮助的中文助手。回答尽量简洁。",
-    model="ollama/qwen3.5:cloud",      # 本地 Ollama 模型，无需 API Key
+    model=resolve_model("qwen3.5:cloud"),      # 本地 Ollama 模型，无需 API Key
 )
 
 # 同步运行

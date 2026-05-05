@@ -6,6 +6,7 @@ import sqlite3
 from pydantic import BaseModel, Field
 from agentkit import Agent, Runner
 from agentkit.tools.sqlite_tool import SQLiteTool
+from model_config import resolve_model
 
 # 1. 准备 Mock 的 SQLite 数据库
 DB_PATH = "/tmp/agentkit_demo.db"
@@ -45,8 +46,8 @@ async def main():
     agent = Agent(
         name="DBAssistant",
         instructions="你是一个数据库查询助手，请帮用户查询数据库。如果查询成功，请用中文自然地回复查询结果。",
-        model="ollama/qwen3.5:cloud", # Ollama 版
         tools=[sqlite_tool],
+        model=resolve_model(),
     )
     
     print("\n--- Agent 正在运行 ---\n")

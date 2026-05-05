@@ -13,6 +13,7 @@ from agentkit.tools.function_tool import FunctionTool
 from agentkit.tools.base_tool import request_human_input
 from agentkit.runner.context_store import InMemoryContextStore
 from agentkit.runner.events import EventType
+from model_config import resolve_model
 
 # 1. 定义一个需要人工介入的工具
 def confirm_action(action: str) -> str:
@@ -36,7 +37,7 @@ async def main():
         name="ops_agent",
         instructions="你是一个运维助手。当用户要求执行操作时，你必须先使用 confirm_action 工具获取确认。只有确认后才能使用 execute_action 工具。",
         tools=[confirm_tool, execute_tool],
-        model="ollama/qwen3.5:cloud" # 使用本地 Ollama 模型
+        model=resolve_model() # 使用本地 Ollama 模型
     )
     
     # 使用内存存储保存挂起的上下文

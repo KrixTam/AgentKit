@@ -15,6 +15,7 @@ import logging
 
 # 确保能导入 agentkit
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
+from model_config import resolve_model
 
 from agentkit.agents.agent import Agent
 from agentkit.runner.runner import Runner
@@ -63,7 +64,7 @@ async def main():
         name="HookAgent",
         instructions="你是一个天气助手。请使用工具查询天气。",
         tools=[get_weather],
-        model="gpt-4o-mini", # 这里我们用标准版
+        model=resolve_model("gpt-4o-mini"), # 这里我们用标准版
         
         # 注册回调
         before_agent_callback=before_agent,

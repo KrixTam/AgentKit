@@ -14,7 +14,7 @@ import sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", ".."))
 
 from agentkit import Agent, Runner, Skill, SkillFrontmatter, function_tool
-
+from model_config import resolve_model
 
 # ===== 定义工具 =====
 
@@ -29,7 +29,6 @@ def get_weather(city: str) -> str:
         "成都": "阴，18°C",
     }
     return weather_data.get(city, f"{city}：暂无数据")
-
 
 # ===== 定义 Skill =====
 
@@ -49,17 +48,15 @@ weather_skill = Skill(
 4. 用简洁的中文回复用户""",
 )
 
-
 # ===== 创建带 Skill 的 Agent =====
 
 agent = Agent(
     name="skill-agent",
     instructions="你是一个智能助手，可以使用专业技能来完成任务。",
-    model="ollama/qwen3.5:cloud",
+    model=resolve_model("qwen3.5:cloud"),
     skills=[weather_skill],
     tools=[get_weather],
 )
-
 
 # ===== 运行测试 =====
 

@@ -17,7 +17,6 @@ from agentkit.runner.context import RunContext
 from agentkit.tools.nebula_tool import NebulaGraphTool
 from agentkit.tools.structured_data import ResultFormatter
 
-
 class MockSession:
     def execute(self, query: str):
         print(f"[MockSession] execute gql => {query}")
@@ -26,12 +25,10 @@ class MockSession:
     def release(self):
         print("[MockSession] release")
 
-
 class MockConnectionPool:
     def get_session(self, user: str, password: str):
         print(f"[MockPool] get_session(user={user})")
         return MockSession()
-
 
 class MockNebulaFormatter(ResultFormatter):
     def format(self, raw_result: Any) -> Any:
@@ -44,10 +41,8 @@ class MockNebulaFormatter(ResultFormatter):
             "raw_type": type(raw_result).__name__,
         }
 
-
 class PersonQueryArgs(BaseModel):
     name: str = Field(..., description="要查询的用户 ID", pattern=r"^[A-Za-z0-9_]+$")
-
 
 nebula_tool = NebulaGraphTool(
     name="find_person_friends",
@@ -63,13 +58,11 @@ nebula_tool = NebulaGraphTool(
     formatter=MockNebulaFormatter(),
 )
 
-
 async def main():
     ctx = RunContext(input="demo-nebula-tool")
     payload = await nebula_tool.execute(ctx, {"name": "Alice_001"})
     print("\n=== NebulaGraphTool Result ===")
     print(payload)
-
 
 if __name__ == "__main__":
     asyncio.run(main())

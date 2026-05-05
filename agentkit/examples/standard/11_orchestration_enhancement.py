@@ -4,6 +4,7 @@ import os
 
 # 确保能导入 agentkit
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../../..")))
+from model_config import resolve_model
 
 from agentkit import Agent, Runner, LoopAgent, ParallelAgent
 from agentkit.runner.events import Event
@@ -28,7 +29,7 @@ loop_agent = LoopAgent(
         Agent(
             name="coder", 
             instructions="请说：'我已经优化了一版代码'", 
-            model="gpt-4o"
+            model=resolve_model("gpt-4o")
         ),
     ]
 )

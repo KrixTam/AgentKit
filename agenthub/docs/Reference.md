@@ -147,13 +147,23 @@ pip install ni.agenthub
 | 子命令 | 用途 |
 |---|---|
 | `serve` | 启动服务 |
+| `manifest` | 生成/处理 Agent Manifest（如 `manifest generate`） |
 | `register` | 注册 Manifest |
 | `unregister` | 下线指定版本（`name:version`） |
 | `list` | 列出 Agent |
 | `info` | 查看 Agent |
 | `run` | 同步调用 |
+| `chat` | 启动基于 Streamlit 的 Agent Chat 页面 |
 | `trace` | 回放会话事件 |
 | `session` | `list/get/resume/terminate` 会话管理 |
+
+`manifest generate` 常用参数：
+
+- `--entry`：Agent 入口（`module:attr` 或 `path.py:attr`，必填）
+- `--output`：输出路径（默认 `./agent.yaml`）
+- `--name` / `--version` / `--description`：覆盖自动推断字段
+- `--max-turns`：设置 `runner_config.max_turns`
+- `--force`：覆盖已有文件
 
 `run` 子命令常用参数：
 
@@ -189,6 +199,8 @@ pip install ni.agenthub
 | `AGENTHUB_OIDC_ISSUER` | 空 | 可选 issuer 校验 |
 | `AGENTHUB_MAX_CONCURRENCY_PER_USER` | `8` | 单用户并发上限 |
 | `AGENTHUB_RATE_LIMIT_PER_MINUTE` | `120` | 单用户每分钟请求上限 |
+| `AGENTHUB_LOG_FILE` | `.agenthub/agenthub.log` | AgentHub 日志文件路径 |
+| `AGENTHUB_LOG_LEVEL` | `INFO` | AgentHub 日志级别 |
 
 ---
 

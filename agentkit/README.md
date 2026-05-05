@@ -29,7 +29,6 @@ pip install "ni.agentkit[openai]"
 pip install "ni.agentkit[anthropic]"
 pip install "ni.agentkit[google]"
 pip install "ni.agentkit[memory]"
-pip install "ni.agentkit[docker]"
 pip install "ni.agentkit[all]"
 ```
 
@@ -77,7 +76,7 @@ print(agentkit.get_examples_dir()) # 示例目录路径
 
 ## 🧪 示例
 
-安装包内含 36 个可运行示例（标准版 × 18 + Ollama 本地版 × 18）：
+安装包内含可运行示例（标准版 24 个 + Ollama 本地版 26 个）：
 
 ```bash
 # Ollama 本地版（无需 API Key）
@@ -111,8 +110,8 @@ python "$(python -c "import agentkit, os; print(os.path.join(agentkit.get_exampl
 
 ```bash
 dist/
-├── ni_agentkit-0.7.1-py3-none-any.whl   # pip install 用这个
-└── ni_agentkit-0.7.1.tar.gz             # 源码分发
+├── ni_agentkit-0.7.2-py3-none-any.whl   # pip install 用这个
+└── ni_agentkit-0.7.2.tar.gz             # 源码分发
 ```
 
 ## 📄 License

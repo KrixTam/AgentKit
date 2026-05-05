@@ -10,6 +10,9 @@ pip install ni.agentkit
 pip install "ni.agentkit[openai]"
 
 export OPENAI_API_KEY="sk-..."
+
+# 可选：统一覆盖 standard 示例模型（支持 .env/.evn 同名配置）
+# export AGENTKIT_STANDARD_MODEL="gpt-4o-mini"
 ```
 
 ## 示例列表
@@ -25,6 +28,9 @@ export OPENAI_API_KEY="sk-..."
 | `06_orchestration.py` | 编排 Agent — 流水线与循环 | QuickStart 示例 6 |
 | `07_sync_async_stream.py` | 三种运行方式 — 同步/异步/流式 | QuickStart 示例 7 |
 | `08_memory.py` | 记忆系统 — 跨会话长期记忆 | QuickStart 示例 8 |
+| `08a_memory_simple_provider.py` | 记忆系统（SimpleMemory） | QuickStart 示例 8A |
+| `08b_memory_mem0_provider.py` | 记忆系统（Mem0Provider） | QuickStart 示例 8B |
+| `08c_memory_file_provider.py` | 记忆系统（文件持久化） | QuickStart 示例 8C |
 | `09a_structured_data_sql.py` | 关系型数据库 — 防止 SQL 注入的参数化 Tool | QuickStart 示例 9A |
 | `09b_structured_data_graph.py` | 图数据库 — 配合 Mock 运行的 NebulaGraphTool | QuickStart 示例 9B |
 | `09c_nebula_graph_tool.py` | NebulaGraphTool 最小可执行示例（工具层直调） | QuickStart 示例 9C |

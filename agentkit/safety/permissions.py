@@ -4,7 +4,7 @@ agentkit/safety/permissions.py — 权限控制策略
 from __future__ import annotations
 
 import inspect
-from typing import Any, Callable, Optional
+from typing import Any, Callable
 
 
 class PermissionPolicy:

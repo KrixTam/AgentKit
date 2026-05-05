@@ -34,6 +34,30 @@ from .stores.sqlite import SQLiteRegistryStore, SQLiteSessionStore
 logger = logging.getLogger("agenthub.gateway")
 
 
+def _configure_agenthub_logging(cfg: HubConfig) -> None:
+    level_name = (cfg.log_level or "INFO").upper()
+    level = getattr(logging, level_name, logging.INFO)
+    log_file = cfg.log_file or ".agenthub/agenthub.log"
+    os.makedirs(os.path.dirname(log_file) or ".", exist_ok=True)
+
+    hub_logger = logging.getLogger("agenthub")
+    hub_logger.setLevel(level)
+
+    existing_file_handler = False
+    for handler in hub_logger.handlers:
+        if isinstance(handler, logging.FileHandler) and getattr(handler, "baseFilename", "") == os.path.abspath(log_file):
+            existing_file_handler = True
+            break
+
+    if not existing_file_handler:
+        file_handler = logging.FileHandler(log_file, encoding="utf-8")
+        file_handler.setLevel(level)
+        file_handler.setFormatter(
+            logging.Formatter("%(asctime)s %(levelname)s [%(name)s] %(message)s")
+        )
+        hub_logger.addHandler(file_handler)
+
+
 def _json_error(code: int, message: str, status_code: int = 400) -> JSONResponse:
     return JSONResponse(status_code=status_code, content=ApiResponse(code=code, message=message, data=None).model_dump())
 
@@ -60,6 +84,7 @@ def _build_stores(config: HubConfig) -> tuple[RegistryStore, SessionStore]:
 
 def create_app(config: HubConfig | None = None) -> FastAPI:
     cfg = config or HubConfig.from_env()
+    _configure_agenthub_logging(cfg)
     registry_store, session_store = _build_stores(cfg)
     context_store = HubContextStore(session_store)
     metrics = Metrics()

@@ -14,9 +14,9 @@
 """
 import sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", ".."))
+from model_config import resolve_model
 
 from agentkit import Agent, Runner, Skill, SkillFrontmatter, SkillResources, function_tool
-
 
 # ===== 定义工具 =====
 
@@ -31,7 +31,6 @@ def get_weather(city: str) -> str:
         "成都": "阴，18°C",
     }
     return weather_data.get(city, f"{city}：暂无数据")
-
 
 # ===== 定义 Skill =====
 
@@ -51,17 +50,15 @@ weather_skill = Skill(
 4. 用简洁的中文回复用户""",
 )
 
-
 # ===== 创建带 Skill 的 Agent =====
 
 agent = Agent(
     name="skill-agent",
     instructions="你是一个智能助手，可以使用专业技能来完成任务。",
-    model="gpt-4o",
+    model=resolve_model("gpt-4o"),
     skills=[weather_skill],       # ⭐ Skill 作为一等公民
     tools=[get_weather],
 )
-
 
 # ===== 运行测试 =====
 

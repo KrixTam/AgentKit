@@ -5,12 +5,12 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", ".."))
+from model_config import resolve_model
 
 from agentkit import Agent, BaseMemoryProvider, Memory, Runner
 
-MODEL = "gpt-4o"
+MODEL = resolve_model("gpt-4o")
 MEMORY_FILE = "/tmp/agentkit_memory_standard.json"
-
 
 class FileMemoryProvider(BaseMemoryProvider):
     def __init__(self, file_path: str) -> None:
@@ -79,7 +79,6 @@ class FileMemoryProvider(BaseMemoryProvider):
         self._save()
         return len(self._records) < before
 
-
 async def main() -> None:
     print("=== 示例 8C：自定义 FileMemoryProvider（文件持久化） ===")
     memory = FileMemoryProvider(MEMORY_FILE)
@@ -96,7 +95,6 @@ async def main() -> None:
     print("推荐:", result.final_output)
     print("持久化文件:", MEMORY_FILE)
     print("当前记忆数:", len(await memory.get_all(user_id="user_001")))
-
 
 if __name__ == "__main__":
     asyncio.run(main())
