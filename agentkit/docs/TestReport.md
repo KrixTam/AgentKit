@@ -8,6 +8,7 @@
 > LLM 调用模式：非流式（默认）  
 > 缓存：开启（默认）  
 > 执行脚本：`examples/test_standard.py`
+> 说明：本报告生成于脚本覆盖 24 个样例时期；当前脚本已扩展为覆盖 26 个（新增 `05_human_in_the_loop.py`、`19_hitl_deterministic.py`，`20_simple_rag_agent.py` 不在自动批跑范围内）。
 
 ---
 

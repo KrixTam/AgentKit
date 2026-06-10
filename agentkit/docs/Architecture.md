@@ -616,12 +616,18 @@ agentkit/
 │   ├── base.py              #   BaseMemoryProvider
 │   └── mem0_provider.py     #   Mem0Provider
 │
+├── rag/                     # 轻量 RAG 核心模块
+│   ├── simple_rag_agent.py  #   SimpleRAGAgent（Agent 构建器）
+│   ├── document_store.py    #   本地文档加载与分块
+│   ├── retrievers.py        #   TF-IDF / BM25 / Vector 检索器
+│   └── file_memory_provider.py # 默认文件记忆
+│
 ├── utils/
 │   └── schema.py            #   函数签名 → JSON Schema
 │
 ├── examples/                # 示例
-│   ├── standard/            #   标准版示例（24 个：01-18 + 03B，含 8A/8B/8C、9A/9B/9C）
-│   ├── ollama/              #   Ollama 版示例（26 个：01-19 + 03B + 05_human_in_the_loop，含 8A/8B/8C、9A/9B/9C）
+│   ├── standard/            #   标准版示例（27 个：含 05_human_in_the_loop、19_hitl_deterministic、20_simple_rag_agent）
+│   ├── ollama/              #   Ollama 版示例（27 个：新增 20_simple_rag_agent）
 │   ├── quickstart.py
 │   └── test_ollama.py
 │

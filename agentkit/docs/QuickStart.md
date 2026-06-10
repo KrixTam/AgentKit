@@ -1,6 +1,6 @@
 # AgentKit 快速入门教程
 
-> 本教程将带你从零开始，通过 18 组由简到繁的示例（含 8A/8B/8C、9A/9B/9C），掌握 AgentKit 的核心用法。
+> 本教程将带你从零开始，通过 18 组由简到繁的主线示例（含 8A/8B/8C、9A/9B/9C）与扩展示例，掌握 AgentKit 的核心用法。
 
 ---
 
@@ -31,6 +31,7 @@
 - [示例 16：生命周期 Hooks 与 Callbacks](#16-生命周期-hooks-与-callbacks)
 - [示例 17：Checkpoint 深度恢复（Handoff 后挂起与原路径恢复）](#17-checkpoint-深度恢复handoff-后挂起与原路径恢复)
 - [示例 18：ModelCosplay（运行时改写预设模型）](#18-modelcosplay运行时改写预设模型)
+- [示例 20：SimpleRAGAgent（本地文档检索 + 文件记忆）](#20-simpleragagent本地文档检索--文件记忆)
 - [性能提示](#性能提示)
 - [使用不同的 LLM](#使用不同的-llm)
 - [下一步](#下一步)
@@ -1178,6 +1179,35 @@ if __name__ == "__main__":
 
 ---
 
+## 示例 20：SimpleRAGAgent（本地文档检索 + 文件记忆）
+
+`SimpleRAGAgent` 是 AgentKit 内置的轻量 RAG 方案，默认支持：
+
+- 文档类型：`txt/md/markdown`
+- 检索器：`TF-IDF`、`BM25`、`Vector`（默认 `hybrid` 融合）
+- 记忆：默认启用文件记忆（`./.agentkit/rag_memory.json`）
+
+```python
+from agentkit import Runner, SimpleRAGAgent
+
+rag = SimpleRAGAgent.from_directory(
+    knowledge_dir="./knowledge_base",
+    model="gpt-4o-mini",      # 任意 AgentKit 支持的模型标识
+    top_k=3,
+    default_retriever="hybrid",
+)
+
+agent = rag.build_agent(name="simple-rag-assistant")
+result = Runner.run_sync(agent, input="请介绍一下 AgentKit 的核心能力")
+print(result.final_output)
+```
+
+可运行文件：
+- `examples/standard/20_simple_rag_agent.py`
+- `examples/ollama/20_simple_rag_agent.py`
+
+---
+
 ## 性能提示
 
 当你感觉 Agent 响应较慢时，可以尝试以下优化：
@@ -1297,6 +1327,7 @@ agent = Agent(name="assistant", instructions="...")
 | [`03b_skill_tools_entry.py`](../examples/standard/03b_skill_tools_entry.py) | 示例 3B：Skill tools.entry 动态注册/发现 |
 | [`04_multi_agent.py`](../examples/standard/04_multi_agent.py) | 示例 4：多 Agent 协作 |
 | [`05_guardrail.py`](../examples/standard/05_guardrail.py) | 示例 5：安全护栏 |
+| [`05_human_in_the_loop.py`](../examples/standard/05_human_in_the_loop.py) | 扩展示例：HITL 工具触发（Playground） |
 | [`06_orchestration.py`](../examples/standard/06_orchestration.py) | 示例 6：编排 Agent |
 | [`07_sync_async_stream.py`](../examples/standard/07_sync_async_stream.py) | 示例 7：同步/异步/流式运行 |
 | [`08_memory.py`](../examples/standard/08_memory.py) | 示例 8：记忆系统（综合） |
@@ -1315,6 +1346,8 @@ agent = Agent(name="assistant", instructions="...")
 | [`16_lifecycle_hooks.py`](../examples/standard/16_lifecycle_hooks.py) | 示例 16：生命周期 Hooks 与 Callbacks |
 | [`17_checkpoint_handoff_resume.py`](../examples/standard/17_checkpoint_handoff_resume.py) | 示例 17：Checkpoint 深度恢复（Handoff + Resume） |
 | [`18_model_cosplay.py`](../examples/standard/18_model_cosplay.py) | 示例 18：ModelCosplay（运行时改写预设模型） |
+| [`19_hitl_deterministic.py`](../examples/standard/19_hitl_deterministic.py) | 扩展示例：HITL 确定性触发 |
+| [`20_simple_rag_agent.py`](../examples/standard/20_simple_rag_agent.py) | 示例 20：SimpleRAGAgent（本地文档检索 + 文件记忆） |
 
 ### 📁 `examples/ollama/` — Ollama 本地版（无需 API Key，完全本地运行）
 
@@ -1346,6 +1379,7 @@ agent = Agent(name="assistant", instructions="...")
 | [`17_checkpoint_handoff_resume.py`](../examples/ollama/17_checkpoint_handoff_resume.py) | 示例 17：Checkpoint 深度恢复（Handoff + Resume） |
 | [`18_model_cosplay.py`](../examples/ollama/18_model_cosplay.py) | 示例 18：ModelCosplay（运行时改写预设模型） |
 | [`19_hitl_deterministic.py`](../examples/ollama/19_hitl_deterministic.py) | 示例 19：HITL 确定性触发 |
+| [`20_simple_rag_agent.py`](../examples/ollama/20_simple_rag_agent.py) | 示例 20：SimpleRAGAgent（本地文档检索 + 文件记忆） |
 
 ---
 

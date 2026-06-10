@@ -37,6 +37,8 @@
   - [PermissionPolicy](#permissionpolicy)
 - [记忆类](#记忆类)
   - [BaseMemoryProvider / Memory](#basememoryprovider)
+- [RAG 类](#rag-类)
+  - [SimpleRAGAgent](#simpleragagent)
 
 ---
 
@@ -767,3 +769,53 @@ Agent 会自动：
 | `content` | `str` | 记忆内容 |
 | `metadata` | `dict` | 元数据 |
 | `score` | `float` | 相关性分数（检索时） |
+
+---
+
+## RAG 类
+
+### SimpleRAGAgent
+
+AgentKit 内置轻量 RAG 构建器：将本地知识库检索能力组合为标准 `Agent`。
+
+```python
+from agentkit import SimpleRAGAgent
+```
+
+**能力范围（V1）**：
+
+- 文档类型：`txt/md/markdown`
+- 检索器：`tfidf`、`bm25`、`vector`、`hybrid`
+- 记忆：默认内置文件记忆（`./.agentkit/rag_memory.json`）
+- 模型：支持任意 AgentKit 可识别模型标识（`str | LLMConfig | BaseLLM`）
+
+**构造与工厂**：
+
+| 方法 | 签名 | 说明 |
+|------|------|------|
+| `__init__` | `(..., model, config=None, memory_provider=None, memory_file=".agentkit/rag_memory.json")` | 直接构造 |
+| `from_directory` | `(..., knowledge_dir, model, chunk_size=500, chunk_overlap=100, top_k=3, default_retriever="hybrid", memory_file=..., memory_provider=None)` | 推荐入口 |
+
+**实例方法**：
+
+| 方法 | 签名 | 说明 |
+|------|------|------|
+| `reload` | `() -> int` | 重新加载知识库并重建索引，返回 chunk 数 |
+| `search` | `(query, *, top_k=None, retriever=None) -> list[SearchHit]` | 程序化检索 |
+| `list_knowledge_files` | `() -> list[str]` | 列出知识库文件 |
+| `as_tools` | `() -> list[FunctionTool]` | 返回默认工具：`search_knowledge_base` / `list_knowledge_files` |
+| `build_agent` | `(*, name="simple-rag-assistant", instructions=None, tool_use_behavior="run_llm_again", memory_async_write=False, **kwargs) -> Agent` | 构建标准 Agent |
+
+**示例**：
+
+```python
+from agentkit import Runner, SimpleRAGAgent
+
+rag = SimpleRAGAgent.from_directory(
+    knowledge_dir="./knowledge_base",
+    model="ollama/qwen3.5:4b",
+    default_retriever="hybrid",
+)
+agent = rag.build_agent(name="rag-assistant")
+print(Runner.run_sync(agent, input="这个项目是做什么的？").final_output)
+```

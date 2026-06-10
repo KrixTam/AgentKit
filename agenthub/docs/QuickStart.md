@@ -118,6 +118,30 @@ tags: [demo, stable]
 当 `agent.yaml` 配置了 `model_cosplay` 时，Hub 会在实例化该 Agent 后默认应用该配置；如果调用请求中也传入了 `model_cosplay`，则请求参数优先。
 上述示例可直接用（将 `agent.yaml.example` 重命名/复制为 `agent.yaml` 后可注册并调用）。
 
+### 2.1 `SimpleRAGAgent + AgentHub` 最小示例
+
+如果你想直接在 Hub/Playground 里验证 `SimpleRAGAgent`，可使用内置模板：
+
+```bash
+cp ./docs/agent.rag.yaml.example ./agent.rag.yaml
+```
+
+准备最小知识库（示例）：
+
+```bash
+mkdir -p ./knowledge_base
+echo "AgentKit 支持 Tool、Skill、Memory 与多模型适配。" > ./knowledge_base/intro.txt
+```
+
+注册并调用：
+
+```bash
+agenthub register ./agent.rag.yaml --alias latest --alias stable
+agenthub run demo-simple-rag --input "AgentKit 有哪些核心能力？"
+```
+
+也可在 Playground 中将 `Agent 名称` 设置为 `demo-simple-rag` 进行同步/流式与会话回放验证。
+
 ***
 
 ## 3. 注册与发现

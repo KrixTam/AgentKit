@@ -14,6 +14,7 @@
 - 🛡️ **内置安全** — Guardrail 护栏 + 权限控制；`run_skill_script` 当前为占位执行（SandboxExecutor 预留扩展）
 - 🎭 **编排 Agent** — Sequential / Parallel / Loop 三种模式
 - 💾 **记忆系统** — 可选集成 Mem0，支持自定义记忆提供者
+- 📄 **SimpleRAGAgent** — 内置轻量 RAG（txt/md/markdown），支持 TF-IDF / BM25 / 向量检索与默认文件记忆
 - ⚡ **全异步设计与 Hooks** — 底层全面采用 `asyncio`，流式响应（Streaming）、事件驱动（Event-Driven）、断点续跑机制（Checkpoint/Resume）。提供细粒度的 生命周期 Hooks，支持改写请求与结果。
 - 🏢 **多租户数据隔离** — 框架级支持 `user_id` / `session_id` 贯穿，Memory 默认分桶，Session 结束自动释放资源。
 - 🔗 **与大模型平台解耦** — 内置多模型支持，轻松对接 Ollama 等本地模型。
@@ -70,13 +71,13 @@ print(agentkit.get_examples_dir()) # 示例目录路径
 | 文档 | 说明 |
 |------|------|
 | [README](docs/README.md) | 项目概述与特性 |
-| [QuickStart](docs/QuickStart.md) | 18 组渐进式入门示例（含 9A/9B） |
+| [QuickStart](docs/QuickStart.md) | 18 组渐进式入门示例（含 8A/8B/8C、9A/9B/9C 与扩展示例） |
 | [Architecture](docs/Architecture.md) | 六层架构设计说明 |
 | [Reference](docs/Reference.md) | 完整 API 参考手册 |
 
 ## 🧪 示例
 
-安装包内含可运行示例（标准版 24 个 + Ollama 本地版 26 个）：
+安装包内含可运行示例（标准版 27 个 + Ollama 本地版 27 个）：
 
 ```bash
 # Ollama 本地版（无需 API Key）

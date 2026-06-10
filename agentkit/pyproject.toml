@@ -1,6 +1,6 @@
 [project]
 name = "ni.agentkit"
-version = "0.7.2"
+version = "0.7.3"
 description = "A Python-native Agent framework with first-class Skill support and multi-LLM adapter"
 authors = [
     { name = "Krix Tam", email = "krix.tam@qq.com" }
@@ -61,6 +61,7 @@ packages = [
     "agentkit.llm",
     "agentkit.llm.adapters",
     "agentkit.memory",
+    "agentkit.rag",
     "agentkit.runner",
     "agentkit.safety",
     "agentkit.skills",

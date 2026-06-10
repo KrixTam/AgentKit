@@ -46,6 +46,7 @@ pip install ni.agentkit
 | `17_checkpoint_handoff_resume.py` | Checkpoint 深度恢复 — Handoff 后挂起并原路径恢复 | 增强示例 |
 | `18_model_cosplay.py` | ModelCosplay — 运行时改写预设模型 | QuickStart 示例 18 |
 | `19_hitl_deterministic.py` | HITL 确定性触发（必现） | 扩展示例 |
+| `20_simple_rag_agent.py` | SimpleRAGAgent（本地文档检索 + 文件记忆） | 扩展示例 |
 
 ## 运行
 

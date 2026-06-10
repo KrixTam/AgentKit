@@ -25,6 +25,7 @@ export OPENAI_API_KEY="sk-..."
 | `03b_skill_tools_entry.py` | SKILL.md 的 tools.entry 动态工具注册/发现 | QuickStart 示例 3（方式 C） |
 | `04_multi_agent.py` | 多 Agent 协作 — Handoff 与 as_tool | QuickStart 示例 4 |
 | `05_guardrail.py` | 安全护栏 — Guardrail 与权限控制 | QuickStart 示例 5 |
+| `05_human_in_the_loop.py` | Human-in-the-loop 工具触发（Playground 专用） | 扩展示例 |
 | `06_orchestration.py` | 编排 Agent — 流水线与循环 | QuickStart 示例 6 |
 | `07_sync_async_stream.py` | 三种运行方式 — 同步/异步/流式 | QuickStart 示例 7 |
 | `08_memory.py` | 记忆系统 — 跨会话长期记忆 | QuickStart 示例 8 |
@@ -43,6 +44,8 @@ export OPENAI_API_KEY="sk-..."
 | `16_lifecycle_hooks.py` | 生命周期 Hooks 与 Callbacks | QuickStart 示例 16 |
 | `17_checkpoint_handoff_resume.py` | Checkpoint 深度恢复 — Handoff 后挂起并原路径恢复 | 增强示例 |
 | `18_model_cosplay.py` | ModelCosplay — 运行时改写预设模型 | QuickStart 示例 18 |
+| `19_hitl_deterministic.py` | HITL 确定性触发（必现） | 扩展示例 |
+| `20_simple_rag_agent.py` | SimpleRAGAgent（本地文档检索 + 文件记忆） | 扩展示例 |
 
 ## 运行
 

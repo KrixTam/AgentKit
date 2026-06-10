@@ -13,4 +13,4 @@ data
 .pytest_cache
 .agenthub
 .benchmarks
-agent.yaml
+.agentkit

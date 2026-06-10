@@ -11,7 +11,7 @@
 | `name` | `str` | Agent 名称 |
 | `version` | `str` | Agent 版本（语义化版本 `major.minor.patch`） |
 | `description` | `str` | Agent 描述 |
-| `entry` | `str` | `module:attr` 入口 |
+| `entry` | `str` | Agent 入口，支持 `module:attr` 或 `path.py:attr` |
 | `skills` | `list[str]` | 关联的 Skill 标识列表 |
 | `input_schema` | `dict` | 输入契约 |
 | `output_schema` | `dict` | 输出契约 |
@@ -20,6 +20,33 @@
 | `runner_config` | `dict` | Runner 相关默认参数 |
 | `model_cosplay` | `str \| dict \| null` | 通过 `agent.yaml` 为该 Agent 配置默认 ModelCosplay；调用请求中的 `model_cosplay` 优先级更高 |
 | `tags` | `list[str]` | 标签 |
+
+### `agent.rag.yaml.example` 字段对照
+
+`agent.rag.yaml.example` 是针对 `SimpleRAGAgent + AgentHub` 的最小注册模板，位于 [agent.rag.yaml.example](file:///Users/krix/Trae/AgentKit/agenthub/docs/agent.rag.yaml.example)。
+
+示例内容对应的关键字段说明如下：
+
+| 字段 | 当前示例值 | 说明 |
+|---|---|---|
+| `name` | `demo-simple-rag` | 在 Hub 中注册后的 Agent 名称 |
+| `version` | `1.0.0` | 语义化版本号 |
+| `description` | `SimpleRAGAgent 最小可运行示例（AgentKit + AgentHub）` | 用于列表展示与排障说明 |
+| `entry` | `./agentkit/examples/standard/20_simple_rag_agent.py:create_agent` | 使用 `path.py:attr` 入口，直接复用 AgentKit 示例中的无参工厂函数 |
+| `skills` | `[]` | 当前示例未额外挂 Skill |
+| `input_schema` | `{"input": "string"}` | 最小输入契约，仅要求 `input` 字符串 |
+| `output_schema` | `{"final_output": "string"}` | 最小输出契约，匹配 `RunResult.final_output` |
+| `requires_human_input` | `false` | RAG 示例默认不走 HITL 挂起 |
+| `runner_config.max_turns` | `10` | 单次调用最大轮次 |
+| `runner_config.default_hub_port` | `8008` | 示例默认 Hub 端口 |
+| `tags` | `["demo", "rag"]` | 便于检索、分组与标识用途 |
+
+补充约束：
+
+- `entry` 指向的 `create_agent` 必须是**无参工厂函数**，并返回一个可运行的 AgentKit Agent 实例。
+- `entry` 使用相对路径时，路径解析基于执行 `agenthub register` 时的当前工作目录。
+- 该示例依赖 `SimpleRAGAgent` 默认读取 `./knowledge_base` 目录，因此注册前需先准备知识库文件。
+- 如果目标环境没有配置可用模型（例如标准版示例所需 API Key），注册虽可成功，但运行时会在 Agent 实例加载或推理阶段失败。
 
 ### SessionStatus
 

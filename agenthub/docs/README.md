@@ -10,6 +10,7 @@
 - [Architecture.md](Architecture.md) — 架构设计与 AgentKit 契约映射
 - [Reference.md](Reference.md) — API / CLI / 配置 / 存储接口参考
 - [agent.yaml.example](agent.yaml.example) — 可直接复制为 `agent.yaml` 的清单模板
+- [agent.rag.yaml.example](agent.rag.yaml.example) — `SimpleRAGAgent + AgentHub` 最小注册示例
 
 ---
 

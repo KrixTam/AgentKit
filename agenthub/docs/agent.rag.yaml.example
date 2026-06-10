@@ -1,0 +1,25 @@
+name: demo-simple-rag
+version: "1.0.0"
+description: "SimpleRAGAgent 最小可运行示例（AgentKit + AgentHub）"
+# 说明：这里使用 path.py:attr 入口，便于直接复用示例脚本。
+entry: ./agentkit/examples/standard/20_simple_rag_agent.py:create_agent
+skills: []
+input_schema:
+  type: object
+  properties:
+    input:
+      type: string
+  required:
+    - input
+output_schema:
+  type: object
+  properties:
+    final_output:
+      type: string
+requires_human_input: false
+runner_config:
+  max_turns: 10
+  default_hub_port: 8008
+tags:
+  - demo
+  - rag
