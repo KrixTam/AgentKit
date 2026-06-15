@@ -142,6 +142,12 @@ agenthub run demo-simple-rag --input "AgentKit 有哪些核心能力？"
 
 也可在 Playground 中将 `Agent 名称` 设置为 `demo-simple-rag` 进行同步/流式与会话回放验证。
 
+补充说明：
+
+- 该示例默认读取 `./knowledge_base`，并将知识库索引与默认记忆统一落盘到 `./.agentkit/rag/index.db`
+- 知识库当前支持 `txt/md/markdown/pdf`；如果包含 PDF，请先安装 `pip install "ni.agentkit[pdf]"`
+- 模板默认指向 standard 版示例入口；如果你希望本地 Ollama 直接验证，可将 `entry` 改为 `./agentkit/examples/ollama/20_simple_rag_agent.py:create_agent`
+
 ***
 
 ## 3. 注册与发现

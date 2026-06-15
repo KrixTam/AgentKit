@@ -618,9 +618,11 @@ agentkit/
 │
 ├── rag/                     # 轻量 RAG 核心模块
 │   ├── simple_rag_agent.py  #   SimpleRAGAgent（Agent 构建器）
-│   ├── document_store.py    #   本地文档加载与分块
+│   ├── document_store.py    #   本地文档加载、增量构建与 SQLite 持久化
+│   ├── loaders.py           #   txt / md / markdown / pdf 加载器
 │   ├── retrievers.py        #   TF-IDF / BM25 / Vector 检索器
-│   └── file_memory_provider.py # 默认文件记忆
+│   ├── sqlite_store.py      #   documents / chunks / memories 表结构
+│   └── file_memory_provider.py # SQLiteMemoryProvider + FileMemoryProvider 兼容别名
 │
 ├── utils/
 │   └── schema.py            #   函数签名 → JSON Schema

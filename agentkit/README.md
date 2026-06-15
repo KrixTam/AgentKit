@@ -13,8 +13,8 @@
 - 🧠 **多 LLM 适配器** — 自研统一适配层，5 个适配器覆盖主流 LLM（含 OpenAI Compatible）
 - 🛡️ **内置安全** — Guardrail 护栏 + 权限控制；`run_skill_script` 当前为占位执行（SandboxExecutor 预留扩展）
 - 🎭 **编排 Agent** — Sequential / Parallel / Loop 三种模式
-- 💾 **记忆系统** — 可选集成 Mem0，支持自定义记忆提供者
-- 📄 **SimpleRAGAgent** — 内置轻量 RAG（txt/md/markdown），支持 TF-IDF / BM25 / 向量检索与默认文件记忆
+- 💾 **记忆系统** — 可选集成 Mem0，支持自定义记忆提供者；`SimpleRAGAgent` 默认内置 `SQLiteMemoryProvider`
+- 📄 **SimpleRAGAgent** — 内置轻量 RAG（txt/md/markdown/pdf），支持 TF-IDF / BM25 / 向量检索，知识库与默认记忆统一落盘到 SQLite
 - ⚡ **全异步设计与 Hooks** — 底层全面采用 `asyncio`，流式响应（Streaming）、事件驱动（Event-Driven）、断点续跑机制（Checkpoint/Resume）。提供细粒度的 生命周期 Hooks，支持改写请求与结果。
 - 🏢 **多租户数据隔离** — 框架级支持 `user_id` / `session_id` 贯穿，Memory 默认分桶，Session 结束自动释放资源。
 - 🔗 **与大模型平台解耦** — 内置多模型支持，轻松对接 Ollama 等本地模型。
@@ -30,6 +30,7 @@ pip install "ni.agentkit[openai]"
 pip install "ni.agentkit[anthropic]"
 pip install "ni.agentkit[google]"
 pip install "ni.agentkit[memory]"
+pip install "ni.agentkit[pdf]"
 pip install "ni.agentkit[all]"
 ```
 
@@ -111,8 +112,8 @@ python "$(python -c "import agentkit, os; print(os.path.join(agentkit.get_exampl
 
 ```bash
 dist/
-├── ni_agentkit-0.7.2-py3-none-any.whl   # pip install 用这个
-└── ni_agentkit-0.7.2.tar.gz             # 源码分发
+├── ni_agentkit-0.7.3-py3-none-any.whl   # pip install 用这个
+└── ni_agentkit-0.7.3.tar.gz             # 源码分发
 ```
 
 ## 📄 License

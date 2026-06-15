@@ -13,6 +13,7 @@ from .llm.base import BaseLLM
 from .llm.registry import LLMRegistry
 from .llm.types import LLMConfig, LLMResponse, Message, ToolCall, ToolDefinition
 from .memory.base import BaseMemoryProvider, Memory
+from .rag.file_memory_provider import SQLiteMemoryProvider
 from .rag.simple_rag_agent import SimpleRAGAgent
 from .runner.events import Event, RunResult
 from .runner.runner import Runner
@@ -56,6 +57,6 @@ __all__ = [
     "GuardrailResult", "InputGuardrail", "OutputGuardrail", "PermissionPolicy",
     "input_guardrail", "output_guardrail",
     "BaseMemoryProvider", "Memory",
-    "SimpleRAGAgent",
+    "SimpleRAGAgent", "SQLiteMemoryProvider",
     "get_docs_dir", "get_examples_dir",
 ]

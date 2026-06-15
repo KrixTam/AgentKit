@@ -32,11 +32,13 @@ openai = ["openai>=1.0.0"]
 anthropic = ["anthropic>=0.30.0"]
 google = ["google-genai>=1.0.0"]
 memory = ["mem0ai>=0.1.0"]
+pdf = ["pypdf>=5.0.0"]
 all = [
     "openai>=1.0.0",
     "anthropic>=0.30.0",
     "google-genai>=1.0.0",
     "mem0ai>=0.1.0",
+    "pypdf>=5.0.0",
 ]
 
 # CLI 入口：安装后可用 agentkit-docs 命令打开文档目录

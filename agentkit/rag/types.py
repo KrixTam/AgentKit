@@ -21,6 +21,17 @@ class DocumentChunk:
 
 
 @dataclass
+class SourceDocument:
+    """知识库源文件元信息。"""
+
+    source: str
+    absolute_path: str
+    content_hash: str
+    loader: str
+    metadata: dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass
 class SearchHit:
     """检索命中结果。"""
 
@@ -36,11 +47,13 @@ class SimpleRAGConfig:
     """SimpleRAGAgent 基础配置。"""
 
     knowledge_dir: str = "./knowledge_base"
+    storage_path: str = ".agentkit/rag/index.db"
     chunk_size: int = 500
     chunk_overlap: int = 100
     top_k: int = 3
-    supported_suffixes: tuple[str, ...] = (".txt", ".md", ".markdown")
+    supported_suffixes: tuple[str, ...] = (".txt", ".md", ".markdown", ".pdf")
     default_retriever: RetrieverKind = "hybrid"
+    enable_memory: bool = True
     hybrid_weights: dict[str, float] = field(
         default_factory=lambda: {"tfidf": 0.4, "bm25": 0.4, "vector": 0.2}
     )

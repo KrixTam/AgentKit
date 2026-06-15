@@ -3,7 +3,7 @@
 > Python 原生的 Agent 开发框架，内置一等公民级别的 Skill 支持和自研多模型适配层。
 
 [![Python](https://img.shields.io/badge/Python-≥3.11-blue.svg)](https://python.org)
-[![Version](https://img.shields.io/badge/Version-0.7.2-green.svg)]()
+[![Version](https://img.shields.io/badge/Version-0.7.3-green.svg)]()
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)]()
 
 ---
@@ -18,9 +18,9 @@
 | **编排 Agent** | SequentialAgent / ParallelAgent / LoopAgent，组合出任意复杂的工作流。支持 Loop 动态退出条件与 Parallel 提前取消增强 |
 | **@function_tool** | 一行装饰器把 Python 函数变成 LLM 工具，自动推断 JSON Schema。内建 `StructuredDataTool` 防止数据库注入 |
 | **图数据统一接口层** | 提供 `GraphAdapter + GraphRepository + GraphQueryTool`，开发/测试可切换 `networkx/litegraph`，生产可切换 `nebula` |
-| **SimpleRAGAgent** | 内置轻量 RAG 模块，支持 `txt/md/markdown` 文档加载、TF-IDF/BM25/向量检索与默认文件记忆 |
+| **SimpleRAGAgent** | 内置轻量 RAG 模块，支持 `txt/md/markdown/pdf` 文档加载、TF-IDF/BM25/向量检索，知识库与默认记忆统一落盘到 `./.agentkit/rag/index.db` |
 | **安全内置** | Input/Output 双向 Guardrail + 三层权限控制；`run_skill_script` 当前为占位执行（SandboxExecutor 预留扩展） |
-| **记忆系统** | Mem0 集成，跨会话长期记忆 |
+| **记忆系统** | Mem0 集成 + 自定义记忆提供者；`SimpleRAGAgent` 默认内置 `SQLiteMemoryProvider` |
 | **9 个回调点** | before/after × agent/model/tool/handoff + error，任何环节可拦截定制 |
 
 ---
@@ -36,6 +36,7 @@ pip install "ni.agentkit[openai]"    # OpenAI + 国内兼容厂商
 pip install "ni.agentkit[anthropic]" # Anthropic Claude
 pip install "ni.agentkit[google]"    # Google Gemini
 pip install "ni.agentkit[memory]"    # 记忆系统 (mem0)
+pip install "ni.agentkit[pdf]"       # PDF 知识库解析（可选）
 pip install "ni.agentkit[all]"       # 安装所有可选依赖
 ```
 

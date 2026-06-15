@@ -78,6 +78,8 @@ result = Runner.run_sync(agent, input="你好，介绍一下你自己")
 print(result.final_output)
 ```
 
+AgentKit 还内置 `SimpleRAGAgent`：支持 `txt/md/markdown/pdf` 知识库输入，默认将知识库索引与记忆统一落盘到 `./.agentkit/rag/index.db`。
+
 更多能力（工具、Skill、多 Agent、记忆、安全）：见 [AgentKit QuickStart](agentkit/docs/QuickStart.md)。
 
 ### 2. AgentHub（服务化与统一网关）

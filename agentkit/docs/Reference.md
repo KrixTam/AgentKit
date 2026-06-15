@@ -748,13 +748,20 @@ class MyMemory(BaseMemoryProvider):
     async def delete(self, memory_id) -> bool: ...
 ```
 
-**内置实现**：`Mem0Provider`（需安装 `mem0ai`）
+**内置实现**：
+
+- `Mem0Provider`（需安装 `mem0ai`）
+- `SQLiteMemoryProvider`（轻量 SQLite 持久化实现，`SimpleRAGAgent` 默认使用）
 
 ```python
+from agentkit import SQLiteMemoryProvider
 from agentkit.memory.mem0_provider import Mem0Provider
 
 memory = Mem0Provider({"vector_store": {"provider": "qdrant", ...}})
 agent = Agent(memory=memory, ...)
+
+sqlite_memory = SQLiteMemoryProvider(".agentkit/rag/index.db")
+agent = Agent(memory=sqlite_memory, ...)
 ```
 
 Agent 会自动：
@@ -784,17 +791,19 @@ from agentkit import SimpleRAGAgent
 
 **能力范围（V1）**：
 
-- 文档类型：`txt/md/markdown`
+- 文档类型：`txt/md/markdown/pdf`
 - 检索器：`tfidf`、`bm25`、`vector`、`hybrid`
-- 记忆：默认内置文件记忆（`./.agentkit/rag_memory.json`）
+- 存储：知识库源文件、chunks 与默认记忆统一写入 SQLite（默认 `./.agentkit/rag/index.db`）
+- 记忆：默认启用 `SQLiteMemoryProvider`，可通过 `enable_memory=False` 关闭
 - 模型：支持任意 AgentKit 可识别模型标识（`str | LLMConfig | BaseLLM`）
+- PDF：需额外安装 `ni.agentkit[pdf]` 或 `pypdf`
 
 **构造与工厂**：
 
 | 方法 | 签名 | 说明 |
 |------|------|------|
-| `__init__` | `(..., model, config=None, memory_provider=None, memory_file=".agentkit/rag_memory.json")` | 直接构造 |
-| `from_directory` | `(..., knowledge_dir, model, chunk_size=500, chunk_overlap=100, top_k=3, default_retriever="hybrid", memory_file=..., memory_provider=None)` | 推荐入口 |
+| `__init__` | `(..., model, config=None, memory_provider=None, storage_path=None, enable_memory=None, memory_file=None)` | 直接构造；`memory_file` 为兼容参数，当前会映射为 SQLite 路径 |
+| `from_directory` | `(..., knowledge_dir, model, chunk_size=500, chunk_overlap=100, top_k=3, default_retriever="hybrid", storage_path=".agentkit/rag/index.db", enable_memory=True, memory_file=None, memory_provider=None)` | 推荐入口 |
 
 **实例方法**：
 
@@ -803,6 +812,7 @@ from agentkit import SimpleRAGAgent
 | `reload` | `() -> int` | 重新加载知识库并重建索引，返回 chunk 数 |
 | `search` | `(query, *, top_k=None, retriever=None) -> list[SearchHit]` | 程序化检索 |
 | `list_knowledge_files` | `() -> list[str]` | 列出知识库文件 |
+| `storage_path` | `() -> str` | 返回当前 SQLite 存储路径 |
 | `as_tools` | `() -> list[FunctionTool]` | 返回默认工具：`search_knowledge_base` / `list_knowledge_files` |
 | `build_agent` | `(*, name="simple-rag-assistant", instructions=None, tool_use_behavior="run_llm_again", memory_async_write=False, **kwargs) -> Agent` | 构建标准 Agent |
 
@@ -815,6 +825,7 @@ rag = SimpleRAGAgent.from_directory(
     knowledge_dir="./knowledge_base",
     model="ollama/qwen3.5:4b",
     default_retriever="hybrid",
+    storage_path=".agentkit/rag/index.db",
 )
 agent = rag.build_agent(name="rag-assistant")
 print(Runner.run_sync(agent, input="这个项目是做什么的？").final_output)

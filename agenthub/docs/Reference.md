@@ -46,6 +46,8 @@
 - `entry` 指向的 `create_agent` 必须是**无参工厂函数**，并返回一个可运行的 AgentKit Agent 实例。
 - `entry` 使用相对路径时，路径解析基于执行 `agenthub register` 时的当前工作目录。
 - 该示例依赖 `SimpleRAGAgent` 默认读取 `./knowledge_base` 目录，因此注册前需先准备知识库文件。
+- `SimpleRAGAgent` 默认会把知识库索引与内置记忆统一写入 `./.agentkit/rag/index.db`；如需自定义路径，请在入口脚本中调整 `storage_path`。
+- 当前知识库输入支持 `txt/md/markdown/pdf`；如果使用 PDF，目标环境需额外安装 `ni.agentkit[pdf]` 或 `pypdf`。
 - 如果目标环境没有配置可用模型（例如标准版示例所需 API Key），注册虽可成功，但运行时会在 Agent 实例加载或推理阶段失败。
 
 ### SessionStatus

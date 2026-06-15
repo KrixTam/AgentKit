@@ -31,7 +31,7 @@
 - [示例 16：生命周期 Hooks 与 Callbacks](#16-生命周期-hooks-与-callbacks)
 - [示例 17：Checkpoint 深度恢复（Handoff 后挂起与原路径恢复）](#17-checkpoint-深度恢复handoff-后挂起与原路径恢复)
 - [示例 18：ModelCosplay（运行时改写预设模型）](#18-modelcosplay运行时改写预设模型)
-- [示例 20：SimpleRAGAgent（本地文档检索 + 文件记忆）](#20-simpleragagent本地文档检索--文件记忆)
+- [示例 20：SimpleRAGAgent（本地文档检索 + SQLite 记忆）](#20-simpleragagent本地文档检索--sqlite-记忆)
 - [性能提示](#性能提示)
 - [使用不同的 LLM](#使用不同的-llm)
 - [下一步](#下一步)
@@ -1179,13 +1179,14 @@ if __name__ == "__main__":
 
 ---
 
-## 示例 20：SimpleRAGAgent（本地文档检索 + 文件记忆）
+## 示例 20：SimpleRAGAgent（本地文档检索 + SQLite 记忆）
 
 `SimpleRAGAgent` 是 AgentKit 内置的轻量 RAG 方案，默认支持：
 
-- 文档类型：`txt/md/markdown`
+- 文档类型：`txt/md/markdown/pdf`
 - 检索器：`TF-IDF`、`BM25`、`Vector`（默认 `hybrid` 融合）
-- 记忆：默认启用文件记忆（`./.agentkit/rag_memory.json`）
+- 存储：知识库 chunk 与默认记忆统一落盘到 `./.agentkit/rag/index.db`
+- 记忆：默认启用 SQLite 记忆，可通过 `enable_memory=False` 关闭
 
 ```python
 from agentkit import Runner, SimpleRAGAgent
@@ -1195,12 +1196,22 @@ rag = SimpleRAGAgent.from_directory(
     model="gpt-4o-mini",      # 任意 AgentKit 支持的模型标识
     top_k=3,
     default_retriever="hybrid",
+    storage_path=".agentkit/rag/index.db",  # 可选：自定义 SQLite 路径
+    enable_memory=True,                     # 可选：关闭时仅保留知识库检索
 )
 
 agent = rag.build_agent(name="simple-rag-assistant")
 result = Runner.run_sync(agent, input="请介绍一下 AgentKit 的核心能力")
 print(result.final_output)
 ```
+
+如果知识库中包含 PDF，请额外安装：
+
+```bash
+pip install "ni.agentkit[pdf]"
+```
+
+`memory_file` 参数仍可继续传入，但当前版本会将其视为 SQLite 数据库路径，用于兼容旧代码。
 
 可运行文件：
 - `examples/standard/20_simple_rag_agent.py`
@@ -1347,7 +1358,7 @@ agent = Agent(name="assistant", instructions="...")
 | [`17_checkpoint_handoff_resume.py`](../examples/standard/17_checkpoint_handoff_resume.py) | 示例 17：Checkpoint 深度恢复（Handoff + Resume） |
 | [`18_model_cosplay.py`](../examples/standard/18_model_cosplay.py) | 示例 18：ModelCosplay（运行时改写预设模型） |
 | [`19_hitl_deterministic.py`](../examples/standard/19_hitl_deterministic.py) | 扩展示例：HITL 确定性触发 |
-| [`20_simple_rag_agent.py`](../examples/standard/20_simple_rag_agent.py) | 示例 20：SimpleRAGAgent（本地文档检索 + 文件记忆） |
+| [`20_simple_rag_agent.py`](../examples/standard/20_simple_rag_agent.py) | 示例 20：SimpleRAGAgent（本地文档检索 + SQLite 记忆） |
 
 ### 📁 `examples/ollama/` — Ollama 本地版（无需 API Key，完全本地运行）
 
@@ -1379,7 +1390,7 @@ agent = Agent(name="assistant", instructions="...")
 | [`17_checkpoint_handoff_resume.py`](../examples/ollama/17_checkpoint_handoff_resume.py) | 示例 17：Checkpoint 深度恢复（Handoff + Resume） |
 | [`18_model_cosplay.py`](../examples/ollama/18_model_cosplay.py) | 示例 18：ModelCosplay（运行时改写预设模型） |
 | [`19_hitl_deterministic.py`](../examples/ollama/19_hitl_deterministic.py) | 示例 19：HITL 确定性触发 |
-| [`20_simple_rag_agent.py`](../examples/ollama/20_simple_rag_agent.py) | 示例 20：SimpleRAGAgent（本地文档检索 + 文件记忆） |
+| [`20_simple_rag_agent.py`](../examples/ollama/20_simple_rag_agent.py) | 示例 20：SimpleRAGAgent（本地文档检索 + SQLite 记忆） |
 
 ---
 
