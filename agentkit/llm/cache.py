@@ -107,12 +107,21 @@ class LLMCache:
         tools: list[ToolDefinition] | None = None,
     ) -> Optional[LLMResponse]:
         """查询缓存，命中返回 LLMResponse，未命中返回 None"""
+        _, res = self.get_with_key(messages, tools)
+        return res
+
+    def get_with_key(
+        self,
+        messages: list[Message],
+        tools: list[ToolDefinition] | None = None,
+    ) -> tuple[str, Optional[LLMResponse]]:
+        """查询缓存并返回 (key, response_or_none)"""
         key = self._make_key(messages, tools)
         entry = self._cache.get(key)
 
         if entry is None:
             self._misses += 1
-            return None
+            return key, None
 
         timestamp, response = entry
 
@@ -120,12 +129,12 @@ class LLMCache:
         if self._ttl > 0 and (time.time() - timestamp) > self._ttl:
             del self._cache[key]
             self._misses += 1
-            return None
+            return key, None
 
         # 命中：移到末尾（LRU）
         self._cache.move_to_end(key)
         self._hits += 1
-        return response
+        return key, response
 
     def put(
         self,
@@ -139,6 +148,13 @@ class LLMCache:
             return
 
         key = self._make_key(messages, tools)
+        self.put_with_key(key, response)
+
+    def put_with_key(self, key: str, response: LLMResponse) -> None:
+        """写入缓存（key 由外部预计算）。"""
+        if response.has_tool_calls:
+            return
+
         self._cache[key] = (time.time(), response)
         self._cache.move_to_end(key)
 

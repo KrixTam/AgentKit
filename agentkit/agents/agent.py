@@ -293,11 +293,12 @@ class Agent(BaseAgent):
 
                 # 5. 调用 LLM（支持缓存）
                 cached = False
+                cache_key: str | None = None
 
                 # 检查缓存
                 if self.enable_cache:
                     cache = self._get_cache()
-                    cached_response = cache.get(messages, tool_defs if tool_defs else None)
+                    cache_key, cached_response = cache.get_with_key(messages, tool_defs if tool_defs else None)
                     if cached_response is not None:
                         response = cached_response
                         cached = True
@@ -318,7 +319,10 @@ class Agent(BaseAgent):
 
                     # 写入缓存
                     if self.enable_cache:
-                        cache.put(messages, tool_defs if tool_defs else None, response)
+                        if cache_key is not None:
+                            cache.put_with_key(cache_key, response)
+                        else:
+                            cache.put(messages, tool_defs if tool_defs else None, response)
 
                 cache_key_ms = 0.0
                 if self.enable_cache:

@@ -14,6 +14,7 @@ from typing import Any
 
 from .base import BaseLLM
 from .types import LLMConfig
+from ..utils.env import load_env
 
 
 class LLMRegistry:
@@ -75,7 +76,22 @@ class LLMRegistry:
     def create_default(cls) -> BaseLLM:
         if cls._default_config:
             return cls.create(cls._default_config)
+        env_model = cls._get_default_model_from_env()
+        if env_model:
+            return cls.create(env_model)
         return cls.create(cls._default_model)
+
+    @classmethod
+    def _get_default_model_from_env(cls) -> str | None:
+        load_env()
+        for key in ("AGENTKIT_MODEL", "AGENTKIT_DEFAULT_MODEL", "AGENTKIT_STANDARD_MODEL", "AGENTKIT_OLLAMA_MODEL"):
+            value = (os.environ.get(key) or "").strip()
+            if not value:
+                continue
+            if key == "AGENTKIT_OLLAMA_MODEL" and not value.startswith("ollama/"):
+                value = f"ollama/{value}"
+            return value
+        return None
 
     # ------------------------------------------------------------------
 

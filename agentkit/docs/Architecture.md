@@ -471,6 +471,7 @@ agent.clear_cache()
 > - 缓存仅在单 Agent 实例内有效，重新创建 Agent 会清空缓存
 > - 默认最大 128 条缓存，LRU 淘汰最久未使用的条目
 > - 缓存实现内置 key 生成统计：`key_gen_calls / key_gen_total_ms / key_gen_last_ms / key_gen_avg_ms`
+> - 缓存实现对同一轮的缓存 key 计算做了复用（避免 miss 场景下重复算 key）
 
 ### 3. 记忆异步写入
 

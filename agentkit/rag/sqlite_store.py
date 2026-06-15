@@ -3,17 +3,26 @@
 from __future__ import annotations
 
 import sqlite3
+import threading
 from pathlib import Path
+
+_schema_lock = threading.Lock()
+_schema_initialized: set[str] = set()
 
 
 def connect(db_path: str) -> sqlite3.Connection:
     """创建启用外键与行字典访问的 SQLite 连接。"""
-    path = Path(db_path)
+    path = Path(db_path).expanduser().resolve()
     path.parent.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(path)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
-    initialize_schema(conn)
+    key = str(path)
+    if key not in _schema_initialized:
+        with _schema_lock:
+            if key not in _schema_initialized:
+                initialize_schema(conn)
+                _schema_initialized.add(key)
     return conn
 
 

@@ -15,13 +15,20 @@ class SQLiteMemoryProvider(BaseMemoryProvider):
 
     def __init__(self, db_path: str = ".agentkit/rag/index.db") -> None:
         self._db_path = db_path
+        self._token_cache: dict[str, set[str]] = {}
 
     @staticmethod
     def _to_memory(record: dict, *, score: float = 0.0) -> Memory:
+        metadata = record.get("metadata", {})
+        if isinstance(metadata, str):
+            try:
+                metadata = json.loads(metadata or "{}")
+            except Exception:
+                metadata = {}
         return Memory(
             id=str(record["id"]),
             content=str(record["content"]),
-            metadata=dict(record.get("metadata", {})),
+            metadata=dict(metadata),
             created_at=record.get("created_at"),
             score=score,
         )
@@ -48,14 +55,21 @@ class SQLiteMemoryProvider(BaseMemoryProvider):
         return [self._to_memory(record)]
 
     async def search(self, query, *, user_id=None, agent_id=None, limit=10):
-        records = self._query_records(user_id=user_id, agent_id=agent_id)
+        records = self._query_records(user_id=user_id, agent_id=agent_id, decode_metadata=False)
         query_tokens = tokenize(str(query))
         query_set = set(query_tokens) if query_tokens else set(str(query))
         ranked: list[tuple[float, dict]] = []
         for record in records:
             content = str(record.get("content", ""))
-            content_tokens = tokenize(content)
-            content_set = set(content_tokens) if content_tokens else set(content)
+            cache_key = str(record.get("id", ""))
+            cached_set = self._token_cache.get(cache_key)
+            if cached_set is None:
+                content_tokens = tokenize(content)
+                cached_set = set(content_tokens) if content_tokens else set(content)
+                self._token_cache[cache_key] = cached_set
+                if len(self._token_cache) > 4096:
+                    self._token_cache.clear()
+            content_set = cached_set
             overlap = len(query_set & content_set)
             if overlap <= 0:
                 continue
@@ -73,7 +87,7 @@ class SQLiteMemoryProvider(BaseMemoryProvider):
             conn.commit()
             return cursor.rowcount > 0
 
-    def _query_records(self, *, user_id=None, agent_id=None) -> list[dict]:
+    def _query_records(self, *, user_id=None, agent_id=None, decode_metadata: bool = True) -> list[dict]:
         clauses: list[str] = []
         params: list[str | None] = []
         if user_id is not None:
@@ -90,13 +104,25 @@ class SQLiteMemoryProvider(BaseMemoryProvider):
 
         with connect(self._db_path) as conn:
             rows = conn.execute(sql, params).fetchall()
+        if decode_metadata:
+            return [
+                {
+                    "id": str(row["id"]),
+                    "content": row["content"],
+                    "user_id": row["user_id"],
+                    "agent_id": row["agent_id"],
+                    "metadata": json.loads(row["metadata"] or "{}"),
+                    "created_at": row["created_at"],
+                }
+                for row in rows
+            ]
         return [
             {
                 "id": str(row["id"]),
                 "content": row["content"],
                 "user_id": row["user_id"],
                 "agent_id": row["agent_id"],
-                "metadata": json.loads(row["metadata"] or "{}"),
+                "metadata": row["metadata"] or "{}",
                 "created_at": row["created_at"],
             }
             for row in rows

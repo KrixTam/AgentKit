@@ -99,6 +99,8 @@ class Metrics:
     latency_ms: deque[float] = field(default_factory=lambda: deque(maxlen=2048))
     _latency_p95_ms: float = 0.0
     _latency_dirty: bool = False
+    _last_p95_compute_at: float = 0.0
+    _p95_compute_min_interval_s: float = 1.0
 
     def observe(self, latency_ms: float, status: SessionStatus) -> None:
         self.requests_total += 1
@@ -115,10 +117,12 @@ class Metrics:
     def _p95_latency_ms(self) -> float:
         if not self.latency_ms:
             return 0.0
-        if self._latency_dirty:
+        now = time.time()
+        if self._latency_dirty and (now - self._last_p95_compute_at) >= self._p95_compute_min_interval_s:
             sorted_ms = sorted(self.latency_ms)
             self._latency_p95_ms = sorted_ms[int((len(sorted_ms) - 1) * 0.95)]
             self._latency_dirty = False
+            self._last_p95_compute_at = now
         return self._latency_p95_ms
 
     def to_prometheus(self) -> str:

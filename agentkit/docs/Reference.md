@@ -577,6 +577,20 @@ from agentkit import LLMRegistry
 | `LLMRegistry.create_default()` | 创建默认模型实例 |
 | `LLMRegistry.register(prefix, adapter_class)` | 注册自定义适配器 |
 
+默认模型解析优先级：
+
+1. 若代码中调用过 `LLMRegistry.set_default(...)`，优先使用该默认配置。
+2. 否则会尝试从环境变量（或本地 `.env/.evn`）读取：`AGENTKIT_MODEL` → `AGENTKIT_DEFAULT_MODEL` → `AGENTKIT_STANDARD_MODEL` → `AGENTKIT_OLLAMA_MODEL`。
+3. 都未配置时回退到内置默认值。
+
+示例：
+
+```bash
+export AGENTKIT_DEFAULT_MODEL="ollama/qwen3.5:cloud"
+# 或在项目根目录写入 .env（无需额外依赖）
+# AGENTKIT_DEFAULT_MODEL=ollama/qwen3.5:cloud
+```
+
 **前缀路由表**：
 
 | 前缀 | 适配器 | 需要的包 |

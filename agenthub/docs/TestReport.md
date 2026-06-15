@@ -3,7 +3,7 @@
 > 测试时间：`2026-06-15`  
 > 测试环境：`macOS (Apple Silicon)`  
 > AgentHub 版本：`v0.4.0`  
-> AgentKit 版本：`v0.7.3`  
+> AgentKit 版本：`v0.7.4`  
 > 存储模式：`memory + sqlite`
 
 ---
