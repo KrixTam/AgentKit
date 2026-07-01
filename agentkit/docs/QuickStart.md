@@ -1217,6 +1217,92 @@ pip install "ni.agentkit[pdf]"
 - `examples/standard/20_simple_rag_agent.py`
 - `examples/ollama/20_simple_rag_agent.py`
 
+### 快速体验：交互式 CLI / Web（基于 examples/rag）
+
+如果你希望“开箱即用”地在终端或网页里体验 `SimpleRAGAgent` 的多轮问答，可直接运行 `agentkit/examples/rag/` 目录下的交互式样例。该样例提供：
+
+- CLI 模式：支持 `/files` 查看知识库文件、`/reload` 增量重载知识库、`/quit` 退出
+- Web 模式：基于 Streamlit，支持聊天 UI 与一键重载知识库
+
+#### 1) 准备知识库
+
+默认知识库目录为 `./法律法规`。你可以通过环境变量覆写：
+
+```bash
+export AGENTKIT_RAG_KNOWLEDGE_DIR="./knowledge_base"
+```
+
+也可以直接在项目根目录 `.env/.evn` 中配置（样例会自动加载最近的 `.env/.evn`，且不会覆盖已存在的系统环境变量）：
+
+```bash
+AGENTKIT_RAG_KNOWLEDGE_DIR=./knowledge_base
+```
+
+目录为空时会自动生成 `sample.txt` 作为演示文档。知识库支持的文件类型：`txt/md/markdown/pdf`（PDF 需安装可选依赖，见下文）。
+
+#### 2) 选择模型（优先读取 .env/.evn）
+
+样例会自动读取当前工作目录向上查找最近的 `.env/.evn`，并按以下优先级选择模型：
+
+1. `AGENTKIT_RAG_MODEL`
+2. `AGENTKIT_MODEL`
+3. `AGENTKIT_DEFAULT_MODEL`
+4. `AGENTKIT_STANDARD_MODEL`
+5. 代码内默认值（如 `qwen/qwen3.6-flash`）
+
+例如，在项目根目录 `.env` 中写入：
+
+```bash
+AGENTKIT_RAG_MODEL=ollama/qwen3.5:4b
+```
+
+#### 3) 运行 CLI 模式
+
+```bash
+python -m agentkit.examples.rag.cli
+```
+
+或直接脚本方式运行：
+
+```bash
+python agentkit/examples/rag/cli.py
+```
+
+#### 4) 运行 Web 模式（Streamlit）
+
+先安装 Streamlit：
+
+```bash
+pip install streamlit
+```
+
+再启动（支持通过模块方式直接拉起，无需指定源码绝对路径）：
+
+```bash
+python -m agentkit.examples.rag.web
+```
+
+或直接指定脚本路径：
+
+```bash
+streamlit run agentkit/examples/rag/app.py
+```
+
+#### 5) 可选：PDF 支持 / 自定义存储路径 / 关闭记忆
+
+如果知识库中包含 PDF，请安装：
+
+```bash
+pip install "ni.agentkit[pdf]"
+```
+
+可通过环境变量调整 SQLite 存储位置与默认记忆开关：
+
+```bash
+export AGENTKIT_RAG_STORAGE_PATH="./.agentkit/rag/index.db"
+export AGENTKIT_RAG_ENABLE_MEMORY="true"  # 设置为 "false" 可关闭默认 SQLite 记忆
+```
+
 ---
 
 ## 性能提示

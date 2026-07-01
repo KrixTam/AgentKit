@@ -501,6 +501,109 @@ class Agent(BaseAgent):
     # 辅助方法
     # ------------------------------------------------------------------
 
+    async def stream(
+        self,
+        input: str,
+        context: Any = None,
+        user_id: str | None = None,
+        session_id: str | None = None,
+        max_turns: int = 10,
+    ) -> AsyncGenerator[Event, None]:
+        """流式运行 Agent（脱离 Runner 独立运行），处理 Guardrails 和 Handoff"""
+        import uuid
+        from ..runner.context import RunContext
+        from ..runner.events import EventType
+        from ..runner.runner import Runner
+
+        ctx = RunContext(
+            input=input, 
+            shared_context=context, 
+            user_id=user_id, 
+            session_id=session_id or str(uuid.uuid4())
+        )
+        current_agent = self
+        handoff_agent_cache = {}
+
+        for _ in range(max_turns):
+            # 1. 输入护栏
+            if hasattr(current_agent, "input_guardrails"):
+                for guardrail in current_agent.input_guardrails:
+                    result = await guardrail.check(ctx)
+                    if result.triggered:
+                        yield Event(agent=current_agent.name, type=EventType.ERROR, data=f"输入被安全护栏拦截: {result.reason}")
+                        return
+
+            # 2. 核心执行
+            async for event in current_agent.run(ctx):
+                yield event
+
+                if event.type == EventType.FINAL_OUTPUT:
+                    # 3. 输出护栏
+                    if hasattr(current_agent, "output_guardrails"):
+                        for guardrail in current_agent.output_guardrails:
+                            result = await guardrail.check(ctx, event.data)
+                            if result.triggered:
+                                yield Event(agent=current_agent.name, type=EventType.ERROR, data=f"输出被安全护栏拦截: {result.reason}")
+                                return
+                    return
+
+                if event.type == EventType.HANDOFF:
+                    target_name = event.data.get("target", "") if isinstance(event.data, dict) else ""
+                    if target_name in handoff_agent_cache:
+                        new_agent = handoff_agent_cache[target_name]
+                    else:
+                        new_agent = Runner._find_agent(self, target_name)
+                        handoff_agent_cache[target_name] = new_agent
+
+                    if new_agent:
+                        current_agent = new_agent
+                        break
+                    else:
+                        yield Event(agent=current_agent.name, type=EventType.ERROR, data=f"Handoff 目标 '{target_name}' 未找到")
+                        return
+
+                if event.type == EventType.ERROR:
+                    return
+
+        yield Event(agent=current_agent.name, type=EventType.ERROR, data=f"超过最大轮次 {max_turns}")
+
+    async def ainvoke(
+        self,
+        input: str,
+        context: Any = None,
+        user_id: str | None = None,
+        session_id: str | None = None,
+        max_turns: int = 10,
+    ) -> Any:
+        """异步运行 Agent 并返回最终结果 RunResult"""
+        from ..runner.events import RunResult
+        events = []
+        final_output = None
+        error = None
+        last_agent = self.name
+
+        async for event in self.stream(input=input, context=context, user_id=user_id, session_id=session_id, max_turns=max_turns):
+            events.append(event)
+            last_agent = event.agent
+            if event.type == "final_output":
+                final_output = event.data
+            elif event.type == "error":
+                error = str(event.data)
+
+        return RunResult(final_output=final_output, error=error, events=events, last_agent=last_agent)
+
+    def invoke(
+        self,
+        input: str,
+        context: Any = None,
+        user_id: str | None = None,
+        session_id: str | None = None,
+        max_turns: int = 10,
+    ) -> Any:
+        """同步运行 Agent 并返回最终结果 RunResult"""
+        import asyncio
+        return asyncio.run(self.ainvoke(input=input, context=context, user_id=user_id, session_id=session_id, max_turns=max_turns))
+
     def clear_cache(self) -> None:
         """清空 LLM 响应缓存"""
         if self._cache_instance is not None:

@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import os
+from functools import wraps
 from pathlib import Path
+from typing import Any, Callable
 
 _NEAREST_DOTENV_CACHE: dict[str, Path | None] = {}
 _DOTENV_LOAD_CACHE: dict[str, tuple[int, dict[str, str]]] = {}
@@ -70,3 +72,15 @@ def _find_nearest_dotenv() -> Path | None:
             return path
     _NEAREST_DOTENV_CACHE[str(cwd)] = None
     return None
+
+
+def with_env(dotenv_path: str | None = None) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
+    def decorator(fn: Callable[..., Any]) -> Callable[..., Any]:
+        @wraps(fn)
+        def wrapper(*args: Any, **kwargs: Any) -> Any:
+            load_env(dotenv_path)
+            return fn(*args, **kwargs)
+
+        return wrapper
+
+    return decorator
