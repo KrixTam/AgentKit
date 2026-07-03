@@ -91,7 +91,14 @@ Application → Agent → Skill → Tool → Foundation
 
 ## 核心执行流程
 
-当你调用 `Runner.run(agent, input="...")` 时，框架内部的完整流程如下：
+虽然 Agent 现在具备了独立执行的能力（`agent.invoke` / `agent.stream` 等），但 `Runner` 依然作为底层编排引擎存在，提供复杂场景下的能力：
+
+- 统一的事件与 Hooks 调度
+- 多 Agent `Handoff` 接力
+- 异常兜底与错误报告
+- Human-in-the-loop 挂起（Checkpoint）与恢复（Resume）
+
+当你调用 `agent.invoke(input="...")` 时，它内部实际上也是通过委托 `Runner` 来完成的完整流程：
 
 ```
 用户输入
@@ -99,7 +106,7 @@ Application → Agent → Skill → Tool → Foundation
   ▼
 Runner.run()
   │
-  ├─ 创建 RunContext
+  ├─ 初始化 RunContext
   │
   ├─ 检查输入护栏（InputGuardrail）
   │    └─ 如果触发 → 返回错误
@@ -225,18 +232,20 @@ Agent.run()                ← 异步生成器（async generator，yield Event�
 
 ### 三种运行方式
 
+AgentKit 提供了三种执行方式，你可以直接在 Agent 对象上调用：
+
 | 方式 | API | 适用场景 |
 |------|-----|---------|
-| **同步** | `Runner.run_sync(agent, input=...)` | 脚本、快速测试、简单场景 |
-| **异步** | `await Runner.run(agent, input=...)` | Web 服务、并发任务、生产环境 |
-| **流式** | `async for event in Runner.run_streamed(agent, input=...)` | 实时展示进度、逐 token 输出 |
+| **同步** | `agent.invoke(input=...)` | 脚本、快速测试、简单场景 |
+| **异步** | `await agent.ainvoke(input=...)` | Web 服务、并发任务、生产环境 |
+| **流式** | `async for event in agent.stream(input=...)` | 实时展示进度、逐 token 输出 |
 
 ### 为什么选择异步优先？
 
 1. **LLM 调用是 I/O 密集型**：一次 LLM 调用可能耗时几秒到几十秒，异步可以在等待期间处理其他请求
 2. **并行 Agent 需要并发**：`ParallelAgent` 并行执行多个子 Agent，必须用 `asyncio.gather`
 3. **工具可能涉及网络**：调用外部 API、数据库查询等都是异步操作
-4. **`run_sync()` 兜底**：不熟悉异步的用户可以直接用同步入口，零学习成本
+4. **`invoke()` 兜底**：不熟悉异步的用户可以直接用同步入口，零学习成本
 
 ### 流式运行示例
 
@@ -244,7 +253,7 @@ Agent.run()                ← 异步生成器（async generator，yield Event�
 from agentkit.runner.events import EventType
 
 async def main():
-    async for event in Runner.run_streamed(agent, input="你好"):
+    async for event in agent.stream(input="你好"):
         # 推荐使用 EventType 枚举匹配标准事件类型
         if event.type == EventType.LLM_RESPONSE:
             print("LLM 思考中...")
@@ -417,8 +426,8 @@ AgentKit 的记忆系统遵循**可选、可插拔、自动化**三个原则：
 
 ```python
 # 不同用户的记忆互不干扰
-await Runner.run(agent, input="我喜欢咖啡", user_id="user_A")
-await Runner.run(agent, input="我喜欢茶", user_id="user_B")
+await agent.ainvoke(input="我喜欢咖啡", user_id="user_A")
+await agent.ainvoke(input="我喜欢茶", user_id="user_B")
 ```
 
 ---

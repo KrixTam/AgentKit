@@ -7,7 +7,7 @@ import os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../../..")))
 from model_config import resolve_model
 
-from agentkit import Agent, Runner, Skill, SkillFrontmatter
+from agentkit import Agent, Skill, SkillFrontmatter
 
 logging.basicConfig(level=logging.INFO)
 
@@ -45,7 +45,7 @@ async def main():
     
     print("开始运行 Agent，观察控制台输出的生命周期日志：\n")
     # 运行前后会自动触发 on_load 和 on_unload
-    result = await Runner.run(agent, input="你好！")
+    result = await agent.ainvoke(input="你好！")
     print(f"\n✅ 最终输出: {result.final_output}")
 
 if __name__ == "__main__":

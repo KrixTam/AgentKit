@@ -16,7 +16,6 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../.
 from model_config import resolve_model
 
 from agentkit.agents.agent import Agent
-from agentkit.runner.runner import Runner
 from agentkit.memory.mem0_provider import Mem0Provider
 from agentkit.skills.models import Skill, SkillFrontmatter
 
@@ -85,16 +84,16 @@ async def main():
     # 这里我们重点测试 Runner 的行为
     print("=== 测试 1：User A 存储记忆并增加计数 ===")
     user_a = "user_a_123"
-    result_a1 = await Runner.run(agent, input="记住我的名字叫 Alice", user_id=user_a)
+    result_a1 = await agent.ainvoke(input="记住我的名字叫 Alice", user_id=user_a)
     print(f"User A Session 1 结果: {result_a1.final_output}")
             
     # 让 User A 增加计数
-    result_a2 = await Runner.run(agent, input="请增加计数", user_id=user_a)
+    result_a2 = await agent.ainvoke(input="请增加计数", user_id=user_a)
     print(f"User A Session 2 结果: {result_a2.final_output}")
             
     print("\n=== 测试 2：User B 无法读取 User A 的记忆，并且 Session 计数器从 0 开始 ===")
     user_b = "user_b_456"
-    result_b1 = await Runner.run(agent, input="我的名字叫什么？", user_id=user_b)
+    result_b1 = await agent.ainvoke(input="我的名字叫什么？", user_id=user_b)
     # User B 的上下文中，没有 Alice 的记忆
     print(f"User B 看到的内容（应不知道 Alice）: {result_b1.final_output}")
 

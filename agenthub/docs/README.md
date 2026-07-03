@@ -22,7 +22,7 @@ pip install ni.agenthub
 
 ---
 
-## 当前实现范围（v0.4.0）
+## 当前实现范围（v0.4.1）
 
 - 注册发现：`agent.yaml` 清单校验、注册、查询、下线、别名（`latest`/`stable`）
 - 统一网关：REST 同步调用、SSE 事件流、WS 双向通道（run/resume）
@@ -47,6 +47,6 @@ pip install ni.agenthub
 
 ## 兼容与边界
 
-- AgentHub 不替换 AgentKit 执行引擎，仅编排调用 `Runner.run` / `run_with_checkpoint` / `resume`
+- AgentHub 不替换 AgentKit 执行引擎，仅编排调用 `agent.ainvoke` / `Runner.run_with_checkpoint` / `Runner.resume`
 - 所有能力默认可选：不开启鉴权/配额时，保持最小接入成本
 - `memory` 存储模式会在重启后丢失数据；`sqlite` 提供单机持久化

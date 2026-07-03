@@ -14,7 +14,7 @@ from pathlib import Path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", ".."))
 from model_config import resolve_model
 
-from agentkit import Agent, Runner, load_skill_from_dir
+from agentkit import Agent, load_skill_from_dir
 
 skill_dir = Path(__file__).resolve().parents[1] / "skills" / "weather-tools-entry"
 weather_skill = load_skill_from_dir(skill_dir)
@@ -33,7 +33,7 @@ queries = [
 
 for q in queries:
     print(f"\n用户: {q}")
-    result = Runner.run_sync(agent, input=q)
+    result = agent.invoke(input=q)
     if result.success:
         print(f"助手: {result.final_output}")
     else:

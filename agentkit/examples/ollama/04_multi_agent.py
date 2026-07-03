@@ -13,7 +13,7 @@
 import sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", ".."))
 
-from agentkit import Agent, Runner
+from agentkit import Agent
 from model_config import resolve_model
 
 # ============================================================
@@ -39,7 +39,7 @@ manager = Agent(
     ],
 )
 
-result = Runner.run_sync(manager, input="帮我调研 Python 异步编程的最佳实践")
+result = manager.invoke(input="帮我调研 Python 异步编程的最佳实践")
 if result.success:
     print(f"\n✅ 回复: {result.final_output}")
 else:
@@ -76,7 +76,7 @@ triage_agent = Agent(
     handoffs=[billing_agent, tech_agent],
 )
 
-result = Runner.run_sync(triage_agent, input="我的账单金额好像不对，比上个月多了很多")
+result = triage_agent.invoke(input="我的账单金额好像不对，比上个月多了很多")
 if result.success:
     print(f"\n✅ 最终由 [{result.last_agent}] 处理: {result.final_output}")
 else:

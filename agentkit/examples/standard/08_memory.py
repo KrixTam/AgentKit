@@ -19,7 +19,7 @@ import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", ".."))
 from model_config import resolve_model
 
-from agentkit import Agent, Runner, BaseMemoryProvider, Memory
+from agentkit import Agent, BaseMemoryProvider, Memory
 
 # ============================================================
 # SimpleMemory：轻量内存记忆（无需外部依赖）
@@ -74,10 +74,10 @@ async def demo_no_memory():
         model=resolve_model("gpt-4o"),
     )
 
-    result = await Runner.run(agent, input="我叫小明，我喜欢喝咖啡")
+    result = await agent.ainvoke(input="我叫小明，我喜欢喝咖啡")
     print(f"  对话1: {result.final_output}")
 
-    result = await Runner.run(agent, input="我叫什么名字？我喜欢喝什么？")
+    result = await agent.ainvoke(input="我叫什么名字？我喜欢喝什么？")
     print(f"  对话2: {result.final_output}")
     print("  📝 无记忆 → Agent 不记得之前的对话\n")
 
@@ -101,19 +101,19 @@ async def demo_simple_memory():
     )
 
     print("\n  第1轮:")
-    result = await Runner.run(agent, input="我叫小明，我喜欢喝咖啡，讨厌喝茶", user_id="user_001")
+    result = await agent.ainvoke(input="我叫小明，我喜欢喝咖啡，讨厌喝茶", user_id="user_001")
     print(f"  助手: {result.final_output}")
 
     print("\n  第2轮:")
-    result = await Runner.run(agent, input="帮我推荐一杯饮料吧", user_id="user_001")
+    result = await agent.ainvoke(input="帮我推荐一杯饮料吧", user_id="user_001")
     print(f"  助手: {result.final_output}")
 
     print("\n  第3轮:")
-    result = await Runner.run(agent, input="对了，我对牛奶过敏", user_id="user_001")
+    result = await agent.ainvoke(input="对了，我对牛奶过敏", user_id="user_001")
     print(f"  助手: {result.final_output}")
 
     print("\n  第4轮:")
-    result = await Runner.run(agent, input="再给我推荐一杯饮料，要考虑我的情况", user_id="user_001")
+    result = await agent.ainvoke(input="再给我推荐一杯饮料，要考虑我的情况", user_id="user_001")
     print(f"  助手: {result.final_output}")
 
     all_memories = await memory.get_all()

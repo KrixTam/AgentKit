@@ -16,7 +16,7 @@ import sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", ".."))
 from model_config import resolve_model
 
-from agentkit import Agent, Runner, Skill, SkillFrontmatter, SkillResources, function_tool
+from agentkit import Agent, Skill, SkillFrontmatter, SkillResources, function_tool
 
 # ===== 定义工具 =====
 
@@ -70,7 +70,7 @@ queries = [
 
 for q in queries:
     print(f"\n用户: {q}")
-    result = Runner.run_sync(agent, input=q)
+    result = agent.invoke(input=q)
     if result.success:
         print(f"助手: {result.final_output}")
     else:

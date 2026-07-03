@@ -3,7 +3,7 @@
 > Python 原生的 Agent 开发框架，内置一等公民级别的 Skill 支持和自研多模型适配层。
 
 [![Python](https://img.shields.io/badge/Python-≥3.11-blue.svg)](https://python.org)
-[![Version](https://img.shields.io/badge/Version-0.7.4-green.svg)]()
+[![Version](https://img.shields.io/badge/Version-0.8.0-green.svg)]()
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)]()
 
 ---
@@ -45,7 +45,7 @@ pip install "ni.agentkit[all]"       # 安装所有可选依赖
 ## 🚀 30 秒快速开始
 
 ```python
-from agentkit import Agent, Runner, function_tool
+from agentkit import Agent, function_tool
 
 # 1. 定义工具
 @function_tool
@@ -62,7 +62,7 @@ agent = Agent(
 )
 
 # 3. 运行
-result = Runner.run_sync(agent, input="请计算 (15 + 27) * 3")
+result = agent.invoke(input="请计算 (15 + 27) * 3")
 print(result.final_output)
 ```
 

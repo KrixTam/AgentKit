@@ -4,7 +4,7 @@ import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", ".."))
 
-from agentkit import Agent, Runner
+from agentkit import Agent
 from model_config import resolve_model
 
 async def main() -> None:
@@ -42,8 +42,8 @@ async def main() -> None:
         memory_async_write=False,
     )
 
-    await Runner.run(agent, input="记住：我喜欢低糖拿铁。", user_id="user_001")
-    result = await Runner.run(agent, input="给我推荐一杯饮料。", user_id="user_001")
+    await agent.ainvoke(input="记住：我喜欢低糖拿铁。", user_id="user_001")
+    result = await agent.ainvoke(input="给我推荐一杯饮料。", user_id="user_001")
     print("推荐:", result.final_output)
 
 if __name__ == "__main__":

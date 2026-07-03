@@ -14,7 +14,7 @@ import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", ".."))
 
-from agentkit import Runner, SimpleRAGAgent
+from agentkit import SimpleRAGAgent
 from model_config import resolve_model
 
 
@@ -29,7 +29,7 @@ def create_agent():
 
 def main() -> None:
     agent = create_agent()
-    result = Runner.run_sync(agent, input="AgentKit 是什么？")
+    result = agent.invoke(input="AgentKit 是什么？")
     print("✅ 回复:", result.final_output)
 
 

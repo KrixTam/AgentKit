@@ -15,7 +15,7 @@ import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", ".."))
 
-from agentkit import Runner, SimpleRAGAgent
+from agentkit import SimpleRAGAgent
 from model_config import resolve_model
 
 
@@ -26,7 +26,7 @@ def main() -> None:
         top_k=3,
     )
     agent = rag.build_agent(name="simple-rag-ollama")
-    result = Runner.run_sync(agent, input="AgentKit 有哪些核心能力？")
+    result = agent.invoke(input="AgentKit 有哪些核心能力？")
     print("✅ 回复:", result.final_output)
 
 

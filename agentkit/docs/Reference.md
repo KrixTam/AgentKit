@@ -842,5 +842,5 @@ rag = SimpleRAGAgent.from_directory(
     storage_path=".agentkit/rag/index.db",
 )
 agent = rag.build_agent(name="rag-assistant")
-print(Runner.run_sync(agent, input="这个项目是做什么的？").final_output)
+print(agent.invoke(input="这个项目是做什么的？").final_output)
 ```

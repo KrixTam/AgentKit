@@ -19,7 +19,7 @@ import os
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", ".."))
 
-from agentkit import Agent, Runner, BaseMemoryProvider, Memory
+from agentkit import Agent, BaseMemoryProvider, Memory
 from model_config import resolve_model
 # ============================================================
 # SimpleMemory：轻量内存记忆实现（无需外部依赖）
@@ -79,11 +79,11 @@ async def demo_no_memory():
     )
 
     # 第一次告诉它信息
-    result = await Runner.run(agent, input="我叫小明，我喜欢喝咖啡")
+    result = await agent.ainvoke(input="我叫小明，我喜欢喝咖啡")
     print(f"  对话1: {result.final_output}")
 
     # 第二次问它——它不会记得
-    result = await Runner.run(agent, input="我叫什么名字？我喜欢喝什么？")
+    result = await agent.ainvoke(input="我叫什么名字？我喜欢喝什么？")
     print(f"  对话2: {result.final_output}")
     print("  📝 无记忆 → Agent 不记得之前的对话\n")
 
@@ -108,22 +108,22 @@ async def demo_simple_memory():
 
     # 第一次对话：告诉它偏好
     print("\n  第1轮对话:")
-    result = await Runner.run(agent, input="我叫小明，我喜欢喝咖啡，讨厌喝茶", user_id="user_001")
+    result = await agent.ainvoke(input="我叫小明，我喜欢喝咖啡，讨厌喝茶", user_id="user_001")
     print(f"  助手: {result.final_output}")
 
     # 第二次对话：它应该记住
     print("\n  第2轮对话:")
-    result = await Runner.run(agent, input="帮我推荐一杯饮料吧", user_id="user_001")
+    result = await agent.ainvoke(input="帮我推荐一杯饮料吧", user_id="user_001")
     print(f"  助手: {result.final_output}")
 
     # 第三次对话：继续积累记忆
     print("\n  第3轮对话:")
-    result = await Runner.run(agent, input="对了，我对牛奶过敏", user_id="user_001")
+    result = await agent.ainvoke(input="对了，我对牛奶过敏", user_id="user_001")
     print(f"  助手: {result.final_output}")
 
     # 第四次对话：看看它记住了多少
     print("\n  第4轮对话:")
-    result = await Runner.run(agent, input="再给我推荐一杯饮料，要考虑我的情况", user_id="user_001")
+    result = await agent.ainvoke(input="再给我推荐一杯饮料，要考虑我的情况", user_id="user_001")
     print(f"  助手: {result.final_output}")
 
     # 查看存储的所有记忆

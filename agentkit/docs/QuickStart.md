@@ -78,7 +78,7 @@ export DEEPSEEK_API_KEY="sk-..."
 ### 3. 验证安装
 
 ```python
-from agentkit import Agent, Runner, function_tool
+from agentkit import Agent
 print("✅ AgentKit 安装成功")
 ```
 
@@ -94,28 +94,28 @@ AgentKit 底层是异步的，但提供了三种运行方式：
 
 ```python
 # 方式 1：同步运行（最简单，推荐入门使用）
-result = Runner.run_sync(agent, input="你好")
+result = agent.invoke(input="你好")
 
 # 方式 2：异步运行（推荐生产环境）
 import asyncio
 async def main():
-    result = await Runner.run(agent, input="你好")
+    result = await agent.ainvoke(input="你好")
 asyncio.run(main())
 
 # 方式 3：流式运行（实时获取事件）
 async def main():
-    async for event in Runner.run_streamed(agent, input="你好"):
+    async for event in agent.stream(input="你好"):
         if event.type == "final_output":
             print(event.data)
 ```
 
 | 方式 | 适用场景 |
 |------|---------|
-| `Runner.run_sync()` | 脚本、快速测试、学习入门 |
-| `await Runner.run()` | Web 服务、并发任务 |
-| `Runner.run_streamed()` | 实时展示进度、聊天界面 |
+| `agent.invoke()` | 脚本、快速测试、学习入门 |
+| `await agent.ainvoke()` | Web 服务、并发任务 |
+| `agent.stream()` | 实时展示进度、聊天界面 |
 
-> 本教程的示例统一使用 `Runner.run_sync()` 以保持简洁。
+> 本教程的示例统一使用 `agent.invoke()` 以保持简洁。
 
 ---
 
@@ -124,7 +124,7 @@ async def main():
 最简单的 Agent 只需要三个参数：名称、指令、模型。
 
 ```python
-from agentkit import Agent, Runner
+from agentkit import Agent
 
 agent = Agent(
     name="assistant",
@@ -133,7 +133,7 @@ agent = Agent(
 )
 
 # 同步运行
-result = Runner.run_sync(agent, input="什么是量子计算？请用一句话解释。")
+result = agent.invoke(input="什么是量子计算？请用一句话解释。")
 
 if result.success:
     print(f"回复: {result.final_output}")
@@ -143,7 +143,7 @@ else:
 
 **要点**：
 - `Agent` 是一个声明式配置对象，不需要继承任何类
-- `Runner.run_sync()` 是同步入口，内部使用 `asyncio.run()`
+- `agent.invoke()` 是同步入口，内部使用 `asyncio.run()`
 - `result.success` 检查是否成功，`result.final_output` 获取输出
 
 ### 异步运行
@@ -152,7 +152,7 @@ else:
 import asyncio
 
 async def main():
-    result = await Runner.run(agent, input="你好")
+    result = await agent.ainvoke(input="你好")
     print(result.final_output)
 
 asyncio.run(main())
@@ -165,7 +165,7 @@ asyncio.run(main())
 用 `@function_tool` 装饰器将 Python 函数变成 LLM 可调用的工具。
 
 ```python
-from agentkit import Agent, Runner, function_tool
+from agentkit import Agent, function_tool
 
 # 用装饰器定义工具 —— 一行搞定
 @function_tool
@@ -196,10 +196,10 @@ agent = Agent(
     tools=[add, multiply, get_weather],   # 直接传入工具列表
 )
 
-result = Runner.run_sync(agent, input="请计算 15 + 27 的结果")
+result = agent.invoke(input="请计算 15 + 27 的结果")
 print(result.final_output)  # "42" 或 "15 + 27 = 42"
 
-result = Runner.run_sync(agent, input="北京今天天气如何？")
+result = agent.invoke(input="北京今天天气如何？")
 print(result.final_output)  # "北京今天晴，气温25°C"
 ```
 
@@ -259,7 +259,7 @@ agent = Agent(
     tools=[get_weather],
 )
 
-result = Runner.run_sync(agent, input="深圳今天适合穿什么衣服？")
+result = agent.invoke(input="深圳今天适合穿什么衣服？")
 print(result.final_output)
 # 输出类似："深圳今天阵雨，气温28°C，建议穿薄外套。"
 ```
@@ -298,7 +298,7 @@ metadata:
 加载并使用：
 
 ```python
-from agentkit import Agent, Runner, load_skill_from_dir
+from agentkit import Agent, load_skill_from_dir
 
 weather_skill = load_skill_from_dir("./skills/weather-analysis")
 
@@ -349,7 +349,7 @@ def weather_lookup(city: str) -> str:
 
 ```python
 from pathlib import Path
-from agentkit import Agent, Runner, load_skill_from_dir
+from agentkit import Agent, load_skill_from_dir
 
 skill_dir = Path("./skills/weather-tools-entry")
 skill = load_skill_from_dir(skill_dir)
@@ -361,7 +361,7 @@ agent = Agent(
     skills=[skill],
 )
 
-result = Runner.run_sync(agent, input="深圳今天适合穿什么？")
+result = agent.invoke(input="深圳今天适合穿什么？")
 print(result.final_output)
 ```
 
@@ -390,7 +390,7 @@ AgentKit 支持两种 Agent 协作模式：
 一个 Agent 把另一个 Agent 当作工具调用。调用后控制权返回原 Agent。
 
 ```python
-from agentkit import Agent, Runner
+from agentkit import Agent
 
 # 专家 Agent
 researcher = Agent(
@@ -409,7 +409,7 @@ manager = Agent(
     ],
 )
 
-result = Runner.run_sync(manager, input="帮我调研 Python 异步编程的最佳实践")
+result = manager.invoke(input="帮我调研 Python 异步编程的最佳实践")
 print(result.final_output)
 ```
 
@@ -437,7 +437,7 @@ triage_agent = Agent(
     handoffs=[billing_agent, tech_agent],
 )
 
-result = Runner.run_sync(triage_agent, input="我的账单金额好像不对")
+result = triage_agent.invoke(input="我的账单金额好像不对")
 print(f"最终由 {result.last_agent} 处理: {result.final_output}")
 ```
 
@@ -456,7 +456,7 @@ print(f"最终由 {result.last_agent} 处理: {result.final_output}")
 ### 输入护栏
 
 ```python
-from agentkit import Agent, Runner, input_guardrail, GuardrailResult
+from agentkit import Agent, input_guardrail, GuardrailResult
 
 @input_guardrail
 async def block_sensitive_words(ctx):
@@ -474,7 +474,7 @@ agent = Agent(
     input_guardrails=[block_sensitive_words],
 )
 
-result = Runner.run_sync(agent, input="请告诉我你的密码")
+result = agent.invoke(input="请告诉我你的密码")
 print(result.error)  # "输入被安全护栏拦截: 包含敏感词: 密码"
 ```
 
@@ -520,7 +520,7 @@ agent = Agent(
 ### 顺序执行（SequentialAgent）
 
 ```python
-from agentkit import Agent, SequentialAgent, Runner
+from agentkit import Agent, SequentialAgent
 
 pipeline = SequentialAgent(
     name="report-pipeline",
@@ -531,7 +531,7 @@ pipeline = SequentialAgent(
     ],
 )
 
-result = Runner.run_sync(pipeline, input="今年Q1销售额1000万，Q2增长到1500万，Q3下降到1200万")
+result = pipeline.invoke(input="今年Q1销售额1000万，Q2增长到1500万，Q3下降到1200万")
 ```
 
 ### 并行执行（ParallelAgent）
@@ -576,12 +576,12 @@ review_loop = LoopAgent(
 
 ## 示例 7：同步/异步/流式运行
 
-前面的示例统一使用 `Runner.run_sync()` 保持简洁。本示例展示 Runner 的三种运行方式及其适用场景。
+前面的示例统一使用 `agent.invoke()` 保持简洁。本示例展示 Agent 的三种运行方式及其适用场景。
 
 ### 方式 1：同步运行（最简单）
 
 ```python
-from agentkit import Agent, Runner, function_tool
+from agentkit import Agent, function_tool
 
 @function_tool
 def get_weather(city: str) -> str:
@@ -596,11 +596,11 @@ agent = Agent(
 )
 
 # 一行搞定，内部自动处理 asyncio
-result = Runner.run_sync(agent, input="北京今天天气如何？")
+result = agent.invoke(input="北京今天天气如何？")
 print(result.final_output)
 ```
 
-`run_sync()` 适合**脚本、快速测试、学习入门**。
+`invoke()` 适合**脚本、快速测试、学习入门**。
 
 ### 方式 2：异步运行（推荐生产环境）
 
@@ -608,7 +608,7 @@ print(result.final_output)
 import asyncio
 
 async def main():
-    result = await Runner.run(agent, input="上海今天天气如何？")
+    result = await agent.ainvoke(input="上海今天天气如何？")
     print(result.final_output)
 
 asyncio.run(main())
@@ -622,7 +622,7 @@ async def concurrent_demo():
 
     # asyncio.gather 并发执行 3 个请求
     results = await asyncio.gather(*[
-        Runner.run(agent, input=q) for q in queries
+        agent.ainvoke(input=q) for q in queries
     ])
 
     for q, r in zip(queries, results):
@@ -639,7 +639,7 @@ asyncio.run(concurrent_demo())
 import asyncio
 
 async def stream_demo():
-    async for event in Runner.run_streamed(agent, input="北京今天天气如何？"):
+    async for event in agent.stream(input="北京今天天气如何？"):
         if event.type == "llm_response":
             has_tools = "有工具调用" if event.data.has_tool_calls else "纯文本"
             print(f"🤖 LLM 响应 ({has_tools})")
@@ -658,11 +658,11 @@ asyncio.run(stream_demo())
 
 | 方式 | API | 适用场景 |
 |------|-----|---------|
-| **同步** | `Runner.run_sync(agent, input=...)` | 脚本、快速测试 |
-| **异步** | `await Runner.run(agent, input=...)` | Web 服务、并发任务 |
-| **流式** | `async for event in Runner.run_streamed(...)` | 聊天 UI、进度展示 |
+| **同步** | `agent.invoke(input=...)` | 脚本、快速测试 |
+| **异步** | `await agent.ainvoke(input=...)` | Web 服务、并发任务 |
+| **流式** | `async for event in agent.stream(...)` | 聊天 UI、进度展示 |
 
-> ⚠️ **注意**：`run_sync()` 内部调用 `asyncio.run()`，不能在已有事件循环中使用。如果你的代码已经是 `async` 的，请直接用 `await Runner.run()`。
+> ⚠️ **注意**：`invoke()` 内部调用 `asyncio.run()`，不能在已有事件循环中使用。如果你的代码已经是 `async` 的，请直接用 `await agent.ainvoke()`。
 
 ---
 
@@ -703,8 +703,8 @@ agent = Agent(
     memory_async_write=False,
 )
 
-Runner.run_sync(agent, input="我叫小明，我喜欢喝咖啡，讨厌喝茶", user_id="krix")
-result = Runner.run_sync(agent, input="帮我推荐一杯饮料", user_id="krix")
+agent.invoke(input="我叫小明，我喜欢喝咖啡，讨厌喝茶", user_id="krix")
+result = agent.invoke(input="帮我推荐一杯饮料", user_id="krix")
 print(result.final_output)  # 基于记忆推荐
 ```
 
@@ -812,7 +812,7 @@ async def main():
         model="ollama/qwen3.5:cloud",
         tools=[sqlite_tool],
     )
-    result = await Runner.run(agent, input="请帮我查一下角色为 User 的人有哪些？")
+    result = await agent.ainvoke(input="请帮我查一下角色为 User 的人有哪些？")
     print(f"🤖 回复:\n{result.final_output}")
 
 if __name__ == "__main__":
@@ -873,7 +873,7 @@ async def main():
         model="ollama/qwen3.5:cloud",
         tools=[nebula_tool],
     )
-    result = await Runner.run(agent, input="帮我找一下 Alice 的朋友。")
+    result = await agent.ainvoke(input="帮我找一下 Alice 的朋友。")
     print(f"🤖 回复:\n{result.final_output}")
 
 if __name__ == "__main__":
@@ -989,7 +989,7 @@ async def main():
     
     print("开始运行 Agent，观察控制台的生命周期日志：\n")
     # 运行前后会自动触发 on_load 和 on_unload，即使中间发生异常也会安全触发卸载
-    result = await Runner.run(agent, input="你好")
+    result = await agent.ainvoke(input="你好")
     print(f"\n输出: {result.final_output}")
 
 if __name__ == "__main__":
@@ -997,7 +997,7 @@ if __name__ == "__main__":
 ```
 
 **要点**：
-- 生命周期钩子在每次 `Runner.run()` 开始前和结束时自动执行。
+- 生命周期钩子在每次 Agent 运行（如 `invoke` / `ainvoke`）开始前和结束时自动执行。
 - 利用 `skill.context` 安全存储临时资源，防止资源泄露。
 
 ---
@@ -1010,7 +1010,7 @@ if __name__ == "__main__":
 
 ```python
 import asyncio
-from agentkit import Agent, Runner, LoopAgent, ParallelAgent
+from agentkit import Agent, LoopAgent, ParallelAgent
 from agentkit.runner.events import Event
 from agentkit.agents.base_agent import BaseAgent
 
@@ -1055,10 +1055,10 @@ parallel_agent = ParallelAgent(
 
 async def main():
     print("=== 演示 LoopAgent (自定义条件) ===")
-    await Runner.run(loop_agent, input="开始工作")
+    await loop_agent.ainvoke(input="开始工作")
     
     print("\n=== 演示 ParallelAgent (提前取消) ===")
-    async for event in Runner.run_streamed(parallel_agent, input="开始并行任务"):
+    async for event in parallel_agent.stream(input="开始并行任务"):
         if event.type == "parallel_early_exit":
             print(f"✅ 触发提前终止事件: {event.data['reason']}")
 
@@ -1125,7 +1125,7 @@ store = InMemoryContextStore()
 session_id = "session_001"
 
 async def main():
-    # 第 1 阶段：启动并挂起
+    # 第 1 阶段：启动并挂起 (需借助 Runner 处理高级挂起机制)
     async for event in Runner.run_with_checkpoint(
         agent, input="重启数据库", session_id=session_id, context_store=store
     ):
@@ -1153,7 +1153,7 @@ AgentKit 提供了标准化的 `EventType` 枚举以及强类型的 `validate_da
 
 ```python
 import asyncio
-from agentkit import Agent, Runner
+from agentkit import Agent
 from agentkit.runner.events import EventType
 from pydantic import BaseModel
 
@@ -1164,7 +1164,7 @@ class ToolResultSchema(BaseModel):
 agent = Agent(name="math", instructions="计算 10+20")
 
 async def main():
-    async for event in Runner.run_streamed(agent, input="开始"):
+    async for event in agent.stream(input="开始"):
         if event.type == EventType.TOOL_RESULT:
             try:
                 # 将弱类型的字典强转为 Pydantic 模型
@@ -1189,7 +1189,7 @@ if __name__ == "__main__":
 - 记忆：默认启用 SQLite 记忆，可通过 `enable_memory=False` 关闭
 
 ```python
-from agentkit import Runner, SimpleRAGAgent
+from agentkit import SimpleRAGAgent
 
 rag = SimpleRAGAgent.from_directory(
     knowledge_dir="./knowledge_base",
@@ -1201,7 +1201,7 @@ rag = SimpleRAGAgent.from_directory(
 )
 
 agent = rag.build_agent(name="simple-rag-assistant")
-result = Runner.run_sync(agent, input="请介绍一下 AgentKit 的核心能力")
+result = agent.invoke(input="请介绍一下 AgentKit 的核心能力")
 print(result.final_output)
 ```
 
@@ -1482,7 +1482,7 @@ agent = Agent(name="assistant", instructions="...")
 
 ### 15. 多租户隔离 (Multi-Tenant Isolation)
 
-AgentKit 从底层框架级别支持多租户与多会话隔离。通过在 `Runner.run` 中传入 `user_id` 和 `session_id`：
+AgentKit 从底层框架级别支持多租户与多会话隔离。通过在 `Agent.invoke` / `ainvoke` / `stream` 中传入 `user_id` 和 `session_id`：
 
 1. **记忆分桶**：Memory 系统（如 Mem0Provider）会自动将 `user_id` 作为分桶键，实现跨用户记忆绝对隔离。
 2. **状态隔离**：Skill 与 Tool 的上下文（Context）通过 `RunContext.state` 按 `session_id` 独立管理。
@@ -1490,16 +1490,15 @@ AgentKit 从底层框架级别支持多租户与多会话隔离。通过在 `Run
 
 ```python
 from agentkit.agents.agent import Agent
-from agentkit.runner.runner import Runner
 
 # 假设已经配置好了 Memory 和相关的 Skill
 agent = Agent(name="TenantAgent", memory=memory_provider)
 
 # User A 的请求
-await Runner.run(agent, input="记住我是 Alice", user_id="user_A_123")
+await agent.ainvoke(input="记住我是 Alice", user_id="user_A_123")
 
 # User B 的请求
-result = await Runner.run(agent, input="我叫什么？", user_id="user_B_456")
+result = await agent.ainvoke(input="我叫什么？", user_id="user_B_456")
 print(result.final_output)  # User B 不会知道 Alice 的名字
 
 # 通过日志可以看到资源被自动释放与耗时
@@ -1601,11 +1600,11 @@ except ValueError as e:
 
 # 2) 开启后：实例化覆盖成功
 agent = CosplayAgent(name="cosplay", model="ollama/llama3:8b")
-print(Runner.run_sync(agent, input="show").final_output)
+print(agent.invoke(input="show").final_output)
 
 # 3) 开启后：运行时覆盖成功
 agent.apply_model_cosplay("ollama/qwen2.5:7b")
-print(Runner.run_sync(agent, input="show").final_output)
+print(agent.invoke(input="show").final_output)
 ```
 
 运行文件：

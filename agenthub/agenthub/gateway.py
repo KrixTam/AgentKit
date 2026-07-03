@@ -762,14 +762,23 @@ def create_app(config: HubConfig | None = None) -> FastAPI:
                 trace_id=req.trace_id or str(uuid.uuid4()),
                 db_op_counter=lambda n: _add_db_ops(obs, n),
             )
-            result = await Runner.run(
-                agent,
-                input=req.input,
-                context=req.context,
-                user_id=req.user_id,
-                session_id=session.session_id,
-                max_turns=req.max_turns,
-            )
+            if hasattr(agent, "ainvoke"):
+                result = await agent.ainvoke(
+                    input=req.input,
+                    context=req.context,
+                    user_id=req.user_id,
+                    session_id=session.session_id,
+                    max_turns=req.max_turns,
+                )
+            else:
+                result = await Runner.run(
+                    agent,
+                    input=req.input,
+                    context=req.context,
+                    user_id=req.user_id,
+                    session_id=session.session_id,
+                    max_turns=req.max_turns,
+                )
             _append_events_observed(obs, session.session_id, result.events)
             if result.success:
                 session_store.update_status(session.session_id, SessionStatus.COMPLETED)

@@ -20,7 +20,7 @@ from typing import AsyncGenerator
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", ".."))
 from model_config import resolve_model
 
-from agentkit import Agent, Runner
+from agentkit import Agent
 from agentkit.runner.events import Event, EventType
 
 BASE_MODEL = resolve_model("gpt-4o-mini")
@@ -48,13 +48,13 @@ def main() -> None:
 
     print("\n=== 2) 开启能力：实例化覆盖应成功 ===")
     cosplay_agent = CosplayStandardAgent(name="cosplay-agent", model=OVERRIDE_MODEL)
-    result = Runner.run_sync(cosplay_agent, input="show model")
+    result = cosplay_agent.invoke(input="show model")
     print(f"✅ 实例化覆盖后输出: {result.final_output}")
 
     print("\n=== 3) 开启能力：运行时覆盖应成功 ===")
     runtime_agent = CosplayStandardAgent(name="runtime-agent")
     runtime_agent.apply_model_cosplay(OVERRIDE_MODEL)
-    result = Runner.run_sync(runtime_agent, input="show model")
+    result = runtime_agent.invoke(input="show model")
     print(f"✅ 运行时覆盖后输出: {result.final_output}")
 
 if __name__ == "__main__":

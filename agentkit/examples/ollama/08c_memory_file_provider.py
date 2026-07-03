@@ -6,7 +6,7 @@ from pathlib import Path
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", ".."))
 
-from agentkit import Agent, BaseMemoryProvider, Memory, Runner
+from agentkit import Agent, BaseMemoryProvider, Memory
 from model_config import resolve_model
 MEMORY_FILE = "/tmp/agentkit_memory_ollama.json"
 
@@ -88,8 +88,8 @@ async def main() -> None:
         memory_async_write=False,
     )
 
-    await Runner.run(agent, input="记住：我早餐喜欢美式咖啡。", user_id="user_001")
-    result = await Runner.run(agent, input="推荐一杯饮料。", user_id="user_001")
+    await agent.ainvoke(input="记住：我早餐喜欢美式咖啡。", user_id="user_001")
+    result = await agent.ainvoke(input="推荐一杯饮料。", user_id="user_001")
     print("推荐:", result.final_output)
     print("持久化文件:", MEMORY_FILE)
     print("当前记忆数:", len(await memory.get_all(user_id="user_001")))

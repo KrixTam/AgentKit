@@ -4,7 +4,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", ".."))
 import asyncio
 import sqlite3
 from pydantic import BaseModel, Field
-from agentkit import Agent, Runner
+from agentkit import Agent
 from agentkit.tools.sqlite_tool import SQLiteTool
 from model_config import resolve_model
 
@@ -52,7 +52,7 @@ async def main():
     
     print("\n--- Agent 正在运行 ---\n")
     # 让 Agent 去查角色为 User 的人
-    result = await Runner.run(agent, input="请帮我查一下，数据库里角色为 User 的人有哪些？")
+    result = await agent.ainvoke(input="请帮我查一下，数据库里角色为 User 的人有哪些？")
     
     print(f"🤖 最终回复:\n{result.final_output}")
 

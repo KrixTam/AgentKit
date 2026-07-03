@@ -11,7 +11,7 @@ AgentHub 是 AgentKit 的 Control Plane：
 
 AgentHub 不替换 AgentKit 运行时主循环，仅以适配方式调用：
 
-- `Runner.run`
+- `Agent.invoke` / `Agent.ainvoke` / `Agent.stream`
 - `Runner.run_with_checkpoint`
 - `Runner.resume`
 
@@ -48,7 +48,7 @@ AgentHub 不替换 AgentKit 运行时主循环，仅以适配方式调用：
 3. 命中 Agent 原型缓存（未命中时按 `entry` 加载，支持 `module:attr` 与 `path.py:attr`），并深拷贝得到请求级实例。
 4. 应用模型改写策略：优先请求参数 `model_cosplay`，否则使用 Manifest 的 `model_cosplay` 默认值（仅对开启能力的 Agent 生效）。
 5. 创建/复用会话记录（`session_id`、`trace_id`、`user_id`）。
-6. 调用 `Runner.run(...)` 获取 `RunResult`。
+6. 调用 `agent.ainvoke(...)` 获取 `RunResult`。
 7. 事件顺序写入 SessionStore（带 `seq`）；同步 `invoke` 路径使用批量写入（`append_events`）降低存储往返。
 8. 返回统一响应结构 `ApiResponse`。
 

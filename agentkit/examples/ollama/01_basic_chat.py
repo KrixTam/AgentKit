@@ -11,7 +11,7 @@
 import sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", ".."))
 
-from agentkit import Agent, Runner
+from agentkit import Agent
 from model_config import resolve_model
 
 # 创建最简 Agent —— 使用本地 Ollama 模型
@@ -23,7 +23,7 @@ agent = Agent(
 
 # 同步运行
 if __name__ == "__main__":
-    result = Runner.run_sync(agent, input="什么是量子计算？请用一句话解释。")
+    result = agent.invoke(input="什么是量子计算？请用一句话解释。")
 
     if result.success:
         print(f"✅ 回复: {result.final_output}")

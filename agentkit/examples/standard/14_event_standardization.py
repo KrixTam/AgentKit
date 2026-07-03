@@ -5,7 +5,7 @@
 """
 import asyncio
 from model_config import resolve_model
-from agentkit import Agent, Runner
+from agentkit import Agent
 from agentkit.runner.events import EventType
 from pydantic import BaseModel
 
@@ -24,7 +24,7 @@ async def main():
     )
     
     print("\n[运行 Agent 并监听标准事件]")
-    async for event in Runner.run_streamed(agent, input="开始计算"):
+    async for event in agent.stream(input="开始计算"):
         # 1. 使用标准 EventType 进行匹配
         if event.type == EventType.LLM_RESPONSE:
             print(f"[{event.type}] LLM 返回了响应")

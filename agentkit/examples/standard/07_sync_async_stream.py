@@ -1,7 +1,7 @@
 """
 示例：三种运行方式对比 — 同步 / 异步 / 流式（标准版）
 
-演示 Runner 的三种运行方式在同一个 Agent 上的用法差异。
+演示 Agent 的三种运行方式在同一个 Agent 上的用法差异。
 
 运行前请设置环境变量：
   export OPENAI_API_KEY="sk-..."
@@ -17,7 +17,7 @@ import time
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", ".."))
 from model_config import resolve_model
 
-from agentkit import Agent, Runner, function_tool
+from agentkit import Agent, function_tool
 
 # ===== 定义一个简单工具 =====
 
@@ -36,16 +36,16 @@ agent = Agent(
 )
 
 # ============================================================
-# 方式 1：同步运行 — Runner.run_sync()
+# 方式 1：同步运行 — agent.invoke()
 # ============================================================
 
 def demo_sync():
     print("=" * 50)
-    print("  方式 1：同步运行 — Runner.run_sync()")
+    print("  方式 1：同步运行 — agent.invoke()")
     print("=" * 50)
 
     start = time.time()
-    result = Runner.run_sync(agent, input="北京今天天气如何？")
+    result = agent.invoke(input="北京今天天气如何？")
     elapsed = time.time() - start
 
     if result.success:
@@ -55,16 +55,16 @@ def demo_sync():
     print(f"  ⏱️ 耗时: {elapsed:.1f}s")
 
 # ============================================================
-# 方式 2：异步运行 — await Runner.run()
+# 方式 2：异步运行 — await agent.ainvoke()
 # ============================================================
 
 async def demo_async():
     print(f"\n{'=' * 50}")
-    print("  方式 2：异步运行 — await Runner.run()")
+    print("  方式 2：异步运行 — await agent.ainvoke()")
     print("=" * 50)
 
     start = time.time()
-    result = await Runner.run(agent, input="上海今天天气如何？")
+    result = await agent.ainvoke(input="上海今天天气如何？")
     elapsed = time.time() - start
 
     if result.success:
@@ -90,7 +90,7 @@ async def demo_async_concurrent():
 
     start = time.time()
     results = await asyncio.gather(*[
-        Runner.run(agent, input=q) for q in queries
+        agent.ainvoke(input=q) for q in queries
     ])
     elapsed = time.time() - start
 
@@ -101,18 +101,18 @@ async def demo_async_concurrent():
     print(f"  ⏱️ 3 个请求并发总耗时: {elapsed:.1f}s")
 
 # ============================================================
-# 方式 3：流式运行 — Runner.run_streamed()
+# 方式 3：流式运行 — agent.stream()
 # ============================================================
 
 async def demo_stream():
     print(f"\n{'=' * 50}")
-    print("  方式 3：流式运行 — Runner.run_streamed()")
+    print("  方式 3：流式运行 — agent.stream()")
     print("=" * 50)
 
     print("  📡 实时事件流:")
 
     start = time.time()
-    async for event in Runner.run_streamed(agent, input="北京今天天气如何？"):
+    async for event in agent.stream(input="北京今天天气如何？"):
         elapsed = time.time() - start
         if event.type == "llm_response":
             has_tools = "有工具调用" if event.data.has_tool_calls else "纯文本"
@@ -151,13 +151,13 @@ def run_all():
     print("=" * 50)
     print("""
 📝 总结：
-  run_sync()      — 最简单，一行代码，适合脚本和测试
-  await run()     — 异步核心，可并发执行多个请求
-  run_streamed()  — 实时事件流，适合聊天 UI 和进度展示
+  invoke()        — 最简单，一行代码，适合脚本和测试
+  await ainvoke() — 异步核心，可并发执行多个请求
+  stream()        — 实时事件流，适合聊天 UI 和进度展示
 
-⚠️ 注意：run_sync() 内部调用 asyncio.run()，因此不能在
+⚠️ 注意：invoke() 内部调用 asyncio.run()，因此不能在
    已有事件循环中使用。如果你的代码已经是 async 的，
-   请直接用 await Runner.run()。
+   请直接用 await agent.ainvoke()。
 """)
 
 if __name__ == "__main__":

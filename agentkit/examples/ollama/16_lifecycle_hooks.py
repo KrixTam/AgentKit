@@ -17,7 +17,6 @@ import logging
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../../..")))
 
 from agentkit.agents.agent import Agent
-from agentkit.runner.runner import Runner
 from model_config import resolve_model
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(message)s")
@@ -77,7 +76,7 @@ async def main():
     )
 
     print("\n--- 正常流程测试 ---")
-    result = await Runner.run(agent, input="北京天气如何？")
+    result = await agent.ainvoke(input="北京天气如何？")
     print(f"\nFinal Output:\n{result.final_output}")
     
     print("\n--- 异常捕获测试 ---")
@@ -85,7 +84,7 @@ async def main():
         raise RuntimeError("Hook 内部发生了严重错误！")
         
     agent.after_model_callback = bad_hook
-    result2 = await Runner.run(agent, input="上海天气如何？")
+    result2 = await agent.ainvoke(input="上海天气如何？")
     
     print(f"\n可以看到，由于 fail_fast_on_hook_error=False，Hook 的异常只是被作为 Event 抛出并记录，没有中断主流程。")
     # 查找 error event

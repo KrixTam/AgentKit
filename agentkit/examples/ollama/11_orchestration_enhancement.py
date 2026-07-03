@@ -5,7 +5,7 @@ import os
 # 确保能导入 agentkit
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../../..")))
 
-from agentkit import Agent, Runner, LoopAgent, ParallelAgent
+from agentkit import Agent, LoopAgent, ParallelAgent
 from agentkit.runner.events import Event
 from agentkit.agents.base_agent import BaseAgent
 from model_config import resolve_model
@@ -69,10 +69,10 @@ parallel_agent = ParallelAgent(
 
 async def main():
     print("=== 演示 1: LoopAgent 动态循环退出 ===")
-    await Runner.run(loop_agent, input="开始代码审查")
+    await loop_agent.ainvoke(input="开始代码审查")
     
     print("\n=== 演示 2: ParallelAgent 提前终止取消耗时分支 ===")
-    async for event in Runner.run_streamed(parallel_agent, input="启动并行任务"):
+    async for event in parallel_agent.stream(input="启动并行任务"):
         if event.type == "parallel_early_exit":
             print(f"✅ 捕获到提前终止事件: {event.data['reason']}")
             print(f"当前分支状态摘要: {event.data['branch_status']}")

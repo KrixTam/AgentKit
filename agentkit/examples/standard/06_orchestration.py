@@ -16,7 +16,7 @@ import sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", ".."))
 from model_config import resolve_model
 
-from agentkit import Agent, Runner, SequentialAgent, ParallelAgent, LoopAgent
+from agentkit import Agent, SequentialAgent, ParallelAgent, LoopAgent
 
 # ============================================================
 # 模式 A：顺序执行 — 报告生成流水线
@@ -47,7 +47,7 @@ pipeline = SequentialAgent(
     ],
 )
 
-result = Runner.run_sync(pipeline, input="今年Q1销售额1000万，Q2增长到1500万，Q3下降到1200万，Q4预计1800万")
+result = pipeline.invoke(input="今年Q1销售额1000万，Q2增长到1500万，Q3下降到1200万，Q4预计1800万")
 print(f"\n输入: 今年Q1销售额1000万...")
 for event in result.events:
     if event.type == "final_output":
@@ -82,7 +82,7 @@ parallel = ParallelAgent(
     ],
 )
 
-result = Runner.run_sync(parallel, input="公司年收入 5 亿，同比增长 20%，但负债率从 30% 升至 45%")
+result = parallel.invoke(input="公司年收入 5 亿，同比增长 20%，但负债率从 30% 升至 45%")
 print(f"\n输入: 公司年收入 5 亿...")
 for event in result.events:
     if event.type == "final_output":
@@ -113,7 +113,7 @@ loop = LoopAgent(
     ],
 )
 
-result = Runner.run_sync(loop, input="为一款AI编程助手写一句吸引开发者的广告语")
+result = loop.invoke(input="为一款AI编程助手写一句吸引开发者的广告语")
 print(f"\n输入: 为一款AI编程助手写广告语")
 for event in result.events:
     if event.type == "final_output":

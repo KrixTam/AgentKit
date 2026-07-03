@@ -66,15 +66,24 @@ pip install ni.agentkit
 ```
 
 ```python
-from agentkit import Agent, Runner
+from agentkit import Agent, function_tool
 
+# 1. 定义工具
+@function_tool
+def calculate(expression: str) -> str:
+    """计算数学表达式"""
+    return str(eval(expression))
+
+# 2. 创建 Agent
 agent = Agent(
     name="assistant",
-    instructions="你是一个有帮助的中文助手。",
+    instructions="你是一个有帮助的中文助手。需要计算时请使用工具。",
     model="ollama/qwen3.5:cloud",
+    tools=[calculate],
 )
 
-result = Runner.run_sync(agent, input="你好，介绍一下你自己")
+# 3. 运行
+result = agent.invoke(input="你好，介绍一下你自己")
 print(result.final_output)
 ```
 

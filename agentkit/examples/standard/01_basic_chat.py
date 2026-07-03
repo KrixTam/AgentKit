@@ -11,7 +11,7 @@ import sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", ".."))
 from model_config import resolve_model
 
-from agentkit import Agent, Runner
+from agentkit import Agent
 
 # 创建最简 Agent —— 只需 3 个参数
 agent = Agent(
@@ -21,7 +21,7 @@ agent = Agent(
 )
 
 # 同步运行
-result = Runner.run_sync(agent, input="什么是量子计算？请用一句话解释。")
+result = agent.invoke(input="什么是量子计算？请用一句话解释。")
 
 if result.success:
     print(f"✅ 回复: {result.final_output}")

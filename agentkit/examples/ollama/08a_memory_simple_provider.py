@@ -4,7 +4,7 @@ import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", ".."))
 
-from agentkit import Agent, BaseMemoryProvider, Memory, Runner
+from agentkit import Agent, BaseMemoryProvider, Memory
 from model_config import resolve_model
 class SimpleMemory(BaseMemoryProvider):
     def __init__(self) -> None:
@@ -45,8 +45,8 @@ async def main() -> None:
         memory_async_write=False,
     )
 
-    await Runner.run(agent, input="我叫小明，喜欢咖啡，讨厌茶。", user_id="user_001")
-    result = await Runner.run(agent, input="帮我推荐一杯饮料。", user_id="user_001")
+    await agent.ainvoke(input="我叫小明，喜欢咖啡，讨厌茶。", user_id="user_001")
+    result = await agent.ainvoke(input="帮我推荐一杯饮料。", user_id="user_001")
     print("推荐:", result.final_output)
     print("记忆条数:", len(await memory.get_all()))
 

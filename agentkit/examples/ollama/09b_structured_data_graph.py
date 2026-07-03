@@ -5,7 +5,7 @@ import asyncio
 import logging
 from typing import Any
 from pydantic import BaseModel, Field
-from agentkit import Agent, Runner
+from agentkit import Agent
 
 from agentkit.tools.structured_data import ResultFormatter
 from agentkit.tools.nebula_tool import NebulaGraphTool, NEBULA_AVAILABLE
@@ -71,7 +71,7 @@ async def main():
     
     print("\n--- Agent 正在运行 ---\n")
     # 让 Agent 去查图数据库
-    result = await Runner.run(agent, input="请帮我在图谱里找一下 Alice 的朋友。")
+    result = await agent.ainvoke(input="请帮我在图谱里找一下 Alice 的朋友。")
     
     print(f"\n🤖 最终回复:\n{result.final_output}")
 
