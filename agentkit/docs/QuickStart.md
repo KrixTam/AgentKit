@@ -31,7 +31,8 @@
 - [示例 16：生命周期 Hooks 与 Callbacks](#16-生命周期-hooks-与-callbacks)
 - [示例 17：Checkpoint 深度恢复（Handoff 后挂起与原路径恢复）](#17-checkpoint-深度恢复handoff-后挂起与原路径恢复)
 - [示例 18：ModelCosplay（运行时改写预设模型）](#18-modelcosplay运行时改写预设模型)
-- [示例 20：SimpleRAGAgent（本地文档检索 + SQLite 记忆）](#20-simpleragagent本地文档检索--sqlite-记忆)
+- [示例 20：SimpleRAGAgent（V1，本地文档检索 + SQLite 记忆）](#20-simpleragagentv1本地文档检索--sqlite-记忆)
+- [示例 21：HybridRAGAgent（V2，混合检索 + Chroma + Reranker）](#21-hybridragagentv2混合检索--chroma--reranker)
 - [性能提示](#性能提示)
 - [使用不同的 LLM](#使用不同的-llm)
 - [下一步](#下一步)
@@ -1179,7 +1180,7 @@ if __name__ == "__main__":
 
 ---
 
-## 示例 20：SimpleRAGAgent（本地文档检索 + SQLite 记忆）
+## 示例 20：SimpleRAGAgent（V1，本地文档检索 + SQLite 记忆）
 
 `SimpleRAGAgent` 是 AgentKit 内置的轻量 RAG 方案，默认支持：
 
@@ -1301,6 +1302,67 @@ pip install "ni.agentkit[pdf]"
 ```bash
 export AGENTKIT_RAG_STORAGE_PATH="./.agentkit/rag/index.db"
 export AGENTKIT_RAG_ENABLE_MEMORY="true"  # 设置为 "false" 可关闭默认 SQLite 记忆
+```
+
+---
+
+## 示例 21：HybridRAGAgent（V2，混合检索 + Chroma + Reranker）
+
+`HybridRAGAgent` 是 AgentKit 内置的增强版 RAG 方案，默认支持：
+
+- 文档类型：`txt/md/markdown/pdf`
+- 召回链路：`BM25` + `Vector(ChromaDB)` + `RRF`
+- 精排链路：`Top-N Recall -> Reranker -> Final Top-K`
+- 存储：向量库持久化到 `vector_store_dir`，默认记忆持久化到独立 `memory_db_path`
+- 分块：按段落 / 行 / 句子递归切分，并以 token 预算控制 chunk 大小与 overlap
+
+```python
+from agentkit import HybridRAGAgent
+
+rag = HybridRAGAgent.from_directory(
+    knowledge_dir="./knowledge_base",
+    model="ollama/qwen3.5:4b",
+    vector_store_dir=".agentkit/rag_v2/chroma",
+    memory_db_path=".agentkit/rag_v2/memory.db",
+    embedding_model="ollama/qllama/bge-small-zh-v1.5:f16",
+    reranker_model="ollama/qllama/bce-reranker-base_v1:f16",
+    chunk_size_tokens=350,
+    chunk_overlap_tokens=50,
+    recall_top_k=20,
+    final_top_k=3,
+    enable_memory=True,
+)
+
+agent = rag.build_agent(name="hybrid-rag-assistant")
+result = agent.invoke(input="请介绍一下 AgentKit 的核心能力")
+print(result.final_output)
+```
+
+安装依赖：
+
+```bash
+pip install "ni.agentkit[rag]"
+pip install "ni.agentkit[pdf]"   # 如果知识库包含 PDF
+```
+
+说明：
+
+- `HybridRAGAgent` 保留 `SimpleRAGAgent` 的易用入口，但不再暴露 `tfidf`
+- 默认 embedding 走 Ollama `/api/embed`
+- 默认 reranker 走兼容 `/api/rerank` 或 `/v1/rerank` 的本地服务
+
+可运行文件：
+- `examples/standard/21_hybrid_rag_agent.py`
+- `examples/ollama/21_hybrid_rag_agent.py`
+
+建议环境变量：
+
+```bash
+export AGENTKIT_HYBRID_RAG_MODEL="ollama/qwen3.5:4b"
+export AGENTKIT_HYBRID_RAG_VECTOR_STORE_DIR="./.agentkit/rag_v2/chroma"
+export AGENTKIT_HYBRID_RAG_MEMORY_DB_PATH="./.agentkit/rag_v2/memory.db"
+export AGENTKIT_HYBRID_RAG_EMBEDDING_MODEL="ollama/qllama/bge-small-zh-v1.5:f16"
+export AGENTKIT_HYBRID_RAG_RERANKER_MODEL="ollama/qllama/bce-reranker-base_v1:f16"
 ```
 
 ---
@@ -1444,7 +1506,8 @@ agent = Agent(name="assistant", instructions="...")
 | [`17_checkpoint_handoff_resume.py`](../examples/standard/17_checkpoint_handoff_resume.py) | 示例 17：Checkpoint 深度恢复（Handoff + Resume） |
 | [`18_model_cosplay.py`](../examples/standard/18_model_cosplay.py) | 示例 18：ModelCosplay（运行时改写预设模型） |
 | [`19_hitl_deterministic.py`](../examples/standard/19_hitl_deterministic.py) | 扩展示例：HITL 确定性触发 |
-| [`20_simple_rag_agent.py`](../examples/standard/20_simple_rag_agent.py) | 示例 20：SimpleRAGAgent（本地文档检索 + SQLite 记忆） |
+| [`20_simple_rag_agent.py`](../examples/standard/20_simple_rag_agent.py) | 示例 20：SimpleRAGAgent（V1，本地文档检索 + SQLite 记忆） |
+| [`21_hybrid_rag_agent.py`](../examples/standard/21_hybrid_rag_agent.py) | 示例 21：HybridRAGAgent（V2，混合检索 + Chroma + Reranker） |
 
 ### 📁 `examples/ollama/` — Ollama 本地版（无需 API Key，完全本地运行）
 
@@ -1476,7 +1539,8 @@ agent = Agent(name="assistant", instructions="...")
 | [`17_checkpoint_handoff_resume.py`](../examples/ollama/17_checkpoint_handoff_resume.py) | 示例 17：Checkpoint 深度恢复（Handoff + Resume） |
 | [`18_model_cosplay.py`](../examples/ollama/18_model_cosplay.py) | 示例 18：ModelCosplay（运行时改写预设模型） |
 | [`19_hitl_deterministic.py`](../examples/ollama/19_hitl_deterministic.py) | 示例 19：HITL 确定性触发 |
-| [`20_simple_rag_agent.py`](../examples/ollama/20_simple_rag_agent.py) | 示例 20：SimpleRAGAgent（本地文档检索 + SQLite 记忆） |
+| [`20_simple_rag_agent.py`](../examples/ollama/20_simple_rag_agent.py) | 示例 20：SimpleRAGAgent（V1，本地文档检索 + SQLite 记忆） |
+| [`21_hybrid_rag_agent.py`](../examples/ollama/21_hybrid_rag_agent.py) | 示例 21：HybridRAGAgent（V2，混合检索 + Chroma + Reranker） |
 
 ---
 

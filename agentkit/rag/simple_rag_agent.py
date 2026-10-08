@@ -65,11 +65,12 @@ class SimpleRAGAgent:
         chunk_overlap: int = 100,
         top_k: int = 3,
         default_retriever: RetrieverKind = "hybrid",
-        storage_path: str = ".agentkit/rag/index.db",
+        storage_path: str | None = None,
         enable_memory: bool = True,
         memory_file: str | None = None,
         memory_provider: BaseMemoryProvider | None = None,
     ) -> "SimpleRAGAgent":
+        storage_path = storage_path or SimpleRAGConfig().storage_path
         cfg = SimpleRAGConfig(
             knowledge_dir=knowledge_dir,
             storage_path=storage_path,

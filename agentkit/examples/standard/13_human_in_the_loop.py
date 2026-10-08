@@ -1,41 +1,63 @@
 """
 示例 13：Human-in-the-loop 与断点续跑
 
-演示如何使用 request_human_input 请求人工介入，
-并在挂起后通过 ContextStore 保存状态，之后再通过 resume 恢复执行。
+演示如何通过 Runner checkpoint 保存挂起状态，并在人工输入后恢复执行。
+为保证标准版批跑稳定，本示例使用确定性挂起逻辑，不依赖具体模型是否会先调用确认工具。
 """
+from __future__ import annotations
+
 import asyncio
-from model_config import resolve_model
-from agentkit import Agent, Runner
-from agentkit.tools.function_tool import FunctionTool
-from agentkit.tools.base_tool import request_human_input
+from typing import AsyncGenerator
+
+from agentkit.agents.base_agent import BaseAgent
+from agentkit.runner.context import RunContext
+from agentkit import Runner
 from agentkit.runner.context_store import InMemoryContextStore
-from agentkit.runner.events import EventType
+from agentkit.runner.events import Event, EventType
 
-# 1. 定义一个需要人工介入的工具
-def confirm_action(action: str) -> str:
-    """在执行敏感操作前请求人工确认"""
-    # 抛出中断异常，Runner 会将其转化为 suspend_requested 事件并挂起
-    request_human_input(f"即将执行敏感操作: {action}，请确认 (yes/no)")
 
-confirm_tool = FunctionTool.from_function(confirm_action)
+class OpsApprovalAgent(BaseAgent):
+    async def _run_impl(self, ctx: RunContext) -> AsyncGenerator[Event, None]:
+        action = ctx.state.get("pending_action") or str(ctx.input)
 
-# 2. 定义执行具体操作的工具
-def execute_action(action: str) -> str:
-    """执行操作"""
-    return f"操作 '{action}' 已成功执行！"
+        if not ctx.state.get("approval_requested"):
+            ctx.state["approval_requested"] = True
+            ctx.state["pending_action"] = action
+            suspension = ctx.register_suspension(
+                tool_call_id="manual-approval-1",
+                tool_name="confirm_action",
+                prompt=f"即将执行敏感操作: {action}，请确认 (yes/no)",
+            )
+            yield Event(
+                agent=self.name,
+                type=EventType.SUSPEND_REQUESTED,
+                data={
+                    "suspension_id": suspension.suspension_id,
+                    "prompt": f"即将执行敏感操作: {action}，请确认 (yes/no)",
+                    "tool": "confirm_action",
+                    "tool_call_id": "manual-approval-1",
+                },
+            )
+            return
 
-execute_tool = FunctionTool.from_function(execute_action)
+        decision = "unknown"
+        for msg in reversed(ctx.messages):
+            if msg.get("role") == "tool" and msg.get("tool_call_id") == "manual-approval-1":
+                decision = str(msg.get("content", "unknown")).strip().lower()
+                break
+
+        if decision in {"yes", "approve", "approved"}:
+            result = f"操作 '{action}' 已成功执行！"
+        else:
+            result = f"操作 '{action}' 已取消执行。"
+
+        yield Event(agent=self.name, type=EventType.TOOL_RESULT, data={"result": result})
+        yield Event(agent=self.name, type=EventType.FINAL_OUTPUT, data=result)
 
 async def main():
     print("=== Human-in-the-loop 与断点续跑示例 ===")
     
-    agent = Agent(
-        name="ops_agent",
-        instructions="你是一个运维助手。当用户要求执行操作时，你必须先使用 confirm_action 工具获取确认。只有确认后才能使用 execute_action 工具。",
-        tools=[confirm_tool, execute_tool],
-        model=resolve_model("gpt-4o-mini") # 或你配置的默认模型
-    )
+    agent = OpsApprovalAgent(name="ops_agent")
     
     # 使用内存存储保存挂起的上下文
     store = InMemoryContextStore()

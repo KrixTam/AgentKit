@@ -39,6 +39,7 @@
   - [BaseMemoryProvider / Memory](#basememoryprovider)
 - [RAG 类](#rag-类)
   - [SimpleRAGAgent](#simpleragagent)
+  - [HybridRAGAgent](#hybridragagent)
 
 ---
 
@@ -842,5 +843,59 @@ rag = SimpleRAGAgent.from_directory(
     storage_path=".agentkit/rag/index.db",
 )
 agent = rag.build_agent(name="rag-assistant")
+print(agent.invoke(input="这个项目是做什么的？").final_output)
+```
+
+### HybridRAGAgent
+
+AgentKit 内置增强版 RAG 构建器：将 `BM25 + Chroma 向量检索 + RRF + Reranker` 组合为标准 `Agent`。
+
+```python
+from agentkit import HybridRAGAgent
+```
+
+**能力范围（V2）**：
+
+- 文档类型：`txt/md/markdown/pdf`
+- 召回链路：`bm25`、`vector(Chroma)`、`hybrid(RRF)`
+- 精排链路：`reranker`
+- 存储：向量库默认写入 `./.agentkit/rag_v2/chroma`，默认记忆写入 `./.agentkit/rag_v2/memory.db`
+- 记忆：默认启用 `SQLiteMemoryProvider`，可通过 `enable_memory=False` 关闭
+- 模型：最终回答模型支持任意 AgentKit 可识别模型标识；默认 embedding / reranker 使用本地 Ollama 模型
+- 依赖：需额外安装 `ni.agentkit[rag]`；PDF 仍需 `ni.agentkit[pdf]`
+
+**构造与工厂**：
+
+| 方法 | 签名 | 说明 |
+|------|------|------|
+| `__init__` | `(..., model, config=None, memory_provider=None, embedder=None, reranker=None, vector_store=None, chunker=None, enable_memory=None, memory_db_path=None)` | 直接构造，支持注入自定义 provider |
+| `from_directory` | `(..., knowledge_dir, model, vector_store_dir=".agentkit/rag_v2/chroma", memory_db_path=".agentkit/rag_v2/memory.db", embedding_model="ollama/qllama/bge-small-zh-v1.5:f16", reranker_model="ollama/qllama/bce-reranker-base_v1:f16", chunk_size_tokens=350, chunk_overlap_tokens=50, recall_top_k=20, final_top_k=3, max_context_tokens=None, enable_memory=True, ...)` | 推荐入口 |
+
+**实例方法**：
+
+| 方法 | 签名 | 说明 |
+|------|------|------|
+| `reload` | `() -> int` | 重新加载知识库、重建 BM25 与 Chroma 索引，返回 chunk 数 |
+| `search` | `(query, *, top_k=None, stage="final") -> list[SearchHit]` | 程序化检索；`stage="recall"` 返回召回结果，`stage="final"` 返回重排结果 |
+| `list_knowledge_files` | `() -> list[str]` | 列出知识库文件 |
+| `vector_store_dir` | `() -> str` | 返回 Chroma 本地持久化目录 |
+| `memory_db_path` | `() -> str` | 返回默认记忆 SQLite 路径 |
+| `as_tools` | `() -> list[FunctionTool]` | 返回默认工具：`search_knowledge_base` / `list_knowledge_files` |
+| `build_agent` | `(*, name="hybrid-rag-assistant", instructions=None, tool_use_behavior="run_llm_again", memory_async_write=False, **kwargs) -> Agent` | 构建标准 Agent |
+
+**示例**：
+
+```python
+from agentkit import HybridRAGAgent
+
+rag = HybridRAGAgent.from_directory(
+    knowledge_dir="./knowledge_base",
+    model="ollama/qwen3.5:4b",
+    vector_store_dir=".agentkit/rag_v2/chroma",
+    memory_db_path=".agentkit/rag_v2/memory.db",
+    embedding_model="ollama/qllama/bge-small-zh-v1.5:f16",
+    reranker_model="ollama/qllama/bce-reranker-base_v1:f16",
+)
+agent = rag.build_agent(name="hybrid-rag-assistant")
 print(agent.invoke(input="这个项目是做什么的？").final_output)
 ```

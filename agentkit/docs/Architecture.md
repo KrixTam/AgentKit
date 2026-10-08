@@ -626,11 +626,15 @@ agentkit/
 │   ├── base.py              #   BaseMemoryProvider
 │   └── mem0_provider.py     #   Mem0Provider
 │
-├── rag/                     # 轻量 RAG 核心模块
-│   ├── simple_rag_agent.py  #   SimpleRAGAgent（Agent 构建器）
+├── rag/                     # RAG 核心模块
+│   ├── simple_rag_agent.py  #   SimpleRAGAgent（V1 轻量版）
+│   ├── hybrid_rag_agent.py  #   HybridRAGAgent（V2 增强版）
 │   ├── document_store.py    #   本地文档加载、增量构建与 SQLite 持久化
+│   ├── chroma_store.py      #   ChromaDB 本地持久化向量存储
+│   ├── chunkers.py          #   递归切块器（token 预算）
 │   ├── loaders.py           #   txt / md / markdown / pdf 加载器
 │   ├── retrievers.py        #   TF-IDF / BM25 / Vector 检索器
+│   ├── providers.py         #   Embedding / Reranker Provider
 │   ├── sqlite_store.py      #   documents / chunks / memories 表结构
 │   └── file_memory_provider.py # SQLiteMemoryProvider + FileMemoryProvider 兼容别名
 │
@@ -638,8 +642,8 @@ agentkit/
 │   └── schema.py            #   函数签名 → JSON Schema
 │
 ├── examples/                # 示例
-│   ├── standard/            #   标准版示例（27 个：含 05_human_in_the_loop、19_hitl_deterministic、20_simple_rag_agent）
-│   ├── ollama/              #   Ollama 版示例（27 个：新增 20_simple_rag_agent）
+│   ├── standard/            #   标准版示例（含 20_simple_rag_agent、21_hybrid_rag_agent）
+│   ├── ollama/              #   Ollama 版示例（含 20_simple_rag_agent、21_hybrid_rag_agent）
 │   ├── quickstart.py
 │   └── test_ollama.py
 │

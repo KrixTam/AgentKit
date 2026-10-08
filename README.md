@@ -87,7 +87,10 @@ result = agent.invoke(input="你好，介绍一下你自己")
 print(result.final_output)
 ```
 
-AgentKit 还内置 `SimpleRAGAgent`：支持 `txt/md/markdown/pdf` 知识库输入，默认将知识库索引与记忆统一落盘到 `./.agentkit/rag/index.db`。
+AgentKit 还内置两套 RAG 方案：
+
+- `SimpleRAGAgent`：轻量入门版，支持 `txt/md/markdown/pdf` 知识库输入，默认将知识库索引与记忆统一落盘到 `./.agentkit/rag/index.db`
+- `HybridRAGAgent`：增强版，默认采用 `BM25 + Chroma 向量检索 + RRF + Reranker`，并将向量库与默认记忆拆分持久化
 
 更多能力（工具、Skill、多 Agent、记忆、安全）：见 [AgentKit QuickStart](agentkit/docs/QuickStart.md)。
 
