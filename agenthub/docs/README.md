@@ -22,26 +22,26 @@ pip install ni.agenthub
 
 ---
 
-## 当前实现范围（v0.4.1）
+## 当前实现范围（v0.4.2）
 
 - 注册发现：`agent.yaml` 清单校验、注册、查询、下线、别名（`latest`/`stable`）
 - 统一网关：REST 同步调用、SSE 事件流、WS 双向通道（run/resume）
 - 模型改写：支持请求级 `model_cosplay`，并支持通过 `agent.yaml` 的 `model_cosplay` 配置默认改写（请求参数优先）
 - 会话管理：状态机、事件回放、resume、terminate、HITL 待办与表单
 - 持久化后端：`memory` / `sqlite` 二选一（行为一致）
-- 平台治理：Bearer 鉴权（静态 token 或 OAuth/OIDC introspection，可选开启）、并发与速率配额、结构化审计日志
+- 平台治理：Bearer 鉴权（静态 token 或 OAuth/OIDC introspection，可选开启）、`tenant:user` 维度并发与速率配额（超限返回 `429 quota_exceeded:*`）、结构化审计日志
 - 可观测：`/healthz`、`/metrics`（Prometheus 文本格式，延迟统计为滑动窗口）、内置 Playground 控制台（鉴权/注册/调用/流式/HITL）
 - Chat 服务：可通过 `agenthub chat` 启动基于 Streamlit 的对话页面，直接调用已注册 Agent
-- 性能审计：请求级结构化审计日志包含 `db_ops`、`event_write_ms`、`agent_resolve_ms`
+- 性能审计：请求级结构化审计日志包含 `action/timestamp/session_id/user_id/tenant_id/trace_id/status` 等核心字段，以及 `db_ops`、`event_write_ms`、`agent_resolve_ms` 等性能字段
 - 存储优化：同步 `invoke` 路径支持批量事件写入（`append_events`）；HITL 表单支持按 `suspension_id` 定向读取最新挂起事件（`get_latest_event`）
 
 ---
 
 ## 验收测试集合
 
-- 入口：`agenthub/tests/test_acceptance_gateway.py`
-- 覆盖：注册发现、REST/SSE/WS、HITL 恢复、会话回放、SQLite 持久化、鉴权与指标
-- 命令：`python -m pytest ./agenthub/tests/test_acceptance_gateway.py -q`
+- 入口：`tests/test_acceptance_gateway.py`
+- 覆盖：注册发现、REST/SSE/WS、HITL 恢复、会话回放、SQLite 持久化、鉴权与指标、配额超限与审计日志字段断言
+- 命令：`python -m pytest ./tests/test_acceptance_gateway.py -q`
 
 ---
 

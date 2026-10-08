@@ -62,6 +62,14 @@ def _json_error(code: int, message: str, status_code: int = 400) -> JSONResponse
     return JSONResponse(status_code=status_code, content=ApiResponse(code=code, message=message, data=None).model_dump())
 
 
+def _is_quota_error(exc: Exception) -> bool:
+    return isinstance(exc, ValueError) and str(exc).startswith("quota_exceeded:")
+
+
+def _json_quota_error(message: str) -> JSONResponse:
+    return _json_error(1008, message, status_code=429)
+
+
 def _structured_audit(action: str, **kwargs: Any) -> None:
     payload = {"action": action, "timestamp": time.time(), **kwargs}
     logger.info(json.dumps(payload, ensure_ascii=False))
@@ -739,10 +747,13 @@ def create_app(config: HubConfig | None = None) -> FastAPI:
         _auth(authorization)
         quota_key = _quota_key(req.user_id, x_tenant_id)
         start = time.time()
+        request_trace_id = req.trace_id or str(uuid.uuid4())
         session_status_for_metrics = SessionStatus.ERROR
+        quota_acquired = False
         obs = _new_obs()
         try:
             quota.acquire(quota_key)
+            quota_acquired = True
             try:
                 manifest, agent = _resolve_agent_instance_observed(name, version, obs)
             except ValueError as e:
@@ -759,7 +770,7 @@ def create_app(config: HubConfig | None = None) -> FastAPI:
                 agent_name=manifest.name,
                 agent_version=manifest.version,
                 user_id=req.user_id,
-                trace_id=req.trace_id or str(uuid.uuid4()),
+                trace_id=request_trace_id,
                 db_op_counter=lambda n: _add_db_ops(obs, n),
             )
             if hasattr(agent, "ainvoke"):
@@ -794,6 +805,10 @@ def create_app(config: HubConfig | None = None) -> FastAPI:
                 agent=name,
                 version=manifest.version,
                 ok=result.success,
+                status=session_status_for_metrics.value,
+                user_id=req.user_id,
+                tenant_id=x_tenant_id,
+                trace_id=session.trace_id,
                 db_ops=int(obs["db_ops"]),
                 event_write_ms=round(obs["event_write_ms"], 3),
                 agent_resolve_ms=round(obs["agent_resolve_ms"], 3),
@@ -810,12 +825,55 @@ def create_app(config: HubConfig | None = None) -> FastAPI:
                     },
                 }
             )
+        except ValueError as e:
+            if _is_quota_error(e):
+                _structured_audit(
+                    "invoke",
+                    session_id=req.session_id,
+                    agent=name,
+                    version=version,
+                    ok=False,
+                    status="quota_exceeded",
+                    error=str(e),
+                    user_id=req.user_id,
+                    tenant_id=x_tenant_id,
+                    trace_id=request_trace_id,
+                )
+                return _json_quota_error(str(e))
+            logger.error(f"Invoke error: {e}", exc_info=True)
+            _structured_audit(
+                "invoke",
+                session_id=req.session_id,
+                agent=name,
+                version=version,
+                ok=False,
+                status="error",
+                error=str(e),
+                user_id=req.user_id,
+                tenant_id=x_tenant_id,
+                trace_id=request_trace_id,
+            )
+            session_status_for_metrics = SessionStatus.ERROR
+            return _json_error(1003, str(e), status_code=500)
         except Exception as e:
             logger.error(f"Invoke error: {e}", exc_info=True)
+            _structured_audit(
+                "invoke",
+                session_id=req.session_id,
+                agent=name,
+                version=version,
+                ok=False,
+                status="error",
+                error=str(e),
+                user_id=req.user_id,
+                tenant_id=x_tenant_id,
+                trace_id=request_trace_id,
+            )
             session_status_for_metrics = SessionStatus.ERROR
             return _json_error(1003, str(e), status_code=500)
         finally:
-            quota.release(quota_key)
+            if quota_acquired:
+                quota.release(quota_key)
             metrics.observe((time.time() - start) * 1000.0, session_status_for_metrics)
 
     async def _stream_impl(
@@ -824,18 +882,43 @@ def create_app(config: HubConfig | None = None) -> FastAPI:
         req: InvokeRequest,
         version: str | None,
         authorization: str | None,
+        x_tenant_id: str | None,
     ):
         _auth(authorization)
         obs = _new_obs()
+        request_trace_id = req.trace_id or str(uuid.uuid4())
+        quota_key = _quota_key(req.user_id, x_tenant_id)
+        quota_acquired = False
         try:
+            quota.acquire(quota_key)
+            quota_acquired = True
             manifest, agent = _resolve_agent_instance_observed(name, version, obs)
         except ValueError as e:
+            if _is_quota_error(e):
+                _structured_audit(
+                    "stream",
+                    session_id=req.session_id,
+                    agent=name,
+                    version=version,
+                    status="quota_exceeded",
+                    error=str(e),
+                    user_id=req.user_id,
+                    tenant_id=x_tenant_id,
+                    trace_id=request_trace_id,
+                )
+                return _json_quota_error(str(e))
             if str(e).startswith("agent_not_found:"):
+                if quota_acquired:
+                    quota.release(quota_key)
                 return _json_error(1004, str(e), status_code=404)
+            if quota_acquired:
+                quota.release(quota_key)
             return _json_error(1003, str(e), status_code=500)
         try:
             agent = apply_model_cosplay(agent, _effective_model_cosplay(manifest, req.model_cosplay))
         except ValueError as e:
+            if quota_acquired:
+                quota.release(quota_key)
             return _json_error(1007, str(e), status_code=400)
         session = ensure_session(
             session_store,
@@ -843,7 +926,7 @@ def create_app(config: HubConfig | None = None) -> FastAPI:
             agent_name=manifest.name,
             agent_version=manifest.version,
             user_id=req.user_id,
-            trace_id=req.trace_id or str(uuid.uuid4()),
+            trace_id=request_trace_id,
             db_op_counter=lambda n: _add_db_ops(obs, n),
         )
 
@@ -888,10 +971,15 @@ def create_app(config: HubConfig | None = None) -> FastAPI:
                     agent=name,
                     version=manifest.version,
                     status=stream_status.value,
+                    user_id=req.user_id,
+                    tenant_id=x_tenant_id,
+                    trace_id=session.trace_id,
                     db_ops=int(obs["db_ops"]),
                     event_write_ms=round(obs["event_write_ms"], 3),
                     agent_resolve_ms=round(obs["agent_resolve_ms"], 3),
                 )
+                if quota_acquired:
+                    quota.release(quota_key)
 
         return StreamingResponse(gen(), media_type="text/event-stream")
 
@@ -940,6 +1028,10 @@ def create_app(config: HubConfig | None = None) -> FastAPI:
             "resume",
             session_id=session_id,
             status=current_status.value,
+            agent=session.agent_name,
+            version=session.agent_version,
+            user_id=session.user_id,
+            trace_id=req.trace_id or session.trace_id,
             db_ops=int(obs["db_ops"]),
             event_write_ms=round(obs["event_write_ms"], 3),
             agent_resolve_ms=round(obs["agent_resolve_ms"], 3),
@@ -975,14 +1067,37 @@ def create_app(config: HubConfig | None = None) -> FastAPI:
                     obs = _new_obs()
                     agent_name = fixed_agent_name or msg["agent"]
                     version = fixed_version if fixed_agent_name else msg.get("version")
+                    quota_key = _quota_key(msg.get("user_id"), msg.get("tenant_id"))
+                    request_trace_id = msg.get("trace_id") or str(uuid.uuid4())
+                    quota_acquired = False
                     try:
+                        quota.acquire(quota_key)
+                        quota_acquired = True
                         manifest, agent = _resolve_agent_instance_observed(agent_name, version, obs)
                     except ValueError as e:
+                        if quota_acquired:
+                            quota.release(quota_key)
+                        if _is_quota_error(e):
+                            _structured_audit(
+                                "ws_run",
+                                session_id=msg.get("session_id"),
+                                agent=agent_name,
+                                version=version,
+                                status="quota_exceeded",
+                                error=str(e),
+                                user_id=msg.get("user_id"),
+                                tenant_id=msg.get("tenant_id"),
+                                trace_id=request_trace_id,
+                            )
+                            await ws.send_json({"error": str(e), "status_code": 429})
+                            continue
                         await ws.send_json({"error": str(e)})
                         continue
                     try:
                         agent = apply_model_cosplay(agent, _effective_model_cosplay(manifest, msg.get("model_cosplay")))
                     except ValueError as e:
+                        if quota_acquired:
+                            quota.release(quota_key)
                         await ws.send_json({"error": str(e)})
                         continue
                     session = ensure_session(
@@ -991,37 +1106,46 @@ def create_app(config: HubConfig | None = None) -> FastAPI:
                         agent_name=manifest.name,
                         agent_version=manifest.version,
                         user_id=msg.get("user_id"),
-                        trace_id=msg.get("trace_id") or str(uuid.uuid4()),
+                        trace_id=request_trace_id,
                         db_op_counter=lambda n: _add_db_ops(obs, n),
                     )
-                    async for e in Runner.run_with_checkpoint(
-                        agent,
-                        input=msg["input"],
-                        session_id=session.session_id,
-                        context_store=context_store,
-                        user_id=msg.get("user_id"),
-                        max_turns=msg.get("max_turns", 10),
-                    ):
-                        _append_event_observed(obs, session.session_id, e)
-                        ws_status = resolve_session_status(e.type, SessionStatus.RUNNING)
-                        if ws_status != SessionStatus.RUNNING:
-                            session_store.update_status(
-                                session.session_id,
-                                ws_status,
-                                str(e.data) if ws_status == SessionStatus.ERROR else None,
-                            )
-                            _add_db_ops(obs, 1)
-                        active_sessions.add(session.session_id)
-                        await ws.send_json({"session_id": session.session_id, "trace_id": session.trace_id, "event": e.to_dict()})
-                    _structured_audit(
-                        "ws_run",
-                        session_id=session.session_id,
-                        agent=agent_name,
-                        version=manifest.version,
-                        db_ops=int(obs["db_ops"]),
-                        event_write_ms=round(obs["event_write_ms"], 3),
-                        agent_resolve_ms=round(obs["agent_resolve_ms"], 3),
-                    )
+                    ws_status = SessionStatus.RUNNING
+                    try:
+                        async for e in Runner.run_with_checkpoint(
+                            agent,
+                            input=msg["input"],
+                            session_id=session.session_id,
+                            context_store=context_store,
+                            user_id=msg.get("user_id"),
+                            max_turns=msg.get("max_turns", 10),
+                        ):
+                            _append_event_observed(obs, session.session_id, e)
+                            ws_status = resolve_session_status(e.type, ws_status)
+                            if ws_status != SessionStatus.RUNNING:
+                                session_store.update_status(
+                                    session.session_id,
+                                    ws_status,
+                                    str(e.data) if ws_status == SessionStatus.ERROR else None,
+                                )
+                                _add_db_ops(obs, 1)
+                            active_sessions.add(session.session_id)
+                            await ws.send_json({"session_id": session.session_id, "trace_id": session.trace_id, "event": e.to_dict()})
+                        _structured_audit(
+                            "ws_run",
+                            session_id=session.session_id,
+                            agent=agent_name,
+                            version=manifest.version,
+                            status=ws_status.value,
+                            user_id=msg.get("user_id"),
+                            tenant_id=msg.get("tenant_id"),
+                            trace_id=session.trace_id,
+                            db_ops=int(obs["db_ops"]),
+                            event_write_ms=round(obs["event_write_ms"], 3),
+                            agent_resolve_ms=round(obs["agent_resolve_ms"], 3),
+                        )
+                    finally:
+                        if quota_acquired:
+                            quota.release(quota_key)
                 elif action == "resume":
                     obs = _new_obs()
                     session_id = msg["session_id"]
@@ -1030,46 +1154,81 @@ def create_app(config: HubConfig | None = None) -> FastAPI:
                     if not session:
                         await ws.send_json({"error": f"session_not_found:{session_id}"})
                         continue
+                    quota_key = _quota_key(session.user_id, msg.get("tenant_id"))
+                    request_trace_id = msg.get("trace_id") or session.trace_id
+                    quota_acquired = False
+                    try:
+                        quota.acquire(quota_key)
+                        quota_acquired = True
+                    except ValueError as e:
+                        if _is_quota_error(e):
+                            _structured_audit(
+                                "ws_resume",
+                                session_id=session_id,
+                                agent=session.agent_name,
+                                version=session.agent_version,
+                                status="quota_exceeded",
+                                error=str(e),
+                                user_id=session.user_id,
+                                tenant_id=msg.get("tenant_id"),
+                                trace_id=request_trace_id,
+                            )
+                            await ws.send_json({"error": str(e), "status_code": 429})
+                            continue
+                        raise
                     manifest, agent = _resolve_agent_instance_observed(session.agent_name, session.agent_version, obs)
                     try:
                         agent = apply_model_cosplay(agent, _effective_model_cosplay(manifest, None))
                     except ValueError as e:
+                        if quota_acquired:
+                            quota.release(quota_key)
                         await ws.send_json({"error": str(e)})
                         continue
                     idempotency_key = msg.get("idempotency_key")
                     if idempotency_key and session.metadata.get("last_resume_key") == idempotency_key:
+                        if quota_acquired:
+                            quota.release(quota_key)
                         await ws.send_json({"session_id": session_id, "status": "duplicate_ignored"})
                         continue
                     if idempotency_key:
                         session.metadata["last_resume_key"] = idempotency_key
-                    async for e in Runner.resume(
-                        agent,
-                        session_id=session_id,
-                        user_input=msg["user_input"],
-                        context_store=context_store,
-                        suspension_id=msg.get("suspension_id"),
-                        idempotency_key=idempotency_key,
-                    ):
-                        _append_event_observed(obs, session_id, e)
-                        next_status = resolve_session_status(e.type, session.status)
-                        if next_status != session.status:
-                            session_store.update_status(
-                                session_id,
-                                next_status,
-                                str(e.data) if next_status == SessionStatus.ERROR else None,
-                            )
-                            _add_db_ops(obs, 1)
-                            session.status = next_status
-                        active_sessions.add(session_id)
-                        await ws.send_json({"session_id": session_id, "event": e.to_dict()})
-                    _structured_audit(
-                        "ws_resume",
-                        session_id=session_id,
-                        status=session.status.value,
-                        db_ops=int(obs["db_ops"]),
-                        event_write_ms=round(obs["event_write_ms"], 3),
-                        agent_resolve_ms=round(obs["agent_resolve_ms"], 3),
-                    )
+                    try:
+                        async for e in Runner.resume(
+                            agent,
+                            session_id=session_id,
+                            user_input=msg["user_input"],
+                            context_store=context_store,
+                            suspension_id=msg.get("suspension_id"),
+                            idempotency_key=idempotency_key,
+                        ):
+                            _append_event_observed(obs, session_id, e)
+                            next_status = resolve_session_status(e.type, session.status)
+                            if next_status != session.status:
+                                session_store.update_status(
+                                    session_id,
+                                    next_status,
+                                    str(e.data) if next_status == SessionStatus.ERROR else None,
+                                )
+                                _add_db_ops(obs, 1)
+                                session.status = next_status
+                            active_sessions.add(session_id)
+                            await ws.send_json({"session_id": session_id, "event": e.to_dict()})
+                        _structured_audit(
+                            "ws_resume",
+                            session_id=session_id,
+                            status=session.status.value,
+                            agent=session.agent_name,
+                            version=session.agent_version,
+                            user_id=session.user_id,
+                            tenant_id=msg.get("tenant_id"),
+                            trace_id=request_trace_id,
+                            db_ops=int(obs["db_ops"]),
+                            event_write_ms=round(obs["event_write_ms"], 3),
+                            agent_resolve_ms=round(obs["agent_resolve_ms"], 3),
+                        )
+                    finally:
+                        if quota_acquired:
+                            quota.release(quota_key)
                 else:
                     await ws.send_json({"error": f"unknown_action:{action}"})
         except WebSocketDisconnect:
@@ -1147,6 +1306,7 @@ def create_app(config: HubConfig | None = None) -> FastAPI:
         name_version: str,
         req: InvokeRequest,
         authorization: str | None = Header(default=None),
+        x_tenant_id: str | None = Header(default=None),
     ):
         name, version = _parse_name_version(name_version)
         return await _stream_impl(
@@ -1154,6 +1314,7 @@ def create_app(config: HubConfig | None = None) -> FastAPI:
             req=req,
             version=version,
             authorization=authorization,
+            x_tenant_id=x_tenant_id,
         )
 
     @app.websocket("/api/v1/agents/{name_version}/ws")

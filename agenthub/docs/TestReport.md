@@ -1,9 +1,9 @@
 # AgentHub 测试报告
 
-> 测试时间：`2026-07-03`  
+> 测试时间：`2026-10-08`
 > 测试环境：`macOS (Apple Silicon)`  
-> AgentHub 版本：`v0.4.1`  
-> AgentKit 版本：`v0.8.0`  
+> AgentHub 版本：`v0.4.2`
+> AgentKit 版本：`v0.8.1`
 > 存储模式：`memory + sqlite`
 
 ---
@@ -22,9 +22,9 @@
 | 8 | 存储契约 | InMemory 与 SQLite 行为一致性 | ✅ | `test_stores.py` 对齐验证通过 |
 | 9 | SQLite 持久化 | 重启后 registry/session/checkpoint 恢复 | ✅ | SQLite 重建 App 后注册记录可恢复 |
 | 10 | 鉴权 | Bearer 鉴权（静态 token）开启/关闭 | ✅ | 未授权返回 401，`Authorization: Bearer <token>` 授权访问正常 |
-| 11 | 配额 | 并发上限与频率限制 | ⚠️ | 当前未覆盖超限断言，建议补充专项测试 |
+| 11 | 配额 | 并发上限与频率限制 | ✅ | 已覆盖速率超限（429）、并发超限（429）与 `QuotaManager` 基础行为断言 |
 | 12 | 可观测 | `/healthz` 与 `/metrics` | ✅ | 指标端点返回 Prometheus 文本 |
-| 13 | 审计 | who/when/what/result | ⚠️ | 代码已结构化日志输出，当前未做断言校验 |
+| 13 | 审计 | who/when/what/result | ✅ | 已断言结构化 JSON 审计日志包含 `action/timestamp/session_id/user_id/tenant_id/trace_id/status` 等关键字段 |
 
 ---
 
@@ -32,7 +32,8 @@
 
 | 场景 | 耗时 | 备注 |
 |---|---:|---|
-| 全量测试套件（17 项） | 0.26s | `python -m pytest ./agenthub/tests -q`（`17 passed`） |
+| 验收测试套件（11 项） | 0.75s | `python -m pytest ./tests/test_acceptance_gateway.py -q`（`11 passed`） |
+| 全量测试套件（22 项） | 0.66s | `python -m pytest ./tests -q`（`22 passed`） |
 | 注册 Agent | 已覆盖 | 含 manifest 校验 |
 | 首次 invoke | 已覆盖 | 含 entry 首次加载与原型缓存路径 |
 | SSE 流式会话 | 已覆盖 | 含事件持久化 |
@@ -56,7 +57,7 @@
 
 | 问题 | 严重程度 | 说明 |
 |---|:---:|---|
-| 验收覆盖缺口 | 中 | 配额超限与审计日志断言尚未纳入自动化测试 |
+| 运行异常 | - | 无，当前 22 项测试全部通过 |
 
 ---
 
@@ -64,10 +65,10 @@
 
 ```bash
 # 1) 运行 AgentHub 验收测试集合（推荐）
-python -m pytest ./agenthub/tests/test_acceptance_gateway.py -q
+python -m pytest ./tests/test_acceptance_gateway.py -q
 
 # 2) 运行 AgentHub 全量测试（验收 + 存储契约 + manifest 校验）
-python -m pytest ./agenthub/tests -q
+python -m pytest ./tests -q
 
 # 3) 启动服务（SQLite）
 agenthub serve --store sqlite --sqlite-path .agenthub/agenthub.db

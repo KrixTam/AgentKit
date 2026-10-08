@@ -1,6 +1,6 @@
 # AgentHub 快速入门
 
-> 本文档基于当前代码实现（发行包：`ni.agenthub==0.4.1`，运行命令：`agenthub`）。
+> 本文档基于当前代码实现（发行包：`ni.agenthub==0.4.2`，运行命令：`agenthub`）。
 
 ***
 
@@ -178,6 +178,7 @@ REST 对应接口：
 ```http
 POST /api/v1/agents/{name}:{version_or_alias}/invoke
 Authorization: Bearer <token>
+X-Tenant-ID: tenant-a   # 可选；用于多租户隔离、配额和审计
 Content-Type: application/json
 {
   "input": "...",
@@ -189,6 +190,11 @@ Content-Type: application/json
   "max_turns": 10
 }
 ```
+
+补充说明：
+
+- 如果携带 `X-Tenant-ID`，当前实现会按 `tenant:user` 维度应用配额与审计归属。
+- 当并发上限或每分钟速率上限被触发时，REST/SSE 路径会返回 `429`，消息体中 `message` 为 `quota_exceeded:concurrency` 或 `quota_exceeded:rate`。
 
 ***
 
@@ -240,6 +246,7 @@ agenthub chat --server http://127.0.0.1:8008
 ```bash
 curl -N \
   -H "Authorization: Bearer <token>" \
+  -H "X-Tenant-ID: tenant-a" \
   -H "Content-Type: application/json" \
   -X POST "http://127.0.0.1:8008/api/v1/agents/demo-echo:stable/stream" \
   -d '{"input":"你好","user_id":"u1","session_id":"s1"}'
@@ -267,6 +274,7 @@ WebSocket 地址：`/api/v1/agents/{name}:{version}/ws`
 
 - `action=run`：启动可挂起运行（内部走 `Runner.run_with_checkpoint`）
 - `action=resume`：提交人工输入恢复（内部走 `Runner.resume`）
+- `tenant_id`：可选；用于多租户隔离、配额与审计归属
 
 `resume` 支持 `suspension_id` 精准恢复（多挂起场景）和 `idempotency_key` 防重。
 
@@ -278,6 +286,7 @@ WebSocket 地址：`/api/v1/agents/{name}:{version}/ws`
   "authorization": "Bearer <token>",
   "input": "请审批",
   "model_cosplay": "gpt-4o-mini",
+  "tenant_id": "tenant-a",
   "user_id": "u1",
   "session_id": "s1"
 }
@@ -330,7 +339,7 @@ Authorization: Bearer <token>
 - 健康检查：`GET /healthz`
 - 指标：`GET /metrics`（Prometheus 文本格式）
 - Playground：`GET /playground`（内置控制台，支持 Bearer 鉴权配置、Registry 注册/查询、Invoke、SSE、Session Events、HITL 提交）
-- 审计日志（结构化 JSON）：包含 `db_ops`、`event_write_ms`、`agent_resolve_ms`，用于衡量单请求存储与解析开销
+- 审计日志（结构化 JSON）：包含 `action/timestamp/session_id/user_id/tenant_id/trace_id/status` 等核心字段，以及 `db_ops`、`event_write_ms`、`agent_resolve_ms`，用于衡量单请求存储与解析开销
 
 ***
 

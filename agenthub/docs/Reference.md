@@ -83,6 +83,8 @@
 | `context` | `dict \| null` | 可选上下文 |
 | `max_turns` | `int` | 本次调用最大轮次 |
 
+补充说明：HTTP `invoke/stream` 路径还支持可选请求头 `X-Tenant-ID`，用于多租户隔离、配额维度与审计归属。
+
 ### ResumeRequest
 
 | 字段 | 类型 | 说明 |
@@ -109,6 +111,11 @@
 - `POST /api/v1/agents/{name}:{version}/invoke`
 - `POST /api/v1/agents/{name}:{version}/stream`（SSE，内部按 `run_with_checkpoint` 执行并写入会话事件）
 - `WS /api/v1/agents/{name}:{version}/ws`（`action=run|resume`）
+
+补充说明：
+
+- `invoke/stream` 在配额超限时返回 `429`，错误消息为 `quota_exceeded:concurrency` 或 `quota_exceeded:rate`
+- `WS` 在配额超限时返回错误消息，附带 `status_code=429`
 
 ### 会话管理
 
@@ -142,6 +149,7 @@
   "authorization": "Bearer <token>",
   "input": "你好",
   "model_cosplay": "gpt-4o-mini",
+  "tenant_id": "tenant-a",
   "user_id": "u1",
   "session_id": "s1",
   "trace_id": "t1"
@@ -236,7 +244,7 @@ pip install ni.agenthub
 ## 可观测与审计字段
 
 - `/metrics` 输出聚合指标：`agenthub_requests_total`、`agenthub_errors_total`、`agenthub_suspended_total`、`agenthub_completed_total`、`agenthub_active_sessions`、`agenthub_latency_p95_ms`
-- 结构化审计日志会追加请求级性能字段：`db_ops`（数据库操作次数）、`event_write_ms`（事件写入耗时）、`agent_resolve_ms`（Agent 解析耗时）
+- 结构化审计日志包含 `action/timestamp/session_id/user_id/tenant_id/trace_id/status` 等核心字段，并追加请求级性能字段：`db_ops`（数据库操作次数）、`event_write_ms`（事件写入耗时）、`agent_resolve_ms`（Agent 解析耗时）
 
 ---
 

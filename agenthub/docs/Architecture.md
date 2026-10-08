@@ -43,7 +43,7 @@ AgentHub 不替换 AgentKit 运行时主循环，仅以适配方式调用：
 
 ### 1) REST 同步调用
 
-1. 网关解析请求与鉴权（可选）。
+1. 网关解析请求与鉴权（可选），并按 `tenant:user` 维度执行配额检查。
 2. 通过 Registry 解析 `{name, version|alias}` 到 Manifest。
 3. 命中 Agent 原型缓存（未命中时按 `entry` 加载，支持 `module:attr` 与 `path.py:attr`），并深拷贝得到请求级实例。
 4. 应用模型改写策略：优先请求参数 `model_cosplay`，否则使用 Manifest 的 `model_cosplay` 默认值（仅对开启能力的 Agent 生效）。
@@ -117,8 +117,8 @@ SQLite 关键表：
 ## 治理与观测
 
 - 鉴权：`Authorization: Bearer <token>`（静态 token 或 OAuth/OIDC introspection，可选）
-- 配额：`tenant:user` 维度并发与每分钟速率
-- 审计：结构化日志（JSON）
+- 配额：`tenant:user` 维度并发与每分钟速率；超限时 REST/SSE 返回 `429 quota_exceeded:*`，WS 返回带 `status_code=429` 的错误消息
+- 审计：结构化日志（JSON），包含 `action/timestamp/session_id/user_id/tenant_id/trace_id/status` 等核心字段
 - 指标：`requests/errors/suspended/completed/active/latency_p95`（延迟统计使用滑动窗口）
 - 性能观测：请求级 `db_ops`、`event_write_ms`、`agent_resolve_ms`
 - 运维：`/healthz` + `/metrics`

@@ -1,14 +1,13 @@
 from __future__ import annotations
 
 import json
+import logging
 import os
-import sys
 import tempfile
+import threading
 
 import pytest
 from fastapi.testclient import TestClient
-
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from agenthub.config import HubConfig
 from agenthub.gateway import create_app
@@ -30,6 +29,18 @@ def _register(client: TestClient, manifest: dict, aliases: list[str] | None = No
     assert resp.status_code == 200, resp.text
     payload = resp.json()
     assert payload["code"] == 0
+
+
+def _audit_records(caplog) -> list[dict]:
+    records: list[dict] = []
+    for record in caplog.records:
+        try:
+            payload = json.loads(record.getMessage())
+        except json.JSONDecodeError:
+            continue
+        if isinstance(payload, dict) and payload.get("action"):
+            records.append(payload)
+    return records
 
 
 def test_acceptance_memory_rest_sse_and_session_replay():
@@ -164,6 +175,98 @@ def test_acceptance_auth_and_metrics():
     metrics = client.get("/metrics")
     assert metrics.status_code == 200
     assert "agenthub_requests_total" in metrics.text
+
+
+def test_acceptance_quota_limit_returns_429():
+    app = create_app(HubConfig(store_type="memory", rate_limit_per_minute=1))
+    client = TestClient(app)
+    _register(
+        client,
+        _manifest("demo-echo", "1.0.0", "tests.fixtures.demo_agents:create_echo_agent"),
+        aliases=["stable"],
+    )
+
+    first = client.post(
+        "/api/v1/agents/demo-echo:stable/invoke",
+        json={"input": "one", "user_id": "quota-u1", "session_id": "quota-s1"},
+    )
+    second = client.post(
+        "/api/v1/agents/demo-echo:stable/invoke",
+        json={"input": "two", "user_id": "quota-u1", "session_id": "quota-s2"},
+    )
+
+    assert first.status_code == 200
+    assert second.status_code == 429
+    assert second.json()["message"] == "quota_exceeded:rate"
+
+
+def test_acceptance_concurrency_limit_returns_429():
+    app = create_app(HubConfig(store_type="memory", max_concurrency_per_user=1, rate_limit_per_minute=10))
+    client = TestClient(app)
+    _register(
+        client,
+        _manifest("demo-slow-echo", "1.0.0", "tests.fixtures.demo_agents:create_slow_echo_agent"),
+        aliases=["stable"],
+    )
+
+    barrier = threading.Barrier(2)
+    results: list[int] = []
+    lock = threading.Lock()
+
+    def _invoke(session_id: str) -> None:
+        with TestClient(app) as thread_client:
+            barrier.wait()
+            resp = thread_client.post(
+                "/api/v1/agents/demo-slow-echo:stable/invoke",
+                json={"input": session_id, "user_id": "quota-u2", "session_id": session_id},
+            )
+        with lock:
+            results.append(resp.status_code)
+
+    t1 = threading.Thread(target=_invoke, args=("concurrency-s1",))
+    t2 = threading.Thread(target=_invoke, args=("concurrency-s2",))
+    t1.start()
+    t2.start()
+    t1.join()
+    t2.join()
+
+    assert sorted(results) == [200, 429]
+
+
+def test_acceptance_audit_logs_include_who_what_when_and_result(caplog):
+    caplog.set_level(logging.INFO, logger="agenthub.gateway")
+    app = create_app(HubConfig(store_type="memory"))
+    client = TestClient(app)
+    _register(
+        client,
+        _manifest("demo-echo", "1.0.0", "tests.fixtures.demo_agents:create_echo_agent"),
+        aliases=["stable"],
+    )
+
+    resp = client.post(
+        "/api/v1/agents/demo-echo:stable/invoke",
+        headers={"x-tenant-id": "tenant-a"},
+        json={
+            "input": "hello",
+            "user_id": "audit-u1",
+            "session_id": "audit-s1",
+            "trace_id": "trace-123",
+        },
+    )
+    assert resp.status_code == 200
+
+    invoke_logs = [item for item in _audit_records(caplog) if item.get("action") == "invoke"]
+    assert invoke_logs
+    log = invoke_logs[-1]
+    assert isinstance(log.get("timestamp"), (int, float))
+    assert log["agent"] == "demo-echo"
+    assert log["version"] == "1.0.0"
+    assert log["session_id"] == "audit-s1"
+    assert log["user_id"] == "audit-u1"
+    assert log["tenant_id"] == "tenant-a"
+    assert log["trace_id"] == "trace-123"
+    assert log["ok"] is True
+    assert log["status"] == "completed"
 
 
 def test_model_cosplay_policy_and_hub_override():

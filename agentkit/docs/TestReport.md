@@ -3,7 +3,7 @@
 > 测试时间：`2026-10-08`
 > 测试环境：`macOS (Apple Silicon)`  
 > 模型：`qwen/qwen3.6-flash`（来自 `AGENTKIT_STANDARD_MODEL`）  
-> AgentKit 版本：v0.8.0  
+> AgentKit 版本：v0.8.1
 > Thinking 模式：开启（默认）  
 > LLM 调用模式：非流式（默认）  
 > 缓存：开启（默认）  

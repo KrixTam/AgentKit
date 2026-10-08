@@ -3,7 +3,7 @@
 > Python 原生的 Agent 开发框架，内置一等公民级别的 Skill 支持和自研多模型适配层。
 
 [![Python](https://img.shields.io/badge/Python-≥3.11-blue.svg)](https://python.org)
-[![Version](https://img.shields.io/badge/Version-0.8.0-green.svg)]()
+[![Version](https://img.shields.io/badge/Version-0.8.1-green.svg)]()
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)]()
 
 ---
@@ -20,7 +20,7 @@
 | **图数据统一接口层** | 提供 `GraphAdapter + GraphRepository + GraphQueryTool`，开发/测试可切换 `networkx/litegraph`，生产可切换 `nebula` |
 | **SimpleRAGAgent / HybridRAGAgent** | 同时提供轻量入门版 RAG（V1）与增强版混合检索 RAG（V2）；V2 默认采用 BM25 + Chroma 向量检索 + RRF + Reranker |
 | **安全内置** | Input/Output 双向 Guardrail + 三层权限控制；`run_skill_script` 当前为占位执行（SandboxExecutor 预留扩展） |
-| **记忆系统** | Mem0 集成 + 自定义记忆提供者；`SimpleRAGAgent` 默认内置 `SQLiteMemoryProvider` |
+| **记忆系统** | Mem0 集成 + 自定义记忆提供者；`SimpleRAGAgent` 与 `HybridRAGAgent` 默认均可接入 `SQLiteMemoryProvider` |
 | **9 个回调点** | before/after × agent/model/tool/handoff + error，任何环节可拦截定制 |
 
 ---

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from typing import AsyncGenerator
 
 from agentkit.agents.agent import Agent
@@ -38,6 +39,12 @@ class ModelEchoAgent(Agent):
         yield Event(agent=self.name, type=EventType.FINAL_OUTPUT, data=f"model:{self.model}")
 
 
+class SlowEchoAgent(BaseAgent):
+    async def _run_impl(self, ctx) -> AsyncGenerator[Event, None]:
+        await asyncio.sleep(0.25)
+        yield Event(agent=self.name, type=EventType.FINAL_OUTPUT, data=f"slow:{ctx.input}")
+
+
 class LockedModelEchoAgent(ModelEchoAgent):
     model: str = "preset-locked-model"
     model_cosplay_enabled: bool = False
@@ -62,3 +69,7 @@ def create_locked_model_agent():
 
 def create_cosplay_model_agent():
     return CosplayModelEchoAgent(name="demo-cosplay-model")
+
+
+def create_slow_echo_agent():
+    return SlowEchoAgent(name="demo-slow-echo")
