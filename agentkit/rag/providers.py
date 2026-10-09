@@ -80,7 +80,7 @@ class OllamaReranker:
     """
     通过兼容 `/api/rerank` 或 `/v1/rerank` 的本地服务进行重排。
 
-    这里保持 provider 抽象，以兼容不同的 Ollama/llama.cpp 部署方式。
+    默认建议配合 `agentkit-rerank-server` 使用，也兼容其他实现相同协议的本地服务。
     """
 
     model: str
@@ -122,8 +122,9 @@ class OllamaReranker:
                 return scored
 
         message = (
-            "未命中可用的 rerank 接口。请确认本地服务支持 `/api/rerank` 或 `/v1/rerank`，"
-            "并检查 reranker_base_url / reranker_model 配置。"
+            "未命中可用的 rerank 接口。请确认本地已启动 `agentkit-rerank-server` "
+            "或其他兼容 `/api/rerank` / `/v1/rerank` 的服务，并检查 "
+            "reranker_base_url / reranker_model 配置。"
         )
         if last_error is not None:
             raise RuntimeError(f"{message} 原始错误: {last_error}") from last_error

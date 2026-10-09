@@ -7,7 +7,7 @@ authors = [
 ]
 requires-python = ">=3.11"
 license = {text = "MIT"}
-readme = "README.md"
+readme = "docs/README.md"
 keywords = ["agent", "llm", "skill", "ai", "framework", "tool-use", "function-calling"]
 classifiers = [
     "Development Status :: 3 - Alpha",
@@ -34,6 +34,7 @@ google = ["google-genai>=1.0.0"]
 memory = ["mem0ai>=0.1.0"]
 pdf = ["pypdf>=5.0.0"]
 rag = ["chromadb>=0.5.23"]
+rerank = ["fastapi>=0.115.0", "uvicorn>=0.30.0"]
 all = [
     "openai>=1.0.0",
     "anthropic>=0.30.0",
@@ -41,11 +42,15 @@ all = [
     "mem0ai>=0.1.0",
     "pypdf>=5.0.0",
     "chromadb>=0.5.23",
+    "fastapi>=0.115.0",
+    "uvicorn>=0.30.0",
 ]
 
 # CLI 入口：安装后可用 agentkit-docs 命令打开文档目录
 [project.scripts]
 agentkit-docs = "agentkit._cli:show_docs"
+agentkit-hybrid-rag-init = "agentkit._hybrid_rag_init:main"
+agentkit-rerank-server = "agentkit.rag.rerank_server:main"
 
 [project.urls]
 Documentation = "https://github.com/KrixTam/AgentKit/tree/main/agentkit/docs"

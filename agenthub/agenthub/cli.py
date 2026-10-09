@@ -15,8 +15,7 @@ from pathlib import Path
 import uvicorn
 import yaml
 
-from .config import HubConfig
-from .gateway import create_app
+from . import __version__
 from .manifest import load_manifest
 
 
@@ -188,6 +187,12 @@ def _manifest_generate_error_payload(entry: str, exc: Exception) -> dict:
 
 def main() -> None:
     parser = argparse.ArgumentParser(prog="agenthub")
+    parser.add_argument(
+        "--version",
+        action="version",
+        version=f"%(prog)s {__version__}",
+        help="显示 AgentHub 版本号并退出",
+    )
     parser.add_argument("--server", default="http://127.0.0.1:8008")
     parser.add_argument("--token", default=os.getenv("AGENTHUB_TOKEN"), help="Bearer token")
     parser.add_argument("--json", action="store_true", help="machine-readable output")
@@ -262,6 +267,9 @@ def main() -> None:
     server = args.server.rstrip("/")
 
     if args.cmd == "serve":
+        from .config import HubConfig
+        from .gateway import create_app
+
         cfg = HubConfig.from_env()
         if args.host:
             cfg.host = args.host

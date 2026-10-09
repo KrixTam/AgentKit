@@ -3,8 +3,12 @@ AgentKit CLI 工具。
 
 安装后提供以下命令：
   agentkit-docs       — 显示文档目录位置，或在浏览器中打开
+  agentkit-hybrid-rag-init — 交互式创建 HybridRAGAgent 工作目录
+  agentkit-rerank-server — 启动本地 rerank sidecar
 """
 import os
+
+from . import __version__
 
 
 def _get_docs_dir() -> str:
@@ -23,7 +27,7 @@ def show_docs():
     examples_dir = _get_examples_dir()
 
     print("=" * 60)
-    print("  AgentKit v0.3.2 — 文档与示例")
+    print(f"  AgentKit v{__version__} — 文档与示例")
     print("=" * 60)
     print()
 
@@ -60,9 +64,10 @@ def show_docs():
 
     print("-" * 60)
     print("快速开始:")
-    print("  1. 查看文档:  cat $(agentkit-docs-path)/README.md")
-    print("  2. 运行示例:  python -m agentkit.examples.ollama.01_basic_chat")
-    print("  3. Python 中获取路径:")
+    print("  1. 运行初始化向导:  agentkit-hybrid-rag-init")
+    print("  2. 启动 rerank 服务: agentkit-rerank-server")
+    print("  3. 运行示例:        python -m agentkit.examples.ollama.01_basic_chat")
+    print("  4. Python 中获取路径:")
     print("     >>> import agentkit; print(agentkit.get_docs_dir())")
     print("     >>> import agentkit; print(agentkit.get_examples_dir())")
     print()

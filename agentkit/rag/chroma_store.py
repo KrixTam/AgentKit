@@ -65,10 +65,13 @@ class ChromaVectorStore:
         if top_k <= 0:
             return []
         collection = self._get_collection()
+        available = int(collection.count())
+        if available <= 0:
+            return []
         query_vector = embedder.embed_texts([query])[0]
         result = collection.query(
             query_embeddings=[query_vector],
-            n_results=top_k,
+            n_results=min(top_k, available),
             include=["documents", "metadatas", "distances"],
         )
         documents = (result.get("documents") or [[]])[0]
@@ -186,12 +189,20 @@ class ChromaVectorStore:
     def _get_client(self):
         try:
             import chromadb
+            from chromadb.config import Settings
         except ImportError as exc:
             raise ImportError(
                 "HybridRAGAgent 需要安装 chromadb。请执行 `pip install \"ni.agentkit[rag]\"` 或单独安装 chromadb。"
             ) from exc
         Path(self.vector_store_dir).mkdir(parents=True, exist_ok=True)
-        return chromadb.PersistentClient(path=self.vector_store_dir)
+        return chromadb.PersistentClient(
+            path=self.vector_store_dir,
+            settings=Settings(
+                anonymized_telemetry=False,
+                chroma_product_telemetry_impl="agentkit.rag.chroma_telemetry.NoOpProductTelemetryClient",
+                chroma_telemetry_impl="agentkit.rag.chroma_telemetry.NoOpProductTelemetryClient",
+            ),
+        )
 
     def _load_cached_chunks(self) -> list[DocumentChunk]:
         data = self._read_json(self._chunks_path) or []

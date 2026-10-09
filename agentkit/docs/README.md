@@ -41,6 +41,38 @@ pip install "ni.agentkit[rag]"       # HybridRAGAgent（ChromaDB）
 pip install "ni.agentkit[all]"       # 安装所有可选依赖
 ```
 
+安装完成后，如果你想快速生成一个可直接运行的 `HybridRAGAgent` 工作目录，可执行：
+
+```bash
+agentkit-hybrid-rag-init
+```
+
+该命令会通过交互式向导生成 `.env`、`create_agent.py`、`start_rerank_server.py`、`chat.py` 等文件，适合本地快速体验和二次修改。知识库目录默认使用 `knowledge_base/`，也支持在向导中指定自定义相对路径或绝对路径；生成后的 `chat.py` 会打印当前实际使用的知识库目录，`start_rerank_server.py` 可直接启动本地 rerank sidecar。
+
+如果你希望在本地启用 `HybridRAGAgent` 的重排阶段，也可以启动随包提供的 rerank sidecar：
+
+```bash
+pip install "ni.agentkit[rerank]"
+agentkit-rerank-server --model qllama/bce-reranker-base_v1:f16
+```
+
+如果默认 `qllama/bce-reranker-base_v1:f16` 在当前 Ollama 版本上无法通过 `/api/embed` 提供向量，sidecar 会自动回退到 `qllama/bge-small-zh-v1.5:f16` 继续完成排序，避免整条检索链路中断。
+
+安装完成后，也可以通过以下入口快速查看文档、示例与工作目录脚手架：
+
+```bash
+agentkit-docs
+agentkit-hybrid-rag-init
+agentkit-rerank-server --help
+```
+
+```python
+import agentkit
+
+print(agentkit.get_docs_dir())      # 文档目录
+print(agentkit.get_examples_dir())  # 示例目录
+```
+
 ---
 
 ## 🚀 30 秒快速开始
@@ -111,6 +143,25 @@ agentkit/
 ├── utils/           # 工具函数（JSON Schema 生成）
 ├── examples/        # 使用示例
 └── docs/            # 文档
+```
+
+---
+
+## 🔨 构建打包
+
+```bash
+./build.sh          # 构建 wheel + sdist
+./build.sh clean    # 清理构建产物
+./build.sh test     # 在隔离环境中安装并验证
+./build.sh all      # 清理 + 构建 + 验证（推荐）
+```
+
+构建产物输出到 `dist/` 目录：
+
+```bash
+dist/
+├── ni_agentkit-0.8.1-py3-none-any.whl
+└── ni_agentkit-0.8.1.tar.gz
 ```
 
 ---

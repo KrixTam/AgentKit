@@ -862,14 +862,18 @@ from agentkit import HybridRAGAgent
 - 存储：向量库默认写入 `./.agentkit/rag_v2/chroma`，默认记忆写入 `./.agentkit/rag_v2/memory.db`
 - 记忆：默认启用 `SQLiteMemoryProvider`，可通过 `enable_memory=False` 关闭
 - 模型：最终回答模型支持任意 AgentKit 可识别模型标识；默认 embedding / reranker 使用本地 Ollama 模型
-- 依赖：需额外安装 `ni.agentkit[rag]`；PDF 仍需 `ni.agentkit[pdf]`
+- 依赖：需额外安装 `ni.agentkit[rag]`；若需本地 rerank sidecar，请安装 `ni.agentkit[rerank]`；PDF 仍需 `ni.agentkit[pdf]`
+- CLI：安装后可通过 `agentkit-hybrid-rag-init` 生成开箱即用的工作目录脚手架；向导支持默认 `knowledge_base/`、自定义相对路径或绝对路径知识库目录，并会额外生成 `start_rerank_server.py`
+- Rerank 服务：可通过 `agentkit-rerank-server` 启动兼容 `/api/rerank` / `/v1/rerank` 的本地 sidecar
+- Fallback：若默认 `qllama/bce-reranker-base_v1:f16` 在当前 Ollama 版本上无法通过 `/api/embed` 提供向量，sidecar 会自动回退到 `qllama/bge-small-zh-v1.5:f16`
+- 运行时提示：生成的 `chat.py` 启动时会打印当前实际使用的知识库目录；工作目录内 `.env` 的 `AGENTKIT_HYBRID_RAG_*` 配置优先于同名 shell 环境变量
 
 **构造与工厂**：
 
 | 方法 | 签名 | 说明 |
 |------|------|------|
 | `__init__` | `(..., model, config=None, memory_provider=None, embedder=None, reranker=None, vector_store=None, chunker=None, enable_memory=None, memory_db_path=None)` | 直接构造，支持注入自定义 provider |
-| `from_directory` | `(..., knowledge_dir, model, vector_store_dir=".agentkit/rag_v2/chroma", memory_db_path=".agentkit/rag_v2/memory.db", embedding_model="ollama/qllama/bge-small-zh-v1.5:f16", reranker_model="ollama/qllama/bce-reranker-base_v1:f16", chunk_size_tokens=350, chunk_overlap_tokens=50, recall_top_k=20, final_top_k=3, max_context_tokens=None, enable_memory=True, ...)` | 推荐入口 |
+| `from_directory` | `(..., knowledge_dir, model, vector_store_dir=".agentkit/rag_v2/chroma", memory_db_path=".agentkit/rag_v2/memory.db", embedding_model="ollama/qllama/bge-small-zh-v1.5:f16", reranker_model="ollama/qllama/bce-reranker-base_v1:f16", chunk_size_tokens=350, chunk_overlap_tokens=50, recall_top_k=20, final_top_k=3, max_context_tokens=None, enable_memory=True, embedding_base_url=None, reranker_base_url="http://127.0.0.1:11535", ...)` | 推荐入口 |
 
 **实例方法**：
 

@@ -75,6 +75,13 @@ class FakeReranker:
         return scored
 
 
+class BrokenReranker:
+    model = "broken-reranker"
+
+    def rerank(self, query: str, documents: list[str]) -> list[tuple[int, float]]:
+        raise RuntimeError("rerank endpoint unavailable")
+
+
 def test_hybrid_rag_load_and_search(tmp_path: Path):
     kb = tmp_path / "kb"
     kb.mkdir(parents=True, exist_ok=True)
@@ -163,3 +170,28 @@ def test_hybrid_rag_respects_context_budget(tmp_path: Path):
     hits = rag.search("Hybrid RAG 的持久化和 reranker")
     assert hits
     assert len(hits) == 1
+
+
+def test_hybrid_rag_falls_back_to_recall_when_reranker_is_unavailable(tmp_path: Path):
+    kb = tmp_path / "kb"
+    kb.mkdir(parents=True, exist_ok=True)
+    (kb / "guide.md").write_text(
+        "交易法则包括仓位控制、顺势而为、止损纪律和复盘机制。",
+        encoding="utf-8",
+    )
+
+    rag = HybridRAGAgent.from_directory(
+        knowledge_dir=str(kb),
+        model="ollama/qwen3.5:4b",
+        vector_store_dir=str(tmp_path / "vector"),
+        memory_db_path=str(tmp_path / "memory.db"),
+        vector_store=FakeVectorStore(str(tmp_path / "vector")),
+        reranker=BrokenReranker(),
+        final_top_k=1,
+    )
+
+    hits = rag.search("交易法则")
+
+    assert hits
+    assert hits[0].retriever == "hybrid"
+    assert "交易法则" in hits[0].content

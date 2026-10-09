@@ -18,6 +18,7 @@
 
 ```bash
 pip install ni.agenthub
+agenthub --version
 ```
 
 ---

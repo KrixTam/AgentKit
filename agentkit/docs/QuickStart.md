@@ -1345,11 +1345,42 @@ pip install "ni.agentkit[rag]"
 pip install "ni.agentkit[pdf]"   # 如果知识库包含 PDF
 ```
 
+如果你希望在本地启用默认的 rerank 阶段，建议同时安装 rerank sidecar 依赖并启动服务：
+
+```bash
+pip install "ni.agentkit[rag,rerank]"
+ollama serve
+ollama pull qllama/bce-reranker-base_v1:f16
+agentkit-rerank-server --model qllama/bce-reranker-base_v1:f16
+```
+
+如果你希望快速搭一个可直接运行的工作目录，也可以使用安装包自带的初始化向导：
+
+```bash
+agentkit-hybrid-rag-init
+```
+
+向导会逐步询问工作目录、知识库目录、回答模型、是否启用默认记忆以及高级检索参数，并生成：
+
+- 默认 `knowledge_base/`（也可在向导中指定自定义相对路径或绝对路径）
+- `.env` / `.env.example`
+- `create_agent.py`
+- `start_rerank_server.py`
+- `chat.py`
+- `README.md`
+
+生成完成后，进入目标目录执行 `python chat.py` 即可开始体验。
+
 说明：
 
 - `HybridRAGAgent` 保留 `SimpleRAGAgent` 的易用入口，但不再暴露 `tfidf`
+- 工作目录中的 `.env` 会作为该工作区的主配置源；如果 shell 中存在同名 `AGENTKIT_HYBRID_RAG_*` 环境变量，会以 `.env` 中的值为准
+- 工作目录会额外生成 `start_rerank_server.py`，便于按当前 `.env` 配置直接启动本地 rerank sidecar
 - 默认 embedding 走 Ollama `/api/embed`
-- 默认 reranker 走兼容 `/api/rerank` 或 `/v1/rerank` 的本地服务
+- 默认 reranker 走本地 `agentkit-rerank-server` 提供的兼容 `/api/rerank` / `/v1/rerank` 服务
+- 若 `qllama/bce-reranker-base_v1:f16` 在当前 Ollama 版本上无法通过 `/api/embed` 提供向量，sidecar 会自动回退到 `qllama/bge-small-zh-v1.5:f16`
+- 若 sidecar 未启动，`HybridRAGAgent` 会自动回退到混合召回结果，不阻断主流程
+- 生成的 `chat.py` 启动时会打印当前实际使用的知识库目录，便于排查自定义路径或绝对路径配置
 
 可运行文件：
 - `examples/standard/21_hybrid_rag_agent.py`
@@ -1363,6 +1394,9 @@ export AGENTKIT_HYBRID_RAG_VECTOR_STORE_DIR="./.agentkit/rag_v2/chroma"
 export AGENTKIT_HYBRID_RAG_MEMORY_DB_PATH="./.agentkit/rag_v2/memory.db"
 export AGENTKIT_HYBRID_RAG_EMBEDDING_MODEL="ollama/qllama/bge-small-zh-v1.5:f16"
 export AGENTKIT_HYBRID_RAG_RERANKER_MODEL="ollama/qllama/bce-reranker-base_v1:f16"
+export AGENTKIT_HYBRID_RAG_RERANKER_BASE_URL="http://127.0.0.1:11535"
+# 也可指向工作目录外部的绝对路径，例如：
+# export AGENTKIT_HYBRID_RAG_KNOWLEDGE_DIR="/Users/yourname/data/knowledge_base"
 ```
 
 ---

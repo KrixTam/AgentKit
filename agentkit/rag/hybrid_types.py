@@ -27,7 +27,7 @@ class HybridRAGConfig:
     embedding_model: str = "ollama/qllama/bge-small-zh-v1.5:f16"
     reranker_model: str = "ollama/qllama/bce-reranker-base_v1:f16"
     embedding_base_url: str | None = None
-    reranker_base_url: str | None = None
+    reranker_base_url: str | None = "http://127.0.0.1:11535"
     bm25_k1: float = 1.5
     bm25_b: float = 0.75
     rrf_k: int = 60

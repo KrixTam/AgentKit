@@ -213,6 +213,7 @@ pip install ni.agenthub
 - `--server`：默认 `http://127.0.0.1:8008`
 - `--token`：Bearer token（默认读取 `AGENTHUB_TOKEN`）
 - `--json`：机器可读输出
+- `--version`：输出当前 AgentHub 版本号并退出
 
 退出码约定：
 

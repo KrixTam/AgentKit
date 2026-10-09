@@ -200,7 +200,12 @@ class HybridRAGAgent:
     def _rerank(self, query: str, recall_hits: list[SearchHit], *, top_k: int) -> list[SearchHit]:
         if not recall_hits or top_k <= 0:
             return []
-        ranked = self.reranker.rerank(query, [hit.content for hit in recall_hits])
+        try:
+            ranked = self.reranker.rerank(query, [hit.content for hit in recall_hits])
+        except RuntimeError:
+            # 某些本地部署仅支持 embedding / generation，不暴露 rerank 接口；
+            # 此时回退到混合召回结果，避免整条检索链路不可用。
+            return self._trim_by_context_budget(recall_hits[:top_k])
         hits_by_index = {idx: score for idx, score in ranked}
 
         reranked: list[SearchHit] = []

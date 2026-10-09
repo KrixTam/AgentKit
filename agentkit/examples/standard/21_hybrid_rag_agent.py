@@ -5,7 +5,8 @@
   export OPENAI_API_KEY="sk-..."
   ollama serve
   ollama pull qllama/bge-small-zh-v1.5:f16
-  # reranker 需使用兼容 /api/rerank 或 /v1/rerank 的本地服务
+  ollama pull qllama/bce-reranker-base_v1:f16
+  agentkit-rerank-server --model qllama/bce-reranker-base_v1:f16
   mkdir -p ./knowledge_base
   echo "AgentKit 是一个 Python 原生 Agent 框架。" > ./knowledge_base/intro.txt
 """
@@ -35,6 +36,7 @@ def create_agent():
             "AGENTKIT_HYBRID_RAG_RERANKER_MODEL",
             "ollama/qllama/bce-reranker-base_v1:f16",
         ),
+        reranker_base_url=os.getenv("AGENTKIT_HYBRID_RAG_RERANKER_BASE_URL", "http://127.0.0.1:11535"),
         recall_top_k=int(os.getenv("AGENTKIT_HYBRID_RAG_RECALL_TOP_K", "20")),
         final_top_k=int(os.getenv("AGENTKIT_HYBRID_RAG_FINAL_TOP_K", "3")),
     )
