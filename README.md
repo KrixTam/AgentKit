@@ -52,7 +52,7 @@ flowchart LR
 ### AgentHub 文档
 
 - [概述](agenthub/docs/README.md)
-- [快速开始（启动、注册、调用、回放）](agenthub/docs/QuickStart.md)
+- [快速开始（启动、注册、调用、回放，含 HybridRAGAgent 工作目录示例）](agenthub/docs/QuickStart.md)
 - [架构设计](agenthub/docs/Architecture.md)
 - [API/CLI/配置参考](agenthub/docs/Reference.md)
 - [Agent 清单模板 `agent.yaml`](agenthub/docs/agent.yaml.example)

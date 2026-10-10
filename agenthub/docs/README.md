@@ -6,7 +6,7 @@
 
 ## 文档目录
 
-- [QuickStart.md](QuickStart.md) — 快速上手（启动服务、注册 Agent、调用与回放）
+- [QuickStart.md](QuickStart.md) — 快速上手（启动服务、注册 Agent、调用与回放，含 `SimpleRAGAgent` 最小示例与 `HybridRAGAgent` 工作目录示例）
 - [Architecture.md](Architecture.md) — 架构设计与 AgentKit 契约映射
 - [Reference.md](Reference.md) — API / CLI / 配置 / 存储接口参考
 - [agent.yaml.example](agent.yaml.example) — 可直接复制为 `agent.yaml` 的清单模板
@@ -33,6 +33,7 @@ agenthub --version
 - 平台治理：Bearer 鉴权（静态 token 或 OAuth/OIDC introspection，可选开启）、`tenant:user` 维度并发与速率配额（超限返回 `429 quota_exceeded:*`）、结构化审计日志
 - 可观测：`/healthz`、`/metrics`（Prometheus 文本格式，延迟统计为滑动窗口）、内置 Playground 控制台（鉴权/注册/调用/流式/HITL）
 - Chat 服务：可通过 `agenthub chat` 启动基于 Streamlit 的对话页面，直接调用已注册 Agent
+- RAG 接入：既支持通过 `agent.rag.yaml.example` 快速接入 `SimpleRAGAgent`，也支持通过 `agentkit-hybrid-rag-init` 生成工作目录后接入 `HybridRAGAgent`
 - 性能审计：请求级结构化审计日志包含 `action/timestamp/session_id/user_id/tenant_id/trace_id/status` 等核心字段，以及 `db_ops`、`event_write_ms`、`agent_resolve_ms` 等性能字段
 - 存储优化：同步 `invoke` 路径支持批量事件写入（`append_events`）；HITL 表单支持按 `suspension_id` 定向读取最新挂起事件（`get_latest_event`）
 

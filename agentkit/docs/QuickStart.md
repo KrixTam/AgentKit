@@ -1350,6 +1350,7 @@ pip install "ni.agentkit[pdf]"   # 如果知识库包含 PDF
 ```bash
 pip install "ni.agentkit[rag,rerank]"
 ollama serve
+ollama pull qllama/bge-small-zh-v1.5:f16
 ollama pull qllama/bce-reranker-base_v1:f16
 agentkit-rerank-server --model qllama/bce-reranker-base_v1:f16
 ```
@@ -1369,7 +1370,7 @@ agentkit-hybrid-rag-init
 - `chat.py`
 - `README.md`
 
-生成完成后，进入目标目录执行 `python chat.py` 即可开始体验。
+生成完成后，进入目标目录，推荐先执行 `python start_rerank_server.py`，再执行 `python chat.py` 开始体验。
 
 说明：
 

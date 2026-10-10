@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import tempfile
+from pathlib import Path
 
 import pytest
 
@@ -53,3 +54,25 @@ def test_manifest_new_fields_and_schema_backward_compat():
     assert m.requires_human_input is True
     assert m.skills == ["s1", "s2"]
     assert m.model_cosplay == "gpt-4o-mini"
+
+
+def test_load_manifest_resolves_relative_file_entry_against_manifest_path(tmp_path: Path):
+    entry_file = tmp_path / "create_agent.py"
+    entry_file.write_text("def create_agent():\n    return object()\n", encoding="utf-8")
+
+    manifest_file = tmp_path / "agent.hybrid-rag.yaml"
+    manifest_file.write_text(
+        "\n".join(
+            [
+                "name: demo-hybrid-rag",
+                'version: "1.0.0"',
+                'description: "demo"',
+                "entry: ./create_agent.py:create_agent",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    manifest = load_manifest(manifest_file)
+
+    assert manifest.entry == f"{entry_file.resolve()}:create_agent"

@@ -38,6 +38,7 @@ pip install "ni.agentkit[google]"    # Google Gemini
 pip install "ni.agentkit[memory]"    # 记忆系统 (mem0)
 pip install "ni.agentkit[pdf]"       # PDF 知识库解析（可选）
 pip install "ni.agentkit[rag]"       # HybridRAGAgent（ChromaDB）
+pip install "ni.agentkit[rerank]"    # 本地 rerank sidecar
 pip install "ni.agentkit[all]"       # 安装所有可选依赖
 ```
 
@@ -47,11 +48,14 @@ pip install "ni.agentkit[all]"       # 安装所有可选依赖
 agentkit-hybrid-rag-init
 ```
 
-该命令会通过交互式向导生成 `.env`、`create_agent.py`、`start_rerank_server.py`、`chat.py` 等文件，适合本地快速体验和二次修改。知识库目录默认使用 `knowledge_base/`，也支持在向导中指定自定义相对路径或绝对路径；生成后的 `chat.py` 会打印当前实际使用的知识库目录，`start_rerank_server.py` 可直接启动本地 rerank sidecar。
+该命令会通过交互式向导生成 `.env`、`create_agent.py`、`start_rerank_server.py`、`chat.py`、`README.md` 等文件，适合本地快速体验和二次修改。知识库目录默认使用 `knowledge_base/`，也支持在向导中指定自定义相对路径或绝对路径；生成后的 `chat.py` 会打印当前实际使用的知识库目录，`start_rerank_server.py` 可直接启动本地 rerank sidecar。推荐进入工作目录后先执行 `python start_rerank_server.py`，再执行 `python chat.py`。
 
 如果你希望在本地启用 `HybridRAGAgent` 的重排阶段，也可以启动随包提供的 rerank sidecar：
 
 ```bash
+ollama serve
+ollama pull qllama/bge-small-zh-v1.5:f16
+ollama pull qllama/bce-reranker-base_v1:f16
 pip install "ni.agentkit[rerank]"
 agentkit-rerank-server --model qllama/bce-reranker-base_v1:f16
 ```

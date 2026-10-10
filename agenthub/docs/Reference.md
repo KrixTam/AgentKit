@@ -44,11 +44,42 @@
 补充约束：
 
 - `entry` 指向的 `create_agent` 必须是**无参工厂函数**，并返回一个可运行的 AgentKit Agent 实例。
-- `entry` 使用相对路径时，路径解析基于执行 `agenthub register` 时的当前工作目录。
+- `entry` 使用相对路径时，路径解析基于 manifest 文件所在目录；注册时会固化为绝对路径，避免 Hub 服务进程在后续调用时因当前工作目录不同而解析错误。
 - 该示例依赖 `SimpleRAGAgent` 默认读取 `./knowledge_base` 目录，因此注册前需先准备知识库文件。
 - `SimpleRAGAgent` 默认会把知识库索引与内置记忆统一写入 `./.agentkit/rag/index.db`；如需自定义路径，请在入口脚本中调整 `storage_path`。
 - 当前知识库输入支持 `txt/md/markdown/pdf`；如果使用 PDF，目标环境需额外安装 `ni.agentkit[pdf]` 或 `pypdf`。
 - 如果目标环境没有配置可用模型（例如标准版示例所需 API Key），注册虽可成功，但运行时会在 Agent 实例加载或推理阶段失败。
+
+### `HybridRAGAgent + AgentHub` 工作目录接入
+
+对于 `HybridRAGAgent`，当前更推荐使用 AgentKit 初始化向导生成工作目录后，再由 AgentHub 基于该工作目录生成 Manifest，而不是提供一份固定的 `agent.yaml` 模板。
+
+推荐步骤如下：
+
+```bash
+pip install "ni.agentkit[rag,rerank]"
+agentkit-hybrid-rag-init
+cd ./hybrid-rag-workspace
+python start_rerank_server.py
+```
+
+在另一个终端、同一工作目录下生成 Manifest：
+
+```bash
+agenthub manifest generate \
+  --entry ./create_agent.py:create_agent \
+  --output ./agent.hybrid-rag.yaml \
+  --name demo-hybrid-rag \
+  --description "HybridRAGAgent 工作目录示例"
+```
+
+关键说明：
+
+- `create_agent.py:create_agent` 是向导生成的**无参工厂函数**，符合 AgentHub Manifest 对 `entry` 的约束
+- 该脚本会读取同目录下的 `.env`，因此 `AGENTKIT_HYBRID_RAG_*` 配置会在 Hub 注册后继续生效
+- 推荐先启动 `python start_rerank_server.py`，再通过 Hub / Playground / Chat 调用该 Agent
+- 如果 sidecar 未启动，`HybridRAGAgent` 会回退到混合召回结果，但这属于降级路径
+- 如果知识库目录配置为工作目录外部的相对路径或绝对路径，AgentHub 运行时同样会沿用该设置
 
 ### SessionStatus
 

@@ -82,7 +82,7 @@ agenthub manifest generate \
 常见报错排查：
 
 - `manifest_generate_failed: not enough values to unpack ...`：`--entry` 格式错误，需使用 `module:attr` 或 `path.py:attr`。
-- `manifest_generate_failed: entry 文件不存在 ...`：文件路径不存在或当前目录不正确，建议先执行 `pwd` 确认位置。
+- `manifest_generate_failed: entry 文件不存在 ...`：文件路径不存在；如果使用 `path.py:attr`，请确认入口文件存在，并优先使用相对于 manifest 文件的路径。
 - `manifest_generate_failed: No module named ...`：模块不可导入，检查虚拟环境依赖与执行目录。
 - `manifest_generate_failed: 模块中不存在属性 ...`：`attr` 名称错误，确认代码中确实定义了该符号。
 - `manifest_generate_failed: ... required positional arguments ...`：入口函数需要参数，建议改为无参工厂，或让 `entry` 指向已创建的 Agent 实例。
@@ -114,7 +114,7 @@ runner_config:
 tags: [demo, stable]
 ```
 
-`entry` 支持 `module:attr` 与 `path.py:attr` 两种格式；若校验失败，服务端会返回字段级错误信息。
+`entry` 支持 `module:attr` 与 `path.py:attr` 两种格式；若校验失败，服务端会返回字段级错误信息。对于 `path.py:attr`，相对路径会在注册时按 manifest 文件所在目录解析并固化。
 当 `agent.yaml` 配置了 `model_cosplay` 时，Hub 会在实例化该 Agent 后默认应用该配置；如果调用请求中也传入了 `model_cosplay`，则请求参数优先。
 上述示例可直接用（将 `agent.yaml.example` 重命名/复制为 `agent.yaml` 后可注册并调用）。
 
@@ -147,6 +147,54 @@ agenthub run demo-simple-rag --input "AgentKit 有哪些核心能力？"
 - 该示例默认读取 `./knowledge_base`，并将知识库索引与默认记忆统一落盘到 `./.agentkit/rag/index.db`
 - 知识库当前支持 `txt/md/markdown/pdf`；如果包含 PDF，请先安装 `pip install "ni.agentkit[pdf]"`
 - 模板默认指向 standard 版示例入口；如果你希望本地 Ollama 直接验证，可将 `entry` 改为 `./agentkit/examples/ollama/20_simple_rag_agent.py:create_agent`
+
+### 2.2 `HybridRAGAgent + AgentHub` 工作目录示例
+
+如果你想在 Hub / Playground / Chat 页面里验证 `HybridRAGAgent`，推荐直接复用 AgentKit 初始化向导生成的工作目录，而不是手写一份固定模板。
+
+先安装 `HybridRAGAgent` 及 rerank sidecar 所需依赖：
+
+```bash
+pip install "ni.agentkit[rag,rerank]"
+```
+
+生成工作目录：
+
+```bash
+agentkit-hybrid-rag-init
+cd ./hybrid-rag-workspace
+```
+
+向导会生成 `.env`、`create_agent.py`、`start_rerank_server.py`、`chat.py` 与 `README.md`。其中 `create_agent.py` 会读取当前工作目录的 `.env`，因此你在工作目录里配置的知识库目录、模型、向量库路径、SQLite 记忆路径与 reranker 地址，会在 AgentHub 注册后继续生效。
+
+把你的知识库文档放入工作目录配置的知识库目录后，先在一个终端启动本地 rerank sidecar：
+
+```bash
+python start_rerank_server.py
+```
+
+再打开另一个终端，仍然停留在同一个工作目录，生成并注册 Manifest：
+
+```bash
+agenthub manifest generate \
+  --entry ./create_agent.py:create_agent \
+  --output ./agent.hybrid-rag.yaml \
+  --name demo-hybrid-rag \
+  --description "HybridRAGAgent 工作目录示例"
+
+agenthub register ./agent.hybrid-rag.yaml --alias latest --alias stable
+agenthub run demo-hybrid-rag --input "AgentKit 有哪些核心能力？"
+```
+
+也可在 Playground 或 `agenthub chat` 页面中将 `Agent 名称` 设置为 `demo-hybrid-rag` 进行同步调用、流式调用与会话回放验证。
+
+补充说明：
+
+- 这条路径复用的是 AgentKit 工作目录，因此更贴近安装包实际使用方式，不依赖仓库内 `agentkit/examples/...` 的相对路径
+- 推荐在运行 `agenthub run`、Playground 或 Chat 页面前先启动 `python start_rerank_server.py`
+- 如果 sidecar 未启动，`HybridRAGAgent` 会自动回退到混合召回结果，不会阻断主流程，但这不是推荐体验
+- 若你在向导中将知识库目录配置为工作目录外部的绝对路径，Hub 注册后也会继续沿用该配置
+- 如需 PDF 知识库解析，请额外安装 `pip install "ni.agentkit[pdf]"`
 
 ***
 

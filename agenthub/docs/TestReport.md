@@ -32,8 +32,8 @@
 
 | 场景 | 耗时 | 备注 |
 |---|---:|---|
-| 验收测试套件（11 项） | 0.75s | `python -m pytest ./tests/test_acceptance_gateway.py -q`（`11 passed`） |
-| 全量测试套件（22 项） | 0.66s | `python -m pytest ./tests -q`（`22 passed`） |
+| 验收测试套件（11 项） | 0.66s | `python -m pytest ./tests/test_acceptance_gateway.py -q`（`11 passed`） |
+| 全量测试套件（25 项） | 0.78s | `python -m pytest ./tests -q`（`25 passed`） |
 | 注册 Agent | 已覆盖 | 含 manifest 校验 |
 | 首次 invoke | 已覆盖 | 含 entry 首次加载与原型缓存路径 |
 | SSE 流式会话 | 已覆盖 | 含事件持久化 |
@@ -57,7 +57,7 @@
 
 | 问题 | 严重程度 | 说明 |
 |---|:---:|---|
-| 运行异常 | - | 无，当前 22 项测试全部通过 |
+| 运行异常 | - | 无，当前 25 项测试全部通过 |
 
 ---
 
